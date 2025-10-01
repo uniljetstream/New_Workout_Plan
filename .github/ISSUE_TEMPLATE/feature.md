@@ -1,5 +1,5 @@
 ---
-name: 기능 개발
+name: 새로운 기능 개발
 about: 새로운 기능 개발 이슈
 title: '[FEATURE] '
 labels: feature
