@@ -1,5 +1,5 @@
 ---
-name: 작업
+name: 작업 관리
 about: 일반 작업 및 TODO
 title: '[TASK] '
 labels: task
