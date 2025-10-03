@@ -316,3 +316,29 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,linux,c++,c,python,opencv,visualstudiocode
 
+### ESP-IDF ###
+# Build output
+build/
+sdkconfig
+sdkconfig.old
+sdkconfig.defaults.old
+dependencies.lock
+managed_components/
+
+# Flash download tool
+flash_project_args
+
+# Bootloader files
+bootloader/
+
+# Partition files
+partitions.csv
+
+# IDE
+.devcontainer/
+.idea/
+.vscode/settings.json
+
+# IDF Monitor
+idf_monitor.log
+
