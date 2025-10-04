@@ -15,8 +15,5 @@
     "--background-index",
     "--query-driver=/home/ubuntu07/.espressif/tools/xtensa-esp-elf/esp-15.1.0_20250607/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc",
     "--compile-commands-dir=${workspaceFolder}/build"
-  ],
-  "files.associations": {
-    "sdkconfig.h": "c"
-  }
+  ]
 }
