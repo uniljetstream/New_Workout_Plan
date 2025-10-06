@@ -1,13 +1,53 @@
-menu "Example Configuration"
+menu "ESP32 MPU6050 MQTT Configuration"
 
-    config BROKER_URL
-        string "Broker URL"
-        default "mqtt://mqtt.eclipseprojects.io"
-        help
-            URL of the broker to connect to
+    menu "Wi-Fi Configuration"
+        config WIFI_SSID
+            string "WiFi SSID"
+            default "myssid"
+            help
+                SSID (network name) for the ESP32 to connect to.
+
+        config WIFI_PASSWORD
+            string "WiFi Password"
+            default "mypassword"
+            help
+                WiFi password (WPA or WPA2) for the ESP32 to use.
+
+        config WIFI_MAX_RETRY
+            int "Maximum retry"
+            default 5
+            help
+                Set the Maximum retry to avoid station reconnecting to the AP unlimited when the AP is really inexistent.
+    endmenu
+
+    menu "MQTT Configuration"
+        config MQTT_BROKER_URL
+            string "Broker URL"
+            default "mqtt://mqtt.eclipseprojects.io:1883"
+            help
+                URL of the MQTT broker to connect to
+
+        config MQTT_TOPIC_SENSOR_DATA
+            string "Sensor Data Topic"
+            default "esp32/sensor/data"
+            help
+                MQTT topic for publishing sensor data
+
+        config MQTT_TOPIC_COMMAND
+            string "Command Topic"
+            default "esp32/command"
+            help
+                MQTT topic for receiving commands
+
+        config MQTT_TOPIC_RESPONSE
+            string "Response Topic"
+            default "esp32/response"
+            help
+                MQTT topic for publishing responses
+    endmenu
 
     config BROKER_URL_FROM_STDIN
         bool
-        default y if BROKER_URL = "FROM_STDIN"
+        default y if MQTT_BROKER_URL = "FROM_STDIN"
 
 endmenu

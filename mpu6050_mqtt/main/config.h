@@ -8,17 +8,20 @@
 #include <stdint.h>
 
 // ========== Wi-Fi 설정 ==========
-#define WIFI_SSID "embA"
-#define WIFI_PASSWORD "embA1234"
-#define WIFI_MAX_RETRY 5
+// menuconfig에서 설정 (idf.py menuconfig -> ESP32 MPU6050 MQTT Configuration)
+#define WIFI_SSID CONFIG_WIFI_SSID
+#define WIFI_PASSWORD CONFIG_WIFI_PASSWORD
+#define WIFI_MAX_RETRY CONFIG_WIFI_MAX_RETRY
 
 // ========== MQTT 브로커 설정 ==========
-#define MQTT_BROKER_URL "mqtt://10.10.16.111:1883"
+// menuconfig에서 설정 (idf.py menuconfig -> ESP32 MPU6050 MQTT Configuration)
+#define MQTT_BROKER_URL CONFIG_MQTT_BROKER_URL
 
 // ========== MQTT 토픽 설정 ==========
-#define MQTT_TOPIC_SENSOR_DATA "esp32/sensor/data"
-#define MQTT_TOPIC_COMMAND "esp32/command"
-#define MQTT_TOPIC_RESPONSE "esp32/response"
+// menuconfig에서 설정 (idf.py menuconfig -> ESP32 MPU6050 MQTT Configuration)
+#define MQTT_TOPIC_SENSOR_DATA CONFIG_MQTT_TOPIC_SENSOR_DATA
+#define MQTT_TOPIC_COMMAND CONFIG_MQTT_TOPIC_COMMAND
+#define MQTT_TOPIC_RESPONSE CONFIG_MQTT_TOPIC_RESPONSE
 
 // ========== 센서 설정 ==========
 #define DEFAULT_PUBLISH_INTERVAL_MS 5000  // 기본 전송 주기: 5초
