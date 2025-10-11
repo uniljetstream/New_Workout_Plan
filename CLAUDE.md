@@ -213,11 +213,11 @@ WatchTower communicates with STM32 via UART to control MG966R servo motors.
 
 **Command format**: `<CMD>:<VALUE>\n`
 
-Supported commands (MG996R: 0-120° range):
-- `PAN:60\n` - Set Pan angle to 60° (0-120°, center)
-- `TILT:45\n` - Set Tilt angle to 45° (0-120°)
-- `PANTILT:60,60\n` - Set both Pan and Tilt simultaneously
-- `CENTER\n` - Return to center position (60,60)
+Supported commands (MG996R: -60~60° range, center at 0,0):
+- `PAN:0\n` - Set Pan angle to 0° (-60~60°, center)
+- `TILT:-30\n` - Set Tilt angle to -30° (-60~60°)
+- `PANTILT:0,0\n` - Set both Pan and Tilt simultaneously
+- `CENTER\n` - Return to center position (0,0)
 - `STOP\n` - Stop servo motors
 
 **Tracking algorithm**:

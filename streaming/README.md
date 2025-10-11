@@ -343,17 +343,15 @@ ls /dev/ttyUSB* /dev/ttyACM*
 **지원 명령어:**
 | 명령어 | 형식 | 설명 | 예시 |
 |--------|------|------|------|
-| PAN | `PAN:<각도>\n` | Pan 각도 설정 (0-120도) | `PAN:60\n` |
-| TILT | `TILT:<각도>\n` | Tilt 각도 설정 (0-120도) | `TILT:45\n` |
-| PANTILT | `PANTILT:<pan>,<tilt>\n` | Pan/Tilt 동시 설정 | `PANTILT:60,60\n` |
-| CENTER | `CENTER\n` | 중앙 위치로 복귀 (60,60) | `CENTER\n` |
+| PAN | `PAN:<각도>\n` | Pan 각도 설정 (-60~60도) | `PAN:0\n` |
+| TILT | `TILT:<각도>\n` | Tilt 각도 설정 (-60~60도) | `TILT:-30\n` |
+| PANTILT | `PANTILT:<pan>,<tilt>\n` | Pan/Tilt 동시 설정 | `PANTILT:0,0\n` |
+| CENTER | `CENTER\n` | 중앙 위치로 복귀 (0,0) | `CENTER\n` |
 | STOP | `STOP\n` | 서보 모터 정지 | `STOP\n` |
 
-**참고**: MG996R 서보모터는 120도 가동 범위를 가집니다 (0-120도).
+**참고**: MG996R 서보모터는 120도 가동 범위를 가지며, 중앙(0,0)을 기준으로 -60~60도 범위로 제어합니다.
 
-**STM32 응답 (선택사항):**
-- 성공: `OK\n`
-- 실패: `ERROR:<message>\n`
+
 
 ### 추적 알고리즘 설정
 

@@ -102,13 +102,6 @@ class UARTController:
             self.serial.write(command.encode('utf-8'))
             self.serial.flush()
 
-            # 응답 읽기 (선택사항)
-            if self.serial.in_waiting > 0:
-                response = self.serial.readline().decode('utf-8').strip()
-                if response.startswith('ERROR'):
-                    print(f"✗ STM32 오류: {response}")
-                    return False
-
             return True
 
         except serial.SerialException as e:
