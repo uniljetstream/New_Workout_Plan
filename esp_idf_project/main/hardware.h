@@ -26,6 +26,11 @@
 #define TP_RST      16  // Touch Reset
 #define TP_IRQ      17  // Touch Interrupt
 
+// 심박 센서 (MAX30102) 핀 구성
+#define HR_SDA      TP_SDA   // 터치 센서와 동일 I2C SDA
+#define HR_SCL      TP_SCL   // 터치 센서와 동일 I2C SCL
+#define HR_INT      19       // (옵션) 센서 인터럽트 입력
+
 // 전역 하드웨어 객체
 extern st7789_t lcd;
 extern cst816s_t touch;

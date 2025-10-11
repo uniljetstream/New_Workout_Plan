@@ -12,6 +12,7 @@
 #include "freertos/task.h"
 #include "hardware.h"
 #include "wifi.h"
+#include "sensor.h"
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
@@ -35,6 +36,7 @@ static lv_obj_t *label_date = NULL;
 static lv_obj_t *screen_main = NULL;
 static lv_obj_t *screen_wifi = NULL;
 static lv_obj_t *screen_password = NULL;
+static lv_obj_t *screen_sensor = NULL;
 
 // WiFi 관련 변수
 static wifi_scan_result_t wifi_scan_results[MAX_WIFI_SCAN_RESULTS];
@@ -45,6 +47,11 @@ static lv_obj_t *password_textarea = NULL;
 // WiFi 상태 플래그
 static volatile bool wifi_status_changed = false;
 static volatile bool wifi_last_status = false;
+
+// 심박수 표시용 변수
+static lv_obj_t *label_heart_rate_sensor = NULL;
+static volatile bool heart_rate_updated = false;
+static volatile uint16_t heart_rate_latest_bpm = 0;
 
 // ============================================================================
 // 내부 함수 (Private Functions)
@@ -150,16 +157,27 @@ static void lvgl_task(void *pvParameter)
             if (wifi_last_status)
             {
                 ESP_LOGI(TAG, "배경색을 초록색으로 변경");
-                lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x0000FF), 0);  //초록색
+                lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x00FF00), 0);  //초록색
             }
             else
             {
                 ESP_LOGI(TAG, "배경색을 빨간색으로 변경");
-                lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x00FF00), 0);  // 빨간색
+                lv_obj_set_style_bg_color(screen_main, lv_color_hex(0xFF0000), 0);  // 빨간색
             }
 
             // 2초 후 배경색을 원래대로 복구
             lv_timer_create(reset_bg_color_cb, 2000, NULL);
+        }
+
+        // 심박수 업데이트 확인
+        if (heart_rate_updated)
+        {
+            heart_rate_updated = false;
+            uint16_t bpm = heart_rate_latest_bpm;
+            if (label_heart_rate_sensor != NULL)
+            {
+                lv_label_set_text_fmt(label_heart_rate_sensor, "%u bpm", bpm);
+            }
         }
 
         lv_timer_handler();
@@ -388,15 +406,95 @@ static void left_button_event_handler(lv_event_t *e)
 }
 
 /**
- * 오른쪽 버튼 클릭 이벤트 핸들러
+ * 심박 센서 화면 뒤로가기 버튼 이벤트 핸들러
  */
-static void right_button_event_handler(lv_event_t *e)
+static void sensor_back_button_event_handler(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED)
     {
-        ESP_LOGI(TAG, "오른쪽 버튼 클릭됨!");
+        ESP_LOGI(TAG, "심박 센서 화면 - 뒤로가기");
+        label_heart_rate_sensor = NULL;
+        lv_scr_load(screen_main);
     }
+}
+
+/**
+ * 심박 센서 화면 표시
+ */
+static void show_sensor_screen(void)
+{
+    ESP_LOGI(TAG, "심박 센서 화면 표시");
+
+    label_heart_rate_sensor = NULL;
+
+    if (screen_sensor != NULL)
+    {
+        lv_obj_del(screen_sensor);
+    }
+
+    screen_sensor = lv_obj_create(NULL);
+
+    // 제목
+    lv_obj_t *title = lv_label_create(screen_sensor);
+    lv_label_set_text(title, "Heart Rate");
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
+
+    // 심박수 라벨
+    label_heart_rate_sensor = lv_label_create(screen_sensor);
+    lv_label_set_text(label_heart_rate_sensor, "-- bpm");
+    lv_obj_align(label_heart_rate_sensor, LV_ALIGN_CENTER, 0, -10);
+    lv_obj_set_style_text_font(label_heart_rate_sensor, &lv_font_montserrat_40, 0);
+    lv_obj_set_style_text_align(label_heart_rate_sensor, LV_TEXT_ALIGN_CENTER, 0);
+
+    uint16_t bpm = heart_rate_sensor_get_bpm();
+    if (bpm > 0)
+    {
+        lv_label_set_text_fmt(label_heart_rate_sensor, "%u bpm", bpm);
+    }
+
+    // 안내 문구
+    lv_obj_t *hint = lv_label_create(screen_sensor);
+    lv_label_set_text(hint, "Place finger and hold steady.");
+    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 40);
+    lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
+
+    // 뒤로가기 버튼
+    lv_obj_t *btn_back = lv_btn_create(screen_sensor);
+    lv_obj_set_size(btn_back, 120, 45);
+    lv_obj_align(btn_back, LV_ALIGN_BOTTOM_MID, 0, -20);
+    lv_obj_add_event_cb(btn_back, sensor_back_button_event_handler, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *label_back = lv_label_create(btn_back);
+    lv_label_set_text(label_back, "Back");
+    lv_obj_center(label_back);
+
+    lv_scr_load(screen_sensor);
+}
+
+/**
+ * Sensor 버튼 클릭 이벤트 핸들러
+ */
+static void sensor_button_event_handler(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED)
+    {
+        ESP_LOGI(TAG, "Sensor 버튼 클릭!");
+        show_sensor_screen();
+    }
+}
+
+/**
+ * 심박 센서 데이터 콜백
+ */
+static void heart_rate_sensor_callback(uint16_t bpm, void *ctx)
+{
+    (void)ctx;
+    heart_rate_latest_bpm = bpm;
+    heart_rate_updated = true;
 }
 
 static void create_default_ui(void)
@@ -432,16 +530,16 @@ static void create_default_ui(void)
     lv_label_set_text(label_left, "WiFi");
     lv_obj_center(label_left);
 
-    // 오른쪽 버튼 생성
-    lv_obj_t *btn_right = lv_btn_create(screen_main);
-    lv_obj_set_size(btn_right, 100, 50);
-    lv_obj_align(btn_right, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
-    lv_obj_add_event_cb(btn_right, right_button_event_handler, LV_EVENT_CLICKED, NULL);
+    // Sensor 버튼 생성
+    lv_obj_t *btn_sensor = lv_btn_create(screen_main);
+    lv_obj_set_size(btn_sensor, 100, 50);
+    lv_obj_align(btn_sensor, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+    lv_obj_add_event_cb(btn_sensor, sensor_button_event_handler, LV_EVENT_CLICKED, NULL);
 
-    // 오른쪽 버튼 라벨
-    lv_obj_t *label_right = lv_label_create(btn_right);
-    lv_label_set_text(label_right, "Right");
-    lv_obj_center(label_right);
+    // Sensor 버튼 라벨
+    lv_obj_t *label_sensor = lv_label_create(btn_sensor);
+    lv_label_set_text(label_sensor, "Sensor");
+    lv_obj_center(label_sensor);
 
     // 메인 화면 로드
     lv_scr_load(screen_main);
@@ -495,6 +593,9 @@ esp_err_t ui_init(void)
 
     // 기본 UI 생성
     create_default_ui();
+
+    // 초기 심박수 반영 및 콜백 등록
+    heart_rate_sensor_register_callback(heart_rate_sensor_callback, NULL);
 
     ESP_LOGI(TAG, "LVGL 초기화 완료");
     return ESP_OK;
