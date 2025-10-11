@@ -123,7 +123,7 @@ class UARTController:
         Pan 각도 전송
 
         Args:
-            angle: Pan 각도 (0-120도, MG996R 가동 범위)
+            angle: Pan 각도 (-60~60도)
 
         Returns:
             bool: 전송 성공 여부
@@ -139,7 +139,7 @@ class UARTController:
         Tilt 각도 전송
 
         Args:
-            angle: Tilt 각도 (0-120도, MG996R 가동 범위)
+            angle: Tilt 각도 (-60~60도)
 
         Returns:
             bool: 전송 성공 여부
@@ -155,8 +155,8 @@ class UARTController:
         Pan과 Tilt 각도를 동시에 전송
 
         Args:
-            pan_angle: Pan 각도 (0-120도, MG996R 가동 범위)
-            tilt_angle: Tilt 각도 (0-120도, MG996R 가동 범위)
+            pan_angle: Pan 각도 (-60~60도)
+            tilt_angle: Tilt 각도 (-60~60도)
 
         Returns:
             bool: 전송 성공 여부
@@ -217,20 +217,20 @@ def main():
         uart.center()
         time.sleep(1)
 
-        print("\n📍 왼쪽으로 Pan (45도)...")
-        uart.send_pan(45)
+        print("\n📍 왼쪽으로 Pan (-30도)...")
+        uart.send_pan(-30)
         time.sleep(1)
 
-        print("\n📍 오른쪽으로 Pan (135도)...")
-        uart.send_pan(135)
+        print("\n📍 오른쪽으로 Pan (30도)...")
+        uart.send_pan(30)
         time.sleep(1)
 
-        print("\n📍 위로 Tilt (60도)...")
-        uart.send_tilt(60)
+        print("\n📍 위로 Tilt (-30도)...")
+        uart.send_tilt(-30)
         time.sleep(1)
 
-        print("\n📍 아래로 Tilt (120도)...")
-        uart.send_tilt(120)
+        print("\n📍 아래로 Tilt (30도)...")
+        uart.send_tilt(30)
         time.sleep(1)
 
         print("\n📍 중앙 복귀...")

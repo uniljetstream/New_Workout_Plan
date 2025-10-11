@@ -53,15 +53,15 @@ class WatchTowerConfig:
     UART_TIMEOUT = 1.0                 # UART 타임아웃 (초)
 
     # ============================================
-    # 팬틸트 서보 설정 (MG996R: 120도 가동 범위)
+    # 팬틸트 서보 설정 (MG996R: -60~60도 범위)
     # ============================================
     PANTILT_ENABLED = True             # 팬틸트 제어 활성화 여부
-    PAN_MIN = 0                        # Pan 최소 각도
-    PAN_MAX = 120                      # Pan 최대 각도 (MG996R: 120도)
-    PAN_CENTER = 60                    # Pan 중앙 각도 (120도 / 2)
-    TILT_MIN = 0                       # Tilt 최소 각도
-    TILT_MAX = 120                     # Tilt 최대 각도 (MG996R: 120도)
-    TILT_CENTER = 60                   # Tilt 중앙 각도 (120도 / 2)
+    PAN_MIN = -60                      # Pan 최소 각도
+    PAN_MAX = 60                       # Pan 최대 각도
+    PAN_CENTER = 0                     # Pan 중앙 각도
+    TILT_MIN = -60                     # Tilt 최소 각도
+    TILT_MAX = 60                      # Tilt 최대 각도
+    TILT_CENTER = 0                    # Tilt 중앙 각도
 
     # ============================================
     # 추적 알고리즘 설정
