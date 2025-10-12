@@ -56,6 +56,7 @@ class WatchTowerConfig:
     # 팬틸트 서보 설정 (MG996R: -60~60도 범위)
     # ============================================
     PANTILT_ENABLED = True             # 팬틸트 제어 활성화 여부
+    PANTILT_VERBOSE = False            # 팬틸트 UART 전송 로그 상세 출력
     PAN_MIN = -60                      # Pan 최소 각도
     PAN_MAX = 60                       # Pan 최대 각도
     PAN_CENTER = 0                     # Pan 중앙 각도

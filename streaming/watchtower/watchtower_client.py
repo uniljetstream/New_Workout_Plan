@@ -292,11 +292,21 @@ class WatchTowerClient:
                             pan, tilt = self.tracker.calculate_pan_tilt_angles()
 
                             # UART로 각도 전송
-                            self.uart.send_pan_tilt(pan, tilt)
+                            uart_success = self.uart.send_pan_tilt(
+                                pan, tilt,
+                                verbose=self.config.PANTILT_VERBOSE
+                            )
 
                             # 추적 정보 출력
                             track_info = self.tracker.get_tracking_info()
-                            print(f" | 추적: ({track_info['target_x']}, {track_info['target_y']}) | Pan={pan:.0f}° Tilt={tilt:.0f}°", end='')
+                            uart_status = "✓" if uart_success else "✗"
+                            print(f" | 🎯 추적: ({track_info['target_x']}, {track_info['target_y']}) | 📐 Pan={pan:.0f}° Tilt={tilt:.0f}° {uart_status}", end='')
+                        else:
+                            # 추적 실패 (사람 미감지)
+                            print(f" | 🎯 추적: 대상 없음", end='')
+                    elif self.pantilt_enabled and not self.uart:
+                        # 팬틸트가 활성화되었지만 UART 연결 실패
+                        print(f" | 🎯 추적: UART 연결 안됨", end='')
 
                     print()  # 개행
 

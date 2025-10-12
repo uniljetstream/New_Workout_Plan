@@ -143,13 +143,14 @@ class UARTController:
         command = f"TILT:{int(angle)}"
         return self.send_command(command)
 
-    def send_pan_tilt(self, pan_angle, tilt_angle):
+    def send_pan_tilt(self, pan_angle, tilt_angle, verbose=False):
         """
         Pan과 Tilt 각도를 동시에 전송
 
         Args:
             pan_angle: Pan 각도 (-60~60도)
             tilt_angle: Tilt 각도 (-60~60도)
+            verbose: 상세 로그 출력 여부
 
         Returns:
             bool: 전송 성공 여부
@@ -159,7 +160,13 @@ class UARTController:
         tilt_angle = max(WatchTowerConfig.TILT_MIN, min(WatchTowerConfig.TILT_MAX, tilt_angle))
 
         command = f"PANTILT:{int(pan_angle)},{int(tilt_angle)}"
-        return self.send_command(command)
+        success = self.send_command(command)
+
+        if verbose:
+            status = "✓" if success else "✗"
+            print(f"    {status} UART 전송: {command}")
+
+        return success
 
     def center(self):
         """
