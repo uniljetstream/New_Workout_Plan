@@ -10,11 +10,11 @@
 	</section>
 	<section name="FileSystemImportWizard">
 		<section name="FileSystemImportWizard.dialogBounds">
-			<item key="DIALOG_X_ORIGIN" value="668"/>
-			<item key="DIALOG_Y_ORIGIN" value="150"/>
-			<item key="DIALOG_WIDTH" value="667"/>
-			<item key="DIALOG_HEIGHT" value="694"/>
-			<item key="DIALOG_FONT_NAME" value="1|Ubuntu Sans|11.0|0|GTK|1|"/>
+			<item key="DIALOG_X_ORIGIN" value="942"/>
+			<item key="DIALOG_Y_ORIGIN" value="354"/>
+			<item key="DIALOG_WIDTH" value="715"/>
+			<item key="DIALOG_HEIGHT" value="664"/>
+			<item key="DIALOG_FONT_NAME" value="1|Ubuntu|11.0|0|GTK|1|"/>
 		</section>
 	</section>
 </section>

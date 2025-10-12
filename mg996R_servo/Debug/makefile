@@ -60,8 +60,8 @@ all: main-build
 main-build: mg996R_servo.elf secondary-outputs
 
 # Tool invocations
-mg996R_servo.elf mg996R_servo.map: $(OBJS) $(USER_OBJS) /home/wins/workingspace/New_Workout_Plan/mg996R_servo/STM32F411RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "mg996R_servo.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/wins/workingspace/New_Workout_Plan/mg996R_servo/STM32F411RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="mg996R_servo.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+mg996R_servo.elf mg996R_servo.map: $(OBJS) $(USER_OBJS) /home/ubuntu07/workingspace/final_project/New_Workout_Plan/mg996R_servo/STM32F411RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "mg996R_servo.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/ubuntu07/workingspace/final_project/New_Workout_Plan/mg996R_servo/STM32F411RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="mg996R_servo.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

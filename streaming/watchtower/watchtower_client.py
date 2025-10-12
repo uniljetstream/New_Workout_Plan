@@ -398,8 +398,8 @@ def main():
 
     client = WatchTowerClient()
 
-    # 예제: T자 서기 30초 스트리밍
-    client.start_streaming(mode='t_pose', duration=30)
+    # 예제: T자 서기 스트리밍 (무제한, 'q'로 종료)
+    client.start_streaming(mode='t_pose', duration=None)
 
 
 if __name__ == "__main__":

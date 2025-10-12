@@ -44,15 +44,15 @@
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim2;
 
-UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
-DMA_HandleTypeDef hdma_usart1_rx;
-DMA_HandleTypeDef hdma_usart1_tx;
+DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 uint8_t rx_buffer[100];	//수신버퍼
-uint8_t tx_buffer[100];	//수신버퍼
+uint8_t tx_buffer[100];	//송신버퍼
 volatile int rx_flag = 0;
+volatile uint16_t rx_len = 0;	//수신 길이
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,18 +61,29 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+// UART RX 완료 콜백 (DMA 방식)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	if(huart->Instance==USART1)
+	if(huart->Instance==USART2)
 	{
 		rx_flag = 1;
+		rx_len = 100;  // 전체 버퍼 수신 완료
+	}
+}
+
+// UART IDLE 라인 콜백 (명령어 끝 감지)
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+	if(huart->Instance==USART2)
+	{
+		rx_flag = 1;
+		rx_len = Size;  // 실제 수신된 바이트 수
 	}
 }
 /* USER CODE END 0 */
@@ -109,27 +120,43 @@ int main(void)
   MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
-  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-  HAL_UART_Receive_DMA(&huart1, rx_buffer, 100);
+
+  // IDLE 라인 감지를 위한 DMA 수신 시작 (이벤트 콜백 방식)
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer, sizeof(rx_buffer));
+  __HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);  // Half Transfer 인터럽트 비활성화
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+//	 // 하드웨어 테스트: 자동으로 서보 움직임 (UART 명령 대신)
+//	 // 테스트 후 이 부분을 주석 처리하고 UART 제어 사용
 //	 for(int i = -60;i<= 60;i+=10)
 //	 {
-//		 TIM2->CCR1 = 1500 + (i*1000)/60;
+//		 TIM2->CCR1 = 1500 + (i*1000)/60;  // Pan 모터
+//		 TIM2->CCR2 = 1500 + (i*1000)/60;  // Tilt 모터
 //		 HAL_Delay(1000);
 //	 }
+//	 for(int i = 60;i>= -60;i-=10)
+//	 {
+//		 TIM2->CCR1 = 1500 + (i*1000)/60;  // Pan 모터
+//		 TIM2->CCR2 = 1500 + (i*1000)/60;  // Tilt 모터
+//		 HAL_Delay(1000);
+//	 }
+
+	 // UART 제어 (하드웨어 테스트 후 이 부분 활성화)
 	 if(rx_flag)
 	 {
 		 //개행문자 제거
+		 rx_buffer[rx_len] = '\0';  // NULL 종료
 		 char* Del_line_feed = strchr((char*)rx_buffer, '\n');
 		 if(Del_line_feed) *Del_line_feed = '\0';
+		 char* Del_carriage = strchr((char*)rx_buffer, '\r');
+		 if(Del_carriage) *Del_carriage = '\0';
 
 		 if(strncmp((char*)rx_buffer, "PAN:", 4) == 0)
 		 {
@@ -172,8 +199,12 @@ int main(void)
 			 TIM2->CCR2 = 1500 + (0*1000)/60; //ccr2 이 틸트 모터
 		 }
 
+		 // 버퍼 초기화 및 다음 수신 대기
+		 memset(rx_buffer, 0, sizeof(rx_buffer));
 		 rx_flag = 0;
-		 HAL_UART_Receive_DMA(&huart1, rx_buffer, sizeof(rx_buffer));
+		 rx_len = 0;
+		 HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer, sizeof(rx_buffer));
+		 __HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);  // Half Transfer 인터럽트 비활성화
 	 }
     /* USER CODE END WHILE */
 
@@ -291,39 +322,6 @@ static void MX_TIM2_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART1_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -363,15 +361,15 @@ static void MX_DMA_Init(void)
 {
 
   /* DMA controller clock enable */
-  __HAL_RCC_DMA2_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
-  /* DMA2_Stream2_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream2_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA2_Stream2_IRQn);
-  /* DMA2_Stream7_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
 
 }
 
