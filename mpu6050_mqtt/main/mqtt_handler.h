@@ -29,10 +29,17 @@ bool mqtt_is_connected(void);
 esp_mqtt_client_handle_t mqtt_get_client(void);
 
 /**
- * @brief MPU6050 센서 데이터 발행
+ * @brief MPU6050 센서 데이터 발행 (WatchTower 프로토콜)
  *
  * @param data MPU6050 센서 데이터
  */
 void mqtt_publish_mpu6050_data(const mpu6050_data_t *data);
+
+/**
+ * @brief 조이스틱 상태 발행 (WatchTower 프로토콜)
+ *
+ * @param status 상태 문자열 ("ready", "stopped" 등)
+ */
+void mqtt_publish_status(const char *status);
 
 #endif // MQTT_HANDLER_H

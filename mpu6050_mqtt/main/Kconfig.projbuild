@@ -23,27 +23,27 @@ menu "ESP32 MPU6050 MQTT Configuration"
     menu "MQTT Configuration"
         config MQTT_BROKER_URL
             string "Broker URL"
-            default "mqtt://mqtt.eclipseprojects.io:1883"
+            default "mqtt://192.168.1.100:1883"
             help
-                URL of the MQTT broker to connect to
+                URL of the MQTT broker to connect to (WatchTower Jetson)
 
         config MQTT_TOPIC_SENSOR_DATA
             string "Sensor Data Topic"
-            default "esp32/sensor/data"
+            default "joystick/sensor/data"
             help
-                MQTT topic for publishing sensor data
+                MQTT topic for publishing joystick sensor data (WatchTower protocol)
+
+        config MQTT_TOPIC_STATUS
+            string "Status Topic"
+            default "joystick/status"
+            help
+                MQTT topic for publishing joystick status
 
         config MQTT_TOPIC_COMMAND
             string "Command Topic"
-            default "esp32/command"
+            default "watchtower/command/joystick"
             help
-                MQTT topic for receiving commands
-
-        config MQTT_TOPIC_RESPONSE
-            string "Response Topic"
-            default "esp32/response"
-            help
-                MQTT topic for publishing responses
+                MQTT topic for receiving commands from WatchTower
     endmenu
 
     config BROKER_URL_FROM_STDIN

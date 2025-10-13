@@ -17,6 +17,9 @@ static esp_mqtt_client_handle_t mqtt_client = NULL;
 // MQTT 연결 상태
 static bool mqtt_connected = false;
 
+// 센서 동작 상태
+static bool sensor_running = false;
+
 /**
  * @brief MQTT 이벤트 핸들러
  */
@@ -30,10 +33,13 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
         ESP_LOGI(TAG_MQTT, "MQTT Connected to broker");
         mqtt_connected = true;  //mqtt_client 플래그를 true로 바꾸고
 
-        // 명령 토픽(esp32/command) 구독
-        // @arg 클라이언ㅌ, 토믹, Qos size
+        // 명령 토픽 구독 (WatchTower에서 오는 명령)
+        // watchtower/command/joystick
         int msg_id = esp_mqtt_client_subscribe(mqtt_client, MQTT_TOPIC_COMMAND, 1);
         ESP_LOGI(TAG_MQTT, "Subscribed to topic: %s (msg_id=%d)", MQTT_TOPIC_COMMAND, msg_id);
+
+        // 연결 후 ready 상태 발행
+        mqtt_publish_status("ready");
         break;
 
     case MQTT_EVENT_DISCONNECTED:   //연결 실패 이벤트가 발생하면
@@ -46,26 +52,32 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
         break;
 
     case MQTT_EVENT_DATA:   //데이터 수신 이벤트가 발생하면
-        // 명령 수신
+        // WatchTower 명령 수신
         ESP_LOGI(TAG_MQTT, "MQTT Data received");
-        printf("TOPIC: %.*s\n", event->topic_len, event->topic);
-        printf("DATA: %.*s\n", event->data_len, event->data);
+        ESP_LOGI(TAG_MQTT, "TOPIC: %.*s", event->topic_len, event->topic);
+        ESP_LOGI(TAG_MQTT, "DATA: %.*s", event->data_len, event->data);
 
-        // 전송 주기 변경 명령 처리
-        if (strncmp(event->data, "INTERVAL:", 9) == 0) {    //받은 명령 첫 9글자가 "INTERVAL:"  와 같으면
-            //event->data의 포인터를 9칸 이동. INTERVAL: 이후를 저장
-            uint32_t new_interval = atoi(event->data + 9); 
-            //주기 설정를 설장함.
+        // JSON 파싱을 위한 간단한 문자열 검색
+        // WatchTower 명령 형식: {"command":"start","mode":"t_pose","timestamp":1234567890}
+        // 또는 {"command":"stop","timestamp":1234567890}
+
+        if (strstr(event->data, "\"command\":\"start\"") != NULL) {
+            ESP_LOGI(TAG_MQTT, "Received START command from WatchTower");
+            sensor_running = true;
+            sensor_task_start();  // 센서 태스크 시작
+            mqtt_publish_status("ready");
+        }
+        else if (strstr(event->data, "\"command\":\"stop\"") != NULL) {
+            ESP_LOGI(TAG_MQTT, "Received STOP command from WatchTower");
+            sensor_running = false;
+            sensor_task_stop();  // 센서 태스크 중지
+            mqtt_publish_status("stopped");
+        }
+        // 이전 호환성을 위한 주기 변경 명령
+        else if (strncmp(event->data, "INTERVAL:", 9) == 0) {
+            uint32_t new_interval = atoi(event->data + 9);
             sensor_set_publish_interval(new_interval);
-
-            // 응답 메시지 생성 
-            char response[64];
-            snprintf(response, sizeof(response),
-                    "{\"status\":\"ok\",\"interval\":%lu}",
-                    sensor_get_publish_interval());
-            //응답 메시지를 발행
-            //@arg : 클라이언트 핸들, 응답을 보낼 토픽, 발행할 메시지, 메시지 길이(0이면 자동계산), QoS 레벨(1:최소 한 번 전송 보장), retain 플래그(0 유지 안함)
-            esp_mqtt_client_publish(mqtt_client, MQTT_TOPIC_RESPONSE, response, 0, 1, 0);
+            ESP_LOGI(TAG_MQTT, "Publish interval changed to %lu ms", new_interval);
         }
         break;
 
@@ -121,7 +133,7 @@ esp_mqtt_client_handle_t mqtt_get_client(void)
 }
 
 /**
- * @brief MPU6050 센서 데이터 발행
+ * @brief MPU6050 센서 데이터 발행 (WatchTower 프로토콜)
  */
 void mqtt_publish_mpu6050_data(const mpu6050_data_t *data)
 {
@@ -130,21 +142,19 @@ void mqtt_publish_mpu6050_data(const mpu6050_data_t *data)
         return;
     }
 
-    // JSON 형식으로 MPU6050 데이터 생성
+    // WatchTower 프로토콜에 맞춘 JSON 형식
+    // {"accel_x": 0.0, "accel_y": 0.0, "accel_z": 0.0, "gyro_x": 0.0, "gyro_y": 0.0, "gyro_z": 0.0, "timestamp": 1234567890}
     char payload[256];
-    int64_t timestamp = esp_timer_get_time() / 1000000;
+    int64_t timestamp = esp_timer_get_time() / 1000;  // 밀리초 단위로 변환
     snprintf(payload, sizeof(payload),
-             "{\"sensor\":\"MPU6050\","
-             "\"accel\":{\"x\":%.3f,\"y\":%.3f,\"z\":%.3f},"
-             "\"gyro\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f},"
-             "\"temp\":%.2f,"
+             "{\"accel_x\":%.3f,\"accel_y\":%.3f,\"accel_z\":%.3f,"
+             "\"gyro_x\":%.2f,\"gyro_y\":%.2f,\"gyro_z\":%.2f,"
              "\"timestamp\":%lld}",
              data->accel_x, data->accel_y, data->accel_z,
              data->gyro_x, data->gyro_y, data->gyro_z,
-             data->temperature,
              (long long)timestamp);
 
-    // MQTT 발행
+    // MQTT 발행 (joystick/sensor/data 토픽)
     int msg_id = esp_mqtt_client_publish(mqtt_client,
                                           MQTT_TOPIC_SENSOR_DATA,
                                           payload,
@@ -153,12 +163,40 @@ void mqtt_publish_mpu6050_data(const mpu6050_data_t *data)
                                           0);   // retain 플래그
 
     if (msg_id != -1) {
-        ESP_LOGI(TAG_MQTT, "Published MPU6050 data (msg_id=%d)", msg_id);
-        ESP_LOGI(TAG_MQTT, "Accel(g): X=%.3f Y=%.3f Z=%.3f | Gyro(°/s): X=%.2f Y=%.2f Z=%.2f | Temp: %.2f°C",
+        ESP_LOGI(TAG_MQTT, "Published joystick data (msg_id=%d)", msg_id);
+        ESP_LOGI(TAG_MQTT, "Accel(g): X=%.3f Y=%.3f Z=%.3f | Gyro(°/s): X=%.2f Y=%.2f Z=%.2f",
                  data->accel_x, data->accel_y, data->accel_z,
-                 data->gyro_x, data->gyro_y, data->gyro_z,
-                 data->temperature);
+                 data->gyro_x, data->gyro_y, data->gyro_z);
     } else {
-        ESP_LOGE(TAG_MQTT, "Failed to publish MPU6050 data");
+        ESP_LOGE(TAG_MQTT, "Failed to publish joystick data");
+    }
+}
+
+/**
+ * @brief 조이스틱 상태 발행 (WatchTower 프로토콜)
+ */
+void mqtt_publish_status(const char *status)
+{
+    if (!mqtt_connected || mqtt_client == NULL) {
+        ESP_LOGW(TAG_MQTT, "MQTT not connected, skipping status publish");
+        return;
+    }
+
+    // WatchTower 프로토콜: {"status": "ready"} 또는 {"status": "stopped"}
+    char payload[128];
+    int64_t timestamp = esp_timer_get_time() / 1000;
+    snprintf(payload, sizeof(payload),
+             "{\"status\":\"%s\",\"timestamp\":%lld}",
+             status, (long long)timestamp);
+
+    int msg_id = esp_mqtt_client_publish(mqtt_client,
+                                          MQTT_TOPIC_STATUS,
+                                          payload,
+                                          0, 1, 0);
+
+    if (msg_id != -1) {
+        ESP_LOGI(TAG_MQTT, "Published joystick status: %s", status);
+    } else {
+        ESP_LOGE(TAG_MQTT, "Failed to publish joystick status");
     }
 }

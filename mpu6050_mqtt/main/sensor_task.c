@@ -16,6 +16,10 @@ static uint32_t publish_interval_ms = DEFAULT_PUBLISH_INTERVAL_MS;
 // MPU6050 초기화 상태
 static bool mpu6050_initialized = false;
 
+// 센서 태스크 동작 제어
+static bool sensor_task_running = false;
+static TaskHandle_t sensor_task_handle = NULL;
+
 /**
  * @brief 센서 데이터 읽기 (MPU6050)
  */
@@ -69,13 +73,15 @@ static void sensor_task(void *pvParameters)
     esp_err_t ret = mpu6050_init_sensor();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG_SENSOR, "MPU6050 initialization failed, halting sensor task");
+        sensor_task_running = false;
+        sensor_task_handle = NULL;
         vTaskDelete(NULL);  //NULL이면 자기자신 task 삭제
         return;
     }
     mpu6050_initialized = true; //초기화 상태임을 알려주는 flag
     ESP_LOGI(TAG_SENSOR, "MPU6050 initialized successfully");
 
-    while (1) {
+    while (sensor_task_running) {
         mpu6050_data_t sensor_data;
 
         // 센서 데이터 읽기
@@ -89,6 +95,10 @@ static void sensor_task(void *pvParameters)
         // 동적 전송 주기로 대기
         vTaskDelay(pdMS_TO_TICKS(publish_interval_ms));
     }
+
+    ESP_LOGI(TAG_SENSOR, "Sensor task stopped");
+    sensor_task_handle = NULL;
+    vTaskDelete(NULL);
 }
 
 /**
@@ -96,6 +106,39 @@ static void sensor_task(void *pvParameters)
  */
 void sensor_task_start(void)
 {
-    xTaskCreate(sensor_task, "sensor_task", 8192, NULL, 5, NULL);
+    if (sensor_task_running) {
+        ESP_LOGW(TAG_SENSOR, "Sensor task already running");
+        return;
+    }
+
+    sensor_task_running = true;
+    xTaskCreate(sensor_task, "sensor_task", 8192, NULL, 5, &sensor_task_handle);
     ESP_LOGI(TAG_SENSOR, "Sensor task created");
+}
+
+/**
+ * @brief 센서 태스크 중지
+ */
+void sensor_task_stop(void)
+{
+    if (!sensor_task_running) {
+        ESP_LOGW(TAG_SENSOR, "Sensor task not running");
+        return;
+    }
+
+    ESP_LOGI(TAG_SENSOR, "Stopping sensor task...");
+    sensor_task_running = false;
+
+    // 태스크가 종료될 때까지 대기
+    int timeout = 50;  // 5초 타임아웃
+    while (sensor_task_handle != NULL && timeout > 0) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+        timeout--;
+    }
+
+    if (sensor_task_handle == NULL) {
+        ESP_LOGI(TAG_SENSOR, "Sensor task stopped successfully");
+    } else {
+        ESP_LOGW(TAG_SENSOR, "Sensor task stop timeout");
+    }
 }

@@ -19,12 +19,13 @@
 
 // ========== MQTT 토픽 설정 ==========
 // menuconfig에서 설정 (idf.py menuconfig -> ESP32 MPU6050 MQTT Configuration)
-#define MQTT_TOPIC_SENSOR_DATA CONFIG_MQTT_TOPIC_SENSOR_DATA
-#define MQTT_TOPIC_COMMAND CONFIG_MQTT_TOPIC_COMMAND
-#define MQTT_TOPIC_RESPONSE CONFIG_MQTT_TOPIC_RESPONSE
+// WatchTower 프로토콜에 맞춘 토픽
+#define MQTT_TOPIC_SENSOR_DATA CONFIG_MQTT_TOPIC_SENSOR_DATA   // joystick/sensor/data
+#define MQTT_TOPIC_STATUS CONFIG_MQTT_TOPIC_STATUS             // joystick/status
+#define MQTT_TOPIC_COMMAND CONFIG_MQTT_TOPIC_COMMAND           // watchtower/command/joystick
 
 // ========== 센서 설정 ==========
-#define DEFAULT_PUBLISH_INTERVAL_MS 5000  // 기본 전송 주기: 5초
+#define DEFAULT_PUBLISH_INTERVAL_MS 100  // 기본 전송 주기: 100ms (10Hz, WatchTower용)
 
 // ========== MPU6050 I2C 설정 ==========
 #define I2C_MASTER_SCL_IO 22           // I2C 클럭 핀 (SCL)
