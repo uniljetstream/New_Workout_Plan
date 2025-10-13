@@ -1,0 +1,10 @@
+# Jetson Nano 스트리밍 클라이언트 의존성 패키지
+# 설치: pip3 install -r requirements_jetson.txt
+
+# OpenCV - 카메라 캡처 및 이미지 처리
+# Jetson Nano는 보통 OpenCV가 사전 설치되어 있습니다
+# 만약 설치가 필요하다면 아래 주석을 해제하세요
+# opencv-python==4.8.0.74
+
+# NumPy - 배열 처리 (OpenCV 의존성, 1.x 버전)
+numpy>=1.19.0,<2.0.0
