@@ -281,16 +281,20 @@ uint16_t wifi_scan(wifi_scan_result_t *results, uint16_t max_results)
 {
     ESP_LOGI(TAG, "WiFi 스캔 시작...");
 
-    // 연결 중이면 스캔할 수 없으므로 연결 해제
-    esp_wifi_disconnect();
-    s_retry_num = 0;  // 재시도 카운터 리셋
-
     // 스캔 시작
     wifi_scan_config_t scan_config = {
         .ssid = NULL,
         .bssid = NULL,
         .channel = 0,
-        .show_hidden = false};
+        .show_hidden = false,
+        .scan_type = WIFI_SCAN_TYPE_ACTIVE,
+        .scan_time = {
+            .active = {
+                .min = 100,
+                .max = 150,
+            },
+        },
+    };
 
     esp_err_t ret = esp_wifi_scan_start(&scan_config, true);
     if (ret != ESP_OK)

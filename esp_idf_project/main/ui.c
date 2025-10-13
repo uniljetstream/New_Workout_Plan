@@ -6,6 +6,7 @@
 
 #include "ui.h"
 #include "demos/lv_demos.h"
+#include "esp_err.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -13,6 +14,7 @@
 #include "hardware.h"
 #include "wifi.h"
 #include "sensor.h"
+#include "watch_mqtt_client.h"
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
@@ -495,6 +497,15 @@ static void heart_rate_sensor_callback(uint16_t bpm, void *ctx)
     (void)ctx;
     heart_rate_latest_bpm = bpm;
     heart_rate_updated = true;
+
+    if (bpm > 0)
+    {
+        esp_err_t ret = watch_mqtt_client_publish_heart_rate(bpm);
+        if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE)
+        {
+            ESP_LOGW(TAG, "MQTT 심박수 전송 실패: %s", esp_err_to_name(ret));
+        }
+    }
 }
 
 static void create_default_ui(void)

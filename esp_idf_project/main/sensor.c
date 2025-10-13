@@ -54,7 +54,7 @@ static uint32_t s_dc_estimate = 0;
 static uint32_t s_last_ir_value = 0;
 static bool s_prev_above_threshold = false;
 static uint64_t s_last_peak_time_us = 0;
-static uint16_t s_bpm_buffer[8] = {0};
+static uint16_t s_bpm_buffer[6] = {0};
 static size_t s_bpm_index = 0;
 static size_t s_bpm_count = 0;
 
@@ -140,8 +140,8 @@ static esp_err_t max30102_configure(void)
     ret = write_reg(REG_INTR_ENABLE_2, 0x00);
     if (ret != ESP_OK) return ret;
 
-    // FIFO 설정: sample averaging 4, FIFO 롤오버 비활성, almost full = 32-4
-    ret = write_reg(REG_FIFO_CONFIG, (0x02 << 5) | (0x0F)); // average 4 samples, almost full = 15
+    // FIFO 설정: sample averaging 8, FIFO 롤오버 비활성, almost full = 16
+    ret = write_reg(REG_FIFO_CONFIG, (0x03 << 5) | (0x0F)); // average 8 samples, almost full = 15
     if (ret != ESP_OK) return ret;
 
     // SPO2 설정: LED 펄스 폭 411us (18bit), 샘플 레이트 100Hz, 범위 4096nA
@@ -235,7 +235,7 @@ static void process_sample(uint32_t ir_value)
     }
 
     uint32_t ac_component = (ir_value > s_dc_estimate) ? (ir_value - s_dc_estimate) : 0;
-    uint32_t dynamic_threshold = s_dc_estimate / 18; // 약 5% 수준
+    uint32_t dynamic_threshold = s_dc_estimate / 16; // ≈6.25%
 
     bool above_threshold = ac_component > dynamic_threshold && ir_value > s_last_ir_value;
     uint64_t now_us = esp_timer_get_time();
@@ -245,7 +245,7 @@ static void process_sample(uint32_t ir_value)
         if (s_last_peak_time_us != 0)
         {
             uint64_t interval_us = now_us - s_last_peak_time_us;
-            if (interval_us > 250000 && interval_us < 2000000) // 30~240 BPM 범위
+            if (interval_us > 300000 && interval_us < 2000000) //280~300ms
             {
                 uint16_t bpm = (uint16_t)(60000000ULL / interval_us);
                 uint16_t filtered = smooth_bpm(bpm);
