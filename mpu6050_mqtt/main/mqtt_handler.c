@@ -21,6 +21,11 @@ static bool mqtt_connected = false;
 // 센서 동작 상태
 static bool sensor_running = false;
 
+// 고정 크기 버퍼들 (메모리 재사용)
+static char mqtt_payload_buffer[512];
+static char status_payload_buffer[256];
+static char mode_change_payload_buffer[256];
+
 /**
  * @brief MQTT 이벤트 핸들러
  */
@@ -175,11 +180,10 @@ void mqtt_publish_mpu6050_data(const mpu6050_data_t *data)
         return;
     }
 
-    // WatchTower 프로토콜에 맞춘 JSON 형식
+    // WatchTower 프로토콜에 맞춘 JSON 형식 (고정 버퍼 재사용)
     // {"accel_x": 0.0, "accel_y": 0.0, "accel_z": 0.0, "gyro_x": 0.0, "gyro_y": 0.0, "gyro_z": 0.0, "timestamp": 1234567890}
-    char payload[256];
     int64_t timestamp = esp_timer_get_time() / 1000;  // 밀리초 단위로 변환
-    snprintf(payload, sizeof(payload),
+    snprintf(mqtt_payload_buffer, sizeof(mqtt_payload_buffer),
              "{\"accel_x\":%.3f,\"accel_y\":%.3f,\"accel_z\":%.3f,"
              "\"gyro_x\":%.2f,\"gyro_y\":%.2f,\"gyro_z\":%.2f,"
              "\"timestamp\":%lld}",
@@ -190,7 +194,7 @@ void mqtt_publish_mpu6050_data(const mpu6050_data_t *data)
     // MQTT 발행 (joystick/sensor/data 토픽)
     int msg_id = esp_mqtt_client_publish(mqtt_client,
                                           MQTT_TOPIC_SENSOR_DATA,
-                                          payload,
+                                          mqtt_payload_buffer,
                                           0,    // 길이 (0 = 자동)
                                           1,    // QoS 1
                                           0);   // retain 플래그
@@ -215,16 +219,15 @@ void mqtt_publish_status(const char *status)
         return;
     }
 
-    // WatchTower 프로토콜: {"status": "ready"} 또는 {"status": "stopped"}
-    char payload[128];
+    // WatchTower 프로토콜: {"status": "ready"} 또는 {"status": "stopped"} (고정 버퍼 재사용)
     int64_t timestamp = esp_timer_get_time() / 1000;
-    snprintf(payload, sizeof(payload),
+    snprintf(status_payload_buffer, sizeof(status_payload_buffer),
              "{\"status\":\"%s\",\"timestamp\":%lld}",
              status, (long long)timestamp);
 
     int msg_id = esp_mqtt_client_publish(mqtt_client,
                                           MQTT_TOPIC_STATUS,
-                                          payload,
+                                          status_payload_buffer,
                                           0, 1, 0);
 
     if (msg_id != -1) {
@@ -248,10 +251,9 @@ void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data)
         return;
     }
 
-    // 에어마우스 데이터 JSON 형식
-    char payload[512];
+    // 에어마우스 데이터 JSON 형식 (고정 버퍼 재사용)
     int64_t timestamp = esp_timer_get_time() / 1000;
-    snprintf(payload, sizeof(payload),
+    snprintf(mqtt_payload_buffer, sizeof(mqtt_payload_buffer),
              "{\"mode\":\"airmouse\","
              "\"mouse_x\":%.2f,\"mouse_y\":%.2f,"
              "\"scroll_delta\":%d,"
@@ -262,7 +264,7 @@ void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data)
 
     int msg_id = esp_mqtt_client_publish(mqtt_client,
                                           MQTT_TOPIC_SENSOR_DATA,
-                                          payload,
+                                          mqtt_payload_buffer,
                                           0, 1, 0);
 
     if (msg_id != -1) {
@@ -289,16 +291,15 @@ void mqtt_publish_mode_change(airmouse_mode_t mode)
         return;
     }
 
-    char payload[256];
     int64_t timestamp = esp_timer_get_time() / 1000;
-    snprintf(payload, sizeof(payload),
+    snprintf(mode_change_payload_buffer, sizeof(mode_change_payload_buffer),
              "{\"mode_change\":\"%s\",\"timestamp\":%lld}",
              mode == AIRMOUSE_MODE_SENSOR ? "sensor" : "airmouse",
              (long long)timestamp);
 
     int msg_id = esp_mqtt_client_publish(mqtt_client,
                                           MQTT_TOPIC_STATUS,
-                                          payload,
+                                          mode_change_payload_buffer,
                                           0, 1, 0);
 
     if (msg_id != -1) {
