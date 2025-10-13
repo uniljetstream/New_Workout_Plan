@@ -62,6 +62,11 @@ class WatchTowerMain:
         self.mqtt.on_joystick_data_callback = self.handle_joystick_data
         self.mqtt.on_watch_data_callback = self.handle_watch_data
 
+        # 조이스틱을 기본 에어마우스 모드로 설정
+        print("\n[3] 조이스틱 에어마우스 모드 설정 (MQTT)")
+        if not self.mqtt.send_joystick_mode_command('airmouse'):
+            print("⚠ 조이스틱 에어마우스 모드 설정 실패 (기본 모드 유지)")
+
         print("\n✓ WatchTower 시스템 준비 완료")
         print("→ Qt로부터 운동 모드 선택 대기 중...\n")
 
@@ -93,24 +98,34 @@ class WatchTowerMain:
 
         print(f"✓ AI 서버 모드 선택 완료")
 
-        # Step 2: 조이스틱과 Watch에 시작 명령 전송 (MQTT)
-        print(f"\n[Step 2] 조이스틱과 Watch에 시작 명령 전송 (MQTT)")
+        # Step 2: 조이스틱을 센서 모드로 전환 (MQTT)
+        print(f"\n[Step 2] 조이스틱을 센서 모드로 전환 (MQTT)")
+        if not self.mqtt.send_joystick_mode_command('sensor'):
+            print(f"✗ 조이스틱 센서 모드 전환 실패")
+            self.mqtt.send_qt_mode_selected(mode, success=False, message="조이스틱 모드 전환 실패")
+            return
+
+        # Step 3: 조이스틱과 Watch에 시작 명령 전송 (MQTT)
+        print(f"\n[Step 3] 조이스틱과 Watch에 시작 명령 전송 (MQTT)")
         if not self.mqtt.send_start_command(mode):
             print(f"✗ 디바이스 시작 명령 전송 실패")
+            # 센서 모드 전환이 성공했었다면 에어마우스로 복구 시도
+            self.mqtt.send_joystick_mode_command('airmouse')
             self.mqtt.send_qt_mode_selected(mode, success=False, message="디바이스 연결 실패")
             return
 
         print(f"✓ 디바이스 시작 명령 전송 완료")
 
-        # Step 3: 카메라 스트리밍 시작 (백그라운드 스레드)
-        print(f"\n[Step 3] 카메라 스트리밍 시작")
+        # Step 4: 카메라 스트리밍 시작 (백그라운드 스레드)
+        print(f"\n[Step 4] 카메라 스트리밍 시작")
         if not self.start_camera_streaming():
             print(f"✗ 카메라 스트리밍 시작 실패")
+            self.mqtt.send_joystick_mode_command('airmouse')
             self.mqtt.send_qt_mode_selected(mode, success=False, message="카메라 초기화 실패")
             return
 
-        # Step 4: Qt에 성공 응답 전송
-        print(f"\n[Step 4] Qt에 성공 응답 전송")
+        # Step 5: Qt에 성공 응답 전송
+        print(f"\n[Step 5] Qt에 성공 응답 전송")
         self.mqtt.send_qt_mode_selected(mode, success=True, message="운동 시작")
 
         self.current_mode = mode
@@ -149,8 +164,15 @@ class WatchTowerMain:
         else:
             print(f"✗ 디바이스 정지 명령 전송 실패")
 
-        # Step 4: Qt에 종료 완료 응답 전송
-        print(f"\n[Step 4] Qt에 종료 완료 응답 전송")
+        # Step 4: 조이스틱을 에어마우스 모드로 전환 (MQTT)
+        print(f"\n[Step 4] 조이스틱을 에어마우스 모드로 전환 (MQTT)")
+        if self.mqtt.send_joystick_mode_command('airmouse'):
+            print(f"✓ 조이스틱 에어마우스 모드 전환 완료")
+        else:
+            print(f"⚠ 조이스틱 에어마우스 모드 전환 실패")
+
+        # Step 5: Qt에 종료 완료 응답 전송
+        print(f"\n[Step 5] Qt에 종료 완료 응답 전송")
         self.mqtt.send_qt_status("stopped", "운동 종료")
 
         # 현재 모드 초기화

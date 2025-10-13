@@ -41,6 +41,7 @@ class MQTTController:
         # 디바이스 상태
         self.joystick_ready = False
         self.watch_ready = False
+        self.joystick_mode = 'airmouse'
 
         # 콜백 함수들 (외부에서 등록 가능)
         self.on_joystick_data_callback = None
@@ -255,7 +256,15 @@ class MQTTController:
         """조이스틱 상태 메시지 처리"""
         try:
             data = json.loads(payload)
-            status = data.get('status', 'unknown')
+            mode_change = data.get('mode_change')
+            if mode_change:
+                if mode_change in ('sensor', 'airmouse'):
+                    self.joystick_mode = mode_change
+                    print(f"✓ 조이스틱 모드 변경 알림: {mode_change}")
+                else:
+                    print(f"⚠ 알 수 없는 조이스틱 모드: {mode_change}")
+
+            status = data.get('status')
 
             if status == 'ready':
                 self.joystick_ready = True
@@ -263,6 +272,8 @@ class MQTTController:
             elif status == 'stopped':
                 self.joystick_ready = False
                 print("⏸ 조이스틱 중지됨")
+            elif status and status not in ('ready', 'stopped'):
+                print(f"ℹ 조이스틱 상태: {status}")
 
         except json.JSONDecodeError:
             print(f"✗ 조이스틱 상태 JSON 파싱 실패: {payload}")
@@ -425,6 +436,47 @@ class MQTTController:
 
         except Exception as e:
             print(f"✗ 정지 명령 전송 오류: {e}")
+            return False
+
+    def send_joystick_mode_command(self, mode):
+        """
+        조이스틱 모드 전환 명령 전송
+
+        Args:
+            mode: 'airmouse' 또는 'sensor'
+
+        Returns:
+            bool: 전송 성공 여부
+        """
+        if not self.connected:
+            print("✗ MQTT 브로커에 연결되지 않음")
+            return False
+
+        if mode not in ('airmouse', 'sensor'):
+            raise ValueError("mode must be 'airmouse' or 'sensor'")
+
+        try:
+            command = {
+                'command': 'airmouse_mode' if mode == 'airmouse' else 'sensor_mode',
+                'timestamp': int(time.time() * 1000)
+            }
+
+            result = self.client.publish(
+                self.config.TOPIC_CMD_JOYSTICK,
+                json.dumps(command),
+                qos=self.config.MQTT_QOS
+            )
+
+            if result.rc == 0:
+                self.joystick_mode = mode
+                print(f"✓ 조이스틱 모드 전환 명령 전송: {mode}")
+                return True
+
+            print(f"✗ 조이스틱 모드 전환 명령 전송 실패: {mode}")
+            return False
+
+        except Exception as e:
+            print(f"✗ 조이스틱 모드 전환 오류: {e}")
             return False
 
     def get_joystick_data(self):

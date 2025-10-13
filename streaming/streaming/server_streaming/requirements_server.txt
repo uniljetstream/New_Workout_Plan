@@ -1,8 +1,0 @@
-# 서버 스트리밍 수신 의존성 패키지
-# 설치: pip3 install -r requirements_server.txt
-
-# OpenCV - 영상 수신 및 표시
-opencv-python==4.8.0.74
-
-# NumPy - 배열 처리 (OpenCV 4.8.0과 호환되는 1.x 버전)
-numpy>=1.19.0,<2.0.0

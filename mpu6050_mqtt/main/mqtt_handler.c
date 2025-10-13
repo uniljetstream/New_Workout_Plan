@@ -72,23 +72,38 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
             ESP_LOGI(TAG_MQTT, "Received START command from WatchTower");
             sensor_running = true;
             sensor_task_start();  // 센서 태스크 시작
+            if (airmouse_get_mode() != AIRMOUSE_MODE_SENSOR) {
+                airmouse_set_mode(AIRMOUSE_MODE_SENSOR);
+                mqtt_publish_mode_change(AIRMOUSE_MODE_SENSOR);
+            }
             mqtt_publish_status("ready");
         }
         else if (strstr(event->data, "\"command\":\"stop\"") != NULL) {
             ESP_LOGI(TAG_MQTT, "Received STOP command from WatchTower");
             sensor_running = false;
-            sensor_task_stop();  // 센서 태스크 중지
+            if (airmouse_get_mode() != AIRMOUSE_MODE_MOUSE) {
+                airmouse_set_mode(AIRMOUSE_MODE_MOUSE);
+                mqtt_publish_mode_change(AIRMOUSE_MODE_MOUSE);
+            }
             mqtt_publish_status("stopped");
         }
         else if (strstr(event->data, "\"command\":\"airmouse_mode\"") != NULL) {
             ESP_LOGI(TAG_MQTT, "Received AIRMOUSE MODE command from WatchTower");
-            airmouse_set_mode(AIRMOUSE_MODE_MOUSE);
-            mqtt_publish_mode_change(AIRMOUSE_MODE_MOUSE);
+            if (airmouse_get_mode() != AIRMOUSE_MODE_MOUSE) {
+                airmouse_set_mode(AIRMOUSE_MODE_MOUSE);
+                mqtt_publish_mode_change(AIRMOUSE_MODE_MOUSE);
+            }
+            sensor_running = true;
+            sensor_task_start();
         }
         else if (strstr(event->data, "\"command\":\"sensor_mode\"") != NULL) {
             ESP_LOGI(TAG_MQTT, "Received SENSOR MODE command from WatchTower");
-            airmouse_set_mode(AIRMOUSE_MODE_SENSOR);
-            mqtt_publish_mode_change(AIRMOUSE_MODE_SENSOR);
+            if (airmouse_get_mode() != AIRMOUSE_MODE_SENSOR) {
+                airmouse_set_mode(AIRMOUSE_MODE_SENSOR);
+                mqtt_publish_mode_change(AIRMOUSE_MODE_SENSOR);
+            }
+            sensor_running = true;
+            sensor_task_start();
         }
         else if (strstr(event->data, "\"command\":\"calibrate\"") != NULL) {
             ESP_LOGI(TAG_MQTT, "Received CALIBRATE command from WatchTower");
