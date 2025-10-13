@@ -118,8 +118,8 @@ class WatchTowerConfig:
     # ============================================
     # 운동 모드 설정
     # ============================================
-    SUPPORTED_MODES = ['t_pose', 'squat', 'pushup']  # 지원하는 운동 모드
-    DEFAULT_MODE = 't_pose'            # 기본 운동 모드
+    SUPPORTED_MODES = ['squat', 'pushup']  # 지원하는 운동 모드
+    DEFAULT_MODE = 'squat'            # 기본 운동 모드
 
     # ============================================
     # 디바이스 타임아웃 설정

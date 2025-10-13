@@ -23,14 +23,14 @@ def select_mode():
 
     Request:
         {
-            "mode": "t_pose"  # 't_pose', 'squat', 'pushup' 등
+            "mode": "squat"  # 'squat', 'pushup' 등
         }
 
     Response:
         {
             "status": "success",
-            "message": "T-Pose mode selected",
-            "mode": "t_pose"
+            "message": "SQUAT mode selected",
+            "mode": "squat"
         }
     """
     try:
@@ -92,9 +92,9 @@ def analyze_frame():
             "status": "success",
             "is_correct": true/false,
             "score": 85,
-            "feedback": "완벽한 T자 자세!",
-            "current_pose": "t_pose_stand",
-            "pose_description": "T자 서기 자세"
+            "feedback": "스쿼트 자세가 정확합니다!",
+            "current_pose": "squat_stand",
+            "pose_description": "스쿼트 준비 자세"
         }
     """
     try:
@@ -157,7 +157,7 @@ def stop_stream():
 
     Request:
         {
-            "mode": "t_pose"  # optional (현재 모드)
+            "mode": "squat"  # optional (현재 모드)
         }
 
     Response:
@@ -197,7 +197,7 @@ def get_status():
     Response:
         {
             "status": "running",
-            "current_mode": "t_pose" or null,
+            "current_mode": "squat" or null,
             "supported_modes": [...]
         }
     """

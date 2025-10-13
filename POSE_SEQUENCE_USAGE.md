@@ -183,16 +183,12 @@ for pose_idx in range(result['total_poses']):
 
 ## 현재 지원되는 모드 및 포즈
 
-### 1. t_pose (T자 서기)
-- **포즈 1개**
-  - `t_pose_stand`: T자 서기 자세
-
-### 2. squat (스쿼트)
+### 1. squat (스쿼트)
 - **포즈 2개**
   - `squat_stand`: 스쿼트 준비 자세 (선 자세)
   - `squat_down`: 스쿼트 자세 (무릎 90도)
 
-### 3. pushup (푸시업) - 향후 구현 예정
+### 2. pushup (푸시업) - 향후 구현 예정
 - **포즈 2개**
   - `pushup_up`: 푸시업 준비 자세 (팔 펴기)
   - `pushup_down`: 푸시업 자세 (팔 굽히기)
@@ -256,7 +252,6 @@ def _analyze_new_exercise_pose1(self, xy, conf, bbox=None):
 ```python
 # ai_server/ai_config.py
 SUPPORTED_MODES = [
-    't_pose',
     'squat',
     'pushup',
     'new_exercise'  # 추가

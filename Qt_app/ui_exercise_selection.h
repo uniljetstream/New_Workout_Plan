@@ -36,7 +36,6 @@ public:
     QScrollArea *exerciseScrollArea;
     QWidget *scrollAreaWidgetContents;
     QVBoxLayout *verticalLayout_exercises;
-    QPushButton *tPoseButton;
     QPushButton *squatButton;
     QPushButton *pushupButton;
     QPushButton *plankButton;
@@ -124,21 +123,13 @@ public:
         verticalLayout_exercises = new QVBoxLayout(scrollAreaWidgetContents);
         verticalLayout_exercises->setSpacing(15);
         verticalLayout_exercises->setObjectName(QString::fromUtf8("verticalLayout_exercises"));
-        tPoseButton = new QPushButton(scrollAreaWidgetContents);
-        tPoseButton->setObjectName(QString::fromUtf8("tPoseButton"));
-        tPoseButton->setMinimumSize(QSize(0, 80));
+        squatButton = new QPushButton(scrollAreaWidgetContents);
+        squatButton->setObjectName(QString::fromUtf8("squatButton"));
+        squatButton->setMinimumSize(QSize(0, 80));
         QFont font2;
         font2.setPointSize(18);
         font2.setBold(true);
         font2.setWeight(75);
-        tPoseButton->setFont(font2);
-        tPoseButton->setStyleSheet(QString::fromUtf8("background-color: #FF6B6B; color: white; border-radius: 10px; text-align: left; padding-left: 30px;"));
-
-        verticalLayout_exercises->addWidget(tPoseButton);
-
-        squatButton = new QPushButton(scrollAreaWidgetContents);
-        squatButton->setObjectName(QString::fromUtf8("squatButton"));
-        squatButton->setMinimumSize(QSize(0, 80));
         squatButton->setFont(font2);
         squatButton->setStyleSheet(QString::fromUtf8("background-color: #4ECDC4; color: white; border-radius: 10px; text-align: left; padding-left: 30px;"));
 
@@ -274,7 +265,6 @@ public:
         ExerciseSelectionPage->setWindowTitle(QCoreApplication::translate("ExerciseSelectionPage", "\354\232\264\353\217\231 \354\204\240\355\203\235", nullptr));
         titleLabel->setText(QCoreApplication::translate("ExerciseSelectionPage", "\354\232\264\353\217\231 \354\204\240\355\203\235", nullptr));
         scrollUpButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "\342\226\262", nullptr));
-        tPoseButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "T-Pose", nullptr));
         squatButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "\354\212\244\354\277\274\355\212\270", nullptr));
         pushupButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "\355\221\270\354\211\254\354\227\205", nullptr));
         plankButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "\355\224\214\353\236\255\355\201\254", nullptr));

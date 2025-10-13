@@ -49,7 +49,7 @@ class HTTPClient:
         운동 모드 선택
 
         Args:
-            mode: 운동 모드 ('t_pose', 'squat', 'pushup', etc.)
+            mode: 운동 모드 ('squat', 'pushup', etc.)
 
         Returns:
             dict: 성공 시 {'success': True, 'message': '...'}, 실패 시 {'success': False, 'error': '...'}
@@ -267,7 +267,7 @@ def main():
 
     # 모드 선택 테스트
     print("[2] 운동 모드 선택 테스트")
-    result = client.select_mode('t_pose')
+    result = client.select_mode('squat')
     if result['success']:
         print(f"✓ 모드 선택 성공: {result['mode']}\n")
     else:

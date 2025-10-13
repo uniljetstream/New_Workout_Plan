@@ -106,7 +106,7 @@
         <widget class="QComboBox" name="modeComboBox">
          <item>
           <property name="text">
-           <string>T Pose</string>
+           <string>Squat</string>
           </property>
          </item>
          <item>

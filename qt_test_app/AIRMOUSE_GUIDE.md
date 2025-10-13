@@ -183,7 +183,7 @@ idf.py -p /dev/ttyUSB0 monitor
 - 센서 모드에서 데이터 확인
 
 ### WatchTower Commands 탭
-- 운동 모드 선택 (T Pose, Squat, Pushup)
+- 운동 모드 선택 (Squat, Pushup)
 - Start/Stop Workout 명령
 - WatchTower 시스템 응답 확인
 

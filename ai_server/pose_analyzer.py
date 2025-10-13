@@ -28,7 +28,7 @@ class PoseAnalyzer:
         운동 모드 설정
 
         Args:
-            mode: 운동 모드 ('t_pose', 'squat', etc.)
+            mode: 운동 모드 ('squat', 'pushup', etc.)
 
         Returns:
             bool: 설정 성공 여부

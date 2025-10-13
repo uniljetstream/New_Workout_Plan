@@ -65,7 +65,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
         ESP_LOGI(TAG_MQTT, "DATA: %.*s", event->data_len, event->data);
 
         // JSON 파싱을 위한 간단한 문자열 검색
-        // WatchTower 명령 형식: {"command":"start","mode":"t_pose","timestamp":1234567890}
+        // WatchTower 명령 형식: {"command":"start","mode":"squat","timestamp":1234567890}
         // 또는 {"command":"stop","timestamp":1234567890}
 
         if (strstr(event->data, "\"command\":\"start\"") != NULL) {

@@ -43,8 +43,8 @@ static QMap<QString, QString> exerciseMap = {
 ### 3. 버튼 핸들러 수정 (mainwindow.cpp)
 
 **구현된 운동:**
-- `on_tPoseButton_clicked()` → 스쿼트 시작
-- `on_squatButton_clicked()` → 푸시업 시작
+- `on_squatButton_clicked()` → 스쿼트 시작
+- `on_pushupButton_clicked()` → 푸시업 시작
 
 **미구현 운동 (7개):**
 - 나머지 버튼들은 "곧 출시됩니다" 메시지 표시

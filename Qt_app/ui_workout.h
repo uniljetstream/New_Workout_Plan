@@ -202,7 +202,7 @@ public:
     void retranslateUi(QWidget *WorkoutPage)
     {
         WorkoutPage->setWindowTitle(QCoreApplication::translate("WorkoutPage", "\354\232\264\353\217\231 \354\244\221", nullptr));
-        exerciseTitleLabel->setText(QCoreApplication::translate("WorkoutPage", "\354\232\264\353\217\231: T-Pose", nullptr));
+        exerciseTitleLabel->setText(QCoreApplication::translate("WorkoutPage", "\354\232\264\353\217\231: --", nullptr));
         timerLabel->setText(QCoreApplication::translate("WorkoutPage", "00:00", nullptr));
         statusGroupBox->setTitle(QCoreApplication::translate("WorkoutPage", "\354\203\201\355\203\234 \354\240\225\353\263\264", nullptr));
         scoreLabel->setText(QCoreApplication::translate("WorkoutPage", "\354\240\220\354\210\230: --", nullptr));

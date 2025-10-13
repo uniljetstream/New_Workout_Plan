@@ -19,7 +19,7 @@
      <item>
       <widget class="QLabel" name="exerciseTitleLabel">
        <property name="text">
-        <string>운동: T-Pose</string>
+        <string>운동: --</string>
        </property>
        <property name="font">
         <font>

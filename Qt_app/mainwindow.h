@@ -43,7 +43,6 @@ private slots:
     void on_settingsButton_clicked();
 
     // Exercise Selection Page slots
-    void on_tPoseButton_clicked();
     void on_squatButton_clicked();
     void on_pushupButton_clicked();
     void on_plankButton_clicked();

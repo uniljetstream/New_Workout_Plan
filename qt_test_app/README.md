@@ -10,7 +10,7 @@
 - 실시간 연결 상태 표시
 
 ### WatchTower Commands
-- **Exercise Mode Selection**: T-pose, Squat, Pushup 선택
+- **Exercise Mode Selection**: Squat, Pushup 선택
 - **Start/Stop Workout**: 운동 시작/정지 명령
 - **Joystick Mode Control**:
   - Sensor Mode: 원시 센서 데이터 (가속도계, 자이로)
@@ -71,7 +71,6 @@
         "qt_response": "qt/response/#"
     },
     "exercise_modes": [
-        "T Pose",
         "Squat",
         "Pushup"
     ],
@@ -106,7 +105,6 @@
 ```json
 {
     "exercise_modes": [
-        "T Pose",
         "Squat",
         "Pushup",
         "Plank",
@@ -325,7 +323,7 @@ python watchtower_main.py
 ```
 
 애플리케이션에서:
-1. Exercise Mode 선택 (T Pose/Squat/Pushup)
+1. Exercise Mode 선택 (Squat/Pushup)
 2. "Select Mode" 클릭
 3. "Start Workout" 클릭
 4. WatchTower Response에서 결과 확인
@@ -353,7 +351,7 @@ python watchtower_main.py
 ```json
 {
   "command": "start",
-  "mode": "t_pose",
+  "mode": "squat",
   "timestamp": 1234567890
 }
 ```

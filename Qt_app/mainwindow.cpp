@@ -93,8 +93,6 @@ void MainWindow::setupPages()
     m_stackedWidget->addWidget(m_exerciseSelectionPage);
 
     // Connect exercise selection signals
-    connect(ui_exerciseSelection->tPoseButton, &QPushButton::clicked,
-            this, &MainWindow::on_tPoseButton_clicked);
     connect(ui_exerciseSelection->squatButton, &QPushButton::clicked,
             this, &MainWindow::on_squatButton_clicked);
     connect(ui_exerciseSelection->pushupButton, &QPushButton::clicked,
@@ -309,19 +307,14 @@ void MainWindow::on_settingsButton_clicked()
 // Exercise Selection Page Slots
 // ============================================================================
 
-void MainWindow::on_tPoseButton_clicked()
-{
-    startWorkout("스쿼트");  // 첫 번째 버튼 → 스쿼트
-}
-
 void MainWindow::on_squatButton_clicked()
 {
-    startWorkout("푸시업");  // 두 번째 버튼 → 푸시업
+    startWorkout("스쿼트");
 }
 
 void MainWindow::on_pushupButton_clicked()
 {
-    QMessageBox::information(this, "플랭크", "플랭크 운동은 곧 출시됩니다.");
+    startWorkout("푸시업");
 }
 
 void MainWindow::on_plankButton_clicked()
@@ -485,7 +478,7 @@ void MainWindow::on_workout_startButton_clicked()
 
     // Send start command to WatchTower (WatchTower protocol)
     // Topic: qt/command/start
-    // Format: {"command": "start", "mode": "t_pose", "timestamp": 1234567890}
+    // Format: {"command": "start", "mode": "squat", "timestamp": 1234567890}
     QJsonObject json;
     json["command"] = "start";
     json["mode"] = m_currentMode;  // Use converted English mode name
@@ -719,7 +712,7 @@ void MainWindow::startWorkout(const QString &exerciseName)
 
     // Send mode selection command to WatchTower first
     // Topic: qt/command/select_mode
-    // Format: {"mode": "t_pose", "timestamp": 1234567890}
+    // Format: {"mode": "squat", "timestamp": 1234567890}
     sendModeSelectCommand(m_currentMode);
 
     // Update UI
@@ -828,7 +821,7 @@ void MainWindow::sendModeSelectCommand(const QString &mode)
     /**
      * WatchTower에 운동 모드 선택 명령 전송
      * Topic: qt/command/select_mode
-     * Format: {"mode": "t_pose", "timestamp": 1234567890}
+     * Format: {"mode": "squat", "timestamp": 1234567890}
      */
     QJsonObject json;
     json["mode"] = mode;

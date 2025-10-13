@@ -38,7 +38,7 @@ void Config::setDefaults()
     m_topicQtResponse = "qt/response/#";
 
     // Exercise Modes defaults
-    m_exerciseModes = QStringList() << "T Pose" << "Squat" << "Pushup";
+    m_exerciseModes = QStringList() << "Squat" << "Pushup";
 
     // UI Settings defaults
     m_windowWidth = 900;
