@@ -18,6 +18,9 @@ class HTTPClient:
         self.config = WatchTowerConfig
         self.server_url = f"http://{self.config.AI_SERVER_HOST}:{self.config.AI_SERVER_PORT}"
         self.current_mode = None
+        self.current_pose_index = 0  # 현재 포즈 인덱스
+        self.poses = []  # 현재 모드의 포즈 리스트
+        self.total_poses = 0  # 총 포즈 개수
 
     def check_server(self):
         """
@@ -61,11 +64,23 @@ class HTTPClient:
             if response.status_code == 200:
                 result = response.json()
                 print(f"✓ AI 서버 응답: {result.get('message', 'OK')}")
+
+                # 모드 및 포즈 정보 저장
                 self.current_mode = mode
+                self.current_pose_index = 0
+                self.poses = result.get('poses', [])
+                self.total_poses = result.get('total_poses', 0)
+
+                print(f"  총 포즈 개수: {self.total_poses}")
+                for i, pose in enumerate(self.poses):
+                    print(f"  [{i}] {pose.get('description', 'N/A')}")
+
                 return {
                     'success': True,
                     'message': result.get('message', 'Mode selected successfully'),
-                    'mode': mode
+                    'mode': mode,
+                    'poses': self.poses,
+                    'total_poses': self.total_poses
                 }
             else:
                 error = response.json() if response.content else {}
@@ -98,34 +113,46 @@ class HTTPClient:
                 'error': error_msg
             }
 
-    def send_frame(self, frame):
+    def send_frame(self, frame=None, pose_index=None, frame_base64=None):
         """
         프레임을 AI 서버로 전송하고 분석 결과 수신
 
         Args:
             frame: OpenCV 프레임 (numpy 배열)
+            pose_index: 포즈 인덱스 (None이면 현재 인덱스 사용)
+            frame_base64: 이미 인코딩된 프레임(Base64). 제공되면 frame 인코딩을 건너뜀.
 
         Returns:
             dict: 분석 결과 또는 None
         """
         try:
-            import cv2
+            if frame_base64 is None:
+                if frame is None:
+                    print("✗ 프레임 데이터가 없습니다 (frame 또는 frame_base64 필요)")
+                    return None
 
-            # JPEG 인코딩
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.config.JPEG_QUALITY]
-            result, encoded_frame = cv2.imencode('.jpg', frame, encode_param)
+                import cv2
 
-            if not result:
-                print("✗ 프레임 인코딩 실패")
-                return None
+                # JPEG 인코딩
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.config.JPEG_QUALITY]
+                result, encoded_frame = cv2.imencode('.jpg', frame, encode_param)
 
-            # Base64 인코딩
-            frame_base64 = base64.b64encode(encoded_frame).decode('utf-8')
+                if not result:
+                    print("✗ 프레임 인코딩 실패")
+                    return None
+
+                # Base64 인코딩
+                frame_base64 = base64.b64encode(encoded_frame).decode('utf-8')
+
+            # 포즈 인덱스 결정
+            if pose_index is None:
+                pose_index = self.current_pose_index
 
             # API 요청
             url = f"{self.server_url}{self.config.API_STREAM_FRAME}"
             payload = {
                 "frame": frame_base64,
+                "pose_index": pose_index,
                 "timestamp": int(time.time() * 1000)
             }
 
@@ -143,6 +170,37 @@ class HTTPClient:
         except Exception as e:
             print(f"✗ 프레임 전송 오류: {e}")
             return None
+
+    def set_pose_index(self, pose_index):
+        """
+        현재 포즈 인덱스 설정
+
+        Args:
+            pose_index: 포즈 인덱스 (0부터 시작)
+
+        Returns:
+            bool: 설정 성공 여부
+        """
+        if pose_index < 0 or pose_index >= self.total_poses:
+            print(f"✗ 잘못된 포즈 인덱스: {pose_index} (범위: 0-{self.total_poses-1})")
+            return False
+
+        self.current_pose_index = pose_index
+        if pose_index < len(self.poses):
+            pose = self.poses[pose_index]
+            print(f"✓ 포즈 변경: [{pose_index}] {pose.get('description', 'N/A')}")
+        return True
+
+    def get_current_pose_info(self):
+        """
+        현재 포즈 정보 가져오기
+
+        Returns:
+            dict: 포즈 정보 또는 None
+        """
+        if self.current_pose_index < len(self.poses):
+            return self.poses[self.current_pose_index]
+        return None
 
     def stop_stream(self):
         """

@@ -6,7 +6,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMessageBox>
-#include <QVBoxLayout>
 #include <QScrollBar>
 #include <QtMath>
 
@@ -23,17 +22,22 @@ MainWindow::MainWindow(QWidget *parent)
     , ui_workout(nullptr)
     , m_client(nullptr)
     , m_config(Config::instance())
-    , m_cursorCanvas(nullptr)
+    , m_videoWidget(nullptr)
+    , m_airMouseManager(nullptr)
     , m_currentExercise("")
     , m_currentMode("")
     , m_workoutTimer(nullptr)
     , m_workoutSeconds(0)
     , m_isWorkoutRunning(false)
+    , m_currentPoseIndex(0)
+    , m_totalPoses(0)
+    , m_repCount(0)
 {
     loadConfiguration();
     setupPages();
     setupMqttClient();
-    setupCursorCanvas();
+    setupVideoWidget();
+    setupAirMouse();
 
     // Start with main menu
     switchToPage(PAGE_MAIN_MENU);
@@ -192,17 +196,34 @@ void MainWindow::setupMqttClient()
     qDebug() << "MQTT client setup complete";
 }
 
-void MainWindow::setupCursorCanvas()
+void MainWindow::setupVideoWidget()
 {
-    // Create cursor canvas for workout page
-    m_cursorCanvas = new CursorCanvas(this);
+    if (!ui_workout) {
+        return;
+    }
 
-    // Replace the placeholder widget with cursor canvas
-    QVBoxLayout *layout = new QVBoxLayout(ui_workout->cursorCanvasWidget);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(m_cursorCanvas);
+    m_videoWidget = ui_workout->videoWidget;
+    if (m_videoWidget) {
+        m_videoWidget->clearFrame(tr("영상 신호 대기 중..."));
+    }
 
-    qDebug() << "Cursor canvas initialized";
+    qDebug() << "Video widget initialized";
+}
+
+void MainWindow::setupAirMouse()
+{
+    // Create global airmouse manager
+    m_airMouseManager = new AirMouseManager(this);
+
+    // Set default settings
+    m_airMouseManager->setSensitivity(1.5);
+    m_airMouseManager->setSmoothing(true);
+    m_airMouseManager->setShowCursor(true);
+
+    // Initially disabled
+    m_airMouseManager->setEnabled(false);
+
+    qDebug() << "AirMouse manager initialized";
 }
 
 void MainWindow::switchToPage(Page page)
@@ -290,47 +311,47 @@ void MainWindow::on_settingsButton_clicked()
 
 void MainWindow::on_tPoseButton_clicked()
 {
-    startWorkout("T-Pose");
+    startWorkout("스쿼트");  // 첫 번째 버튼 → 스쿼트
 }
 
 void MainWindow::on_squatButton_clicked()
 {
-    startWorkout("스쿼트");
+    startWorkout("푸시업");  // 두 번째 버튼 → 푸시업
 }
 
 void MainWindow::on_pushupButton_clicked()
 {
-    startWorkout("푸쉬업");
+    QMessageBox::information(this, "플랭크", "플랭크 운동은 곧 출시됩니다.");
 }
 
 void MainWindow::on_plankButton_clicked()
 {
-    startWorkout("플랭크");
+    QMessageBox::information(this, "런지", "런지 운동은 곧 출시됩니다.");
 }
 
 void MainWindow::on_lungeButton_clicked()
 {
-    startWorkout("런지");
+    QMessageBox::information(this, "점핑잭", "점핑잭 운동은 곧 출시됩니다.");
 }
 
 void MainWindow::on_jumpingJackButton_clicked()
 {
-    startWorkout("점핑잭");
+    QMessageBox::information(this, "마운틴 클라이머", "마운틴 클라이머 운동은 곧 출시됩니다.");
 }
 
 void MainWindow::on_mountainClimberButton_clicked()
 {
-    startWorkout("마운틴 클라이머");
+    QMessageBox::information(this, "버피", "버피 운동은 곧 출시됩니다.");
 }
 
 void MainWindow::on_burpeeButton_clicked()
 {
-    startWorkout("버피");
+    QMessageBox::information(this, "사용자 정의 1", "사용자 정의 운동 기능은 곧 출시됩니다.");
 }
 
 void MainWindow::on_customButton_clicked()
 {
-    QMessageBox::information(this, "사용자 정의", "사용자 정의 운동 기능은 곧 출시됩니다.");
+    QMessageBox::information(this, "사용자 정의 2", "사용자 정의 운동 기능은 곧 출시됩니다.");
 }
 
 void MainWindow::on_scrollUpButton_clicked()
@@ -387,18 +408,24 @@ void MainWindow::on_settings_calibrateButton_clicked()
 
 void MainWindow::on_settings_testAirMouseButton_clicked()
 {
-    // Enable airmouse mode and switch to workout page for testing
-    sendAirMouseModeCommand();
+    // Toggle global airmouse mode
+    if (m_airMouseManager) {
+        bool isEnabled = m_airMouseManager->isEnabled();
+        m_airMouseManager->setEnabled(!isEnabled);
 
-    m_currentExercise = "에어마우스 테스트";
-    ui_workout->exerciseTitleLabel->setText("에어마우스 테스트");
-    ui_workout->feedbackLabel->setText("조이스틱을 움직여 커서를 제어하세요");
-
-    if (m_cursorCanvas) {
-        m_cursorCanvas->resetCursor();
+        if (!isEnabled) {
+            // 에어마우스 활성화
+            sendAirMouseModeCommand();
+            QMessageBox::information(this, "에어마우스",
+                "에어마우스가 활성화되었습니다.\n"
+                "조이스틱을 움직여 모든 페이지의 UI를 제어할 수 있습니다.\n"
+                "다시 클릭하면 비활성화됩니다.");
+        } else {
+            // 에어마우스 비활성화
+            sendSensorModeCommand();
+            QMessageBox::information(this, "에어마우스", "에어마우스가 비활성화되었습니다.");
+        }
     }
-
-    switchToPage(PAGE_WORKOUT);
 }
 
 void MainWindow::on_settings_saveButton_clicked()
@@ -422,23 +449,23 @@ void MainWindow::on_settings_backButton_clicked()
 void MainWindow::on_sensitivitySlider_valueChanged(int value)
 {
     double sensitivity = value / 10.0;
-    if (m_cursorCanvas) {
-        m_cursorCanvas->setSensitivity(sensitivity);
+    if (m_airMouseManager) {
+        m_airMouseManager->setSensitivity(sensitivity);
     }
     ui_settings->sensitivityValueLabel->setText(QString("%1x").arg(sensitivity, 0, 'f', 1));
 }
 
 void MainWindow::on_smoothingCheckBox_toggled(bool checked)
 {
-    if (m_cursorCanvas) {
-        m_cursorCanvas->setSmoothing(checked);
+    if (m_airMouseManager) {
+        m_airMouseManager->setSmoothing(checked);
     }
 }
 
 void MainWindow::on_trailCheckBox_toggled(bool checked)
 {
-    if (m_cursorCanvas) {
-        m_cursorCanvas->setShowTrail(checked);
+    if (m_airMouseManager) {
+        m_airMouseManager->setShowCursor(checked);
     }
 }
 
@@ -507,6 +534,7 @@ void MainWindow::onMqttDisconnected()
 {
     qDebug() << "Disconnected from MQTT broker";
     updateMqttConnectionStatus(false);
+    clearVideoFrame(tr("MQTT 연결이 끊어졌습니다."));
 }
 
 void MainWindow::onMqttMessageReceived(const QByteArray &message, const QMqttTopicName &topic)
@@ -604,13 +632,9 @@ void MainWindow::updateSensorData(const QJsonObject &data, bool isJoystick)
 
 void MainWindow::updateAirMouseData(const QJsonObject &data)
 {
-    // Extract mouse movement data
-    double mouseX = data["mouse_x"].toDouble();
-    double mouseY = data["mouse_y"].toDouble();
-
-    // Move cursor in canvas
-    if (m_cursorCanvas && (qAbs(mouseX) > 0.1 || qAbs(mouseY) > 0.1)) {
-        m_cursorCanvas->moveCursor(static_cast<int>(mouseX), static_cast<int>(mouseY));
+    // Update global airmouse manager
+    if (m_airMouseManager && m_airMouseManager->isEnabled()) {
+        m_airMouseManager->handleMouseData(data);
     }
 }
 
@@ -630,9 +654,58 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
         bool isCorrect = data["is_correct"].toBool();
         if (isCorrect) {
             ui_workout->feedbackLabel->setStyleSheet("color: green;");
+
+            // If pose is correct and this is the last pose, increment rep count and reset
+            if (isLastPose()) {
+                m_repCount++;
+                ui_workout->repCountLabel->setText(QString("반복 횟수: %1").arg(m_repCount));
+                qDebug() << "Rep completed! Total reps:" << m_repCount;
+
+                // Reset to first pose for next repetition
+                m_currentPoseIndex = 0;
+                updatePoseDisplay();
+            } else {
+                // Move to next pose
+                nextPose();
+            }
         } else {
             ui_workout->feedbackLabel->setStyleSheet("color: orange;");
         }
+    }
+
+    // Update current pose information if provided
+    if (data.contains("current_pose") && data.contains("pose_description")) {
+        QString currentPose = data["current_pose"].toString();
+        QString poseDescription = data["pose_description"].toString();
+        qDebug() << "Current pose:" << currentPose << "-" << poseDescription;
+    }
+}
+
+void MainWindow::displayVideoFrame(const QString &base64Frame)
+{
+    if (!m_videoWidget) {
+        return;
+    }
+
+    QString payload = base64Frame;
+    const int headerIndex = payload.indexOf(',');
+    if (headerIndex != -1) {
+        payload = payload.mid(headerIndex + 1);
+    }
+
+    const QByteArray frameBytes = QByteArray::fromBase64(payload.toUtf8());
+    if (frameBytes.isEmpty()) {
+        m_videoWidget->clearFrame(tr("영상 디코딩 실패"));
+        return;
+    }
+
+    m_videoWidget->setFrame(frameBytes);
+}
+
+void MainWindow::clearVideoFrame(const QString &message)
+{
+    if (m_videoWidget) {
+        m_videoWidget->clearFrame(message);
     }
 }
 
@@ -658,9 +731,7 @@ void MainWindow::startWorkout(const QString &exerciseName)
     ui_workout->repCountLabel->setText("반복 횟수: 0");
     ui_workout->timerLabel->setText("00:00");
 
-    if (m_cursorCanvas) {
-        m_cursorCanvas->resetCursor();
-    }
+    clearVideoFrame(tr("영상 신호 대기 중..."));
 
     qDebug() << "→ Exercise selected:" << exerciseName << "→" << m_currentMode;
     switchToPage(PAGE_WORKOUT);
@@ -728,23 +799,25 @@ QString MainWindow::convertExerciseNameToMode(const QString &exerciseName)
 {
     /**
      * 한글 운동 이름을 WatchTower가 인식하는 영어 모드명으로 변환
-     * WatchTower의 SUPPORTED_MODES: ['t_pose', 'squat', 'pushup']
+     * WatchTower의 SUPPORTED_MODES: ['squat', 'pushup']
+     * T-Pose는 삭제됨, 나머지는 미구현
      */
     static QMap<QString, QString> exerciseMap = {
-        {"T-Pose", "t_pose"},
         {"스쿼트", "squat"},
-        {"푸쉬업", "pushup"},
-        {"플랭크", "plank"},
-        {"런지", "lunge"},
-        {"점핑잭", "jumping_jack"},
-        {"마운틴 클라이머", "mountain_climber"},
-        {"버피", "burpee"}
+        {"푸시업", "pushup"},
+        {"플랭크", "plank"},        // 미구현
+        {"런지", "lunge"},          // 미구현
+        {"점핑잭", "jumping_jack"},  // 미구현
+        {"마운틴 클라이머", "mountain_climber"},  // 미구현
+        {"버피", "burpee"},         // 미구현
+        {"사용자 정의 1", "custom1"},  // 미구현
+        {"사용자 정의 2", "custom2"}   // 미구현
     };
 
     QString mode = exerciseMap.value(exerciseName, "");
     if (mode.isEmpty()) {
         qWarning() << "Unknown exercise name:" << exerciseName;
-        return "t_pose";  // Default fallback
+        return "squat";  // Default fallback (squat is implemented)
     }
 
     return mode;
@@ -777,6 +850,7 @@ void MainWindow::handleQtResponse(const QString &responseType, const QJsonObject
      * - analysis: 운동 분석 결과
      * - error: 에러 메시지
      * - status: 상태 업데이트
+     * - frame: 카메라 영상 프레임 (base64)
      */
     qDebug() << "← Qt Response received:" << responseType;
 
@@ -788,6 +862,19 @@ void MainWindow::handleQtResponse(const QString &responseType, const QJsonObject
         if (status == "success") {
             qDebug() << "✓ Mode selected successfully:" << mode;
             ui_mainMenu->statusLabel->setText(QString("모드 선택됨: %1").arg(mode));
+
+            // Parse pose sequence information
+            if (data.contains("poses") && data["poses"].isArray()) {
+                m_poses = data["poses"].toArray();
+                m_totalPoses = m_poses.size();
+                m_currentPoseIndex = 0;
+                m_repCount = 0;
+
+                qDebug() << "Loaded" << m_totalPoses << "poses for mode:" << mode;
+
+                // Display first pose information
+                updatePoseDisplay();
+            }
         } else {
             qWarning() << "✗ Mode selection failed:" << mode;
         }
@@ -795,6 +882,9 @@ void MainWindow::handleQtResponse(const QString &responseType, const QJsonObject
     } else if (responseType == "analysis") {
         // 운동 분석 결과 (실시간 피드백)
         updateWorkoutFeedback(data);
+        if (data.contains("frame")) {
+            displayVideoFrame(data.value("frame").toString());
+        }
 
     } else if (responseType == "error") {
         // 에러 메시지
@@ -810,5 +900,71 @@ void MainWindow::handleQtResponse(const QString &responseType, const QJsonObject
         // 상태 업데이트
         QString status = data["status"].toString();
         qDebug() << "ℹ WatchTower status:" << status;
+    } else if (responseType == "frame") {
+        if (data.contains("frame")) {
+            displayVideoFrame(data.value("frame").toString());
+        } else {
+            clearVideoFrame(tr("영상 데이터 없음"));
+        }
     }
+}
+
+// ============================================================================
+// Pose Sequence Helper Methods
+// ============================================================================
+
+void MainWindow::updatePoseDisplay()
+{
+    /**
+     * 현재 포즈 정보를 UI에 표시
+     * WatchTower에 pose_index 업데이트도 함께 전송할 수 있음
+     */
+    if (m_currentPoseIndex < 0 || m_currentPoseIndex >= m_totalPoses) {
+        qWarning() << "Invalid pose index:" << m_currentPoseIndex;
+        return;
+    }
+
+    QJsonObject currentPose = m_poses[m_currentPoseIndex].toObject();
+    QString poseName = currentPose["name"].toString();
+    QString poseDescription = currentPose["description"].toString();
+
+    // UI에 현재 포즈 정보 표시 (feedbackLabel 위에 추가로 표시)
+    ui_workout->exerciseTitleLabel->setText(
+        QString("운동: %1 (%2/%3)")
+        .arg(m_currentExercise)
+        .arg(m_currentPoseIndex + 1)
+        .arg(m_totalPoses)
+    );
+
+    // 포즈 설명을 상태 표시줄에 표시
+    if (ui_workout->feedbackLabel->text().isEmpty() ||
+        ui_workout->feedbackLabel->text() == "시작 버튼을 눌러주세요") {
+        ui_workout->feedbackLabel->setText(poseDescription);
+        ui_workout->feedbackLabel->setStyleSheet("");
+    }
+
+    qDebug() << "Pose" << (m_currentPoseIndex + 1) << "/" << m_totalPoses << ":" << poseDescription;
+}
+
+void MainWindow::nextPose()
+{
+    /**
+     * 다음 포즈로 이동
+     * 마지막 포즈가 아닐 때만 증가
+     */
+    if (m_currentPoseIndex < m_totalPoses - 1) {
+        m_currentPoseIndex++;
+        updatePoseDisplay();
+        qDebug() << "Moving to next pose:" << (m_currentPoseIndex + 1) << "/" << m_totalPoses;
+    } else {
+        qDebug() << "Already at last pose";
+    }
+}
+
+bool MainWindow::isLastPose() const
+{
+    /**
+     * 현재 포즈가 마지막 포즈인지 확인
+     */
+    return m_currentPoseIndex == m_totalPoses - 1;
 }

@@ -21,6 +21,7 @@ class PoseAnalyzer:
         model_path = model_path or AIServerConfig.MODEL_PATH
         self.model = YOLO(model_path)
         self.current_mode = None
+        self.current_pose_index = 0  # 현재 포즈 인덱스
 
     def set_mode(self, mode):
         """
@@ -35,11 +36,48 @@ class PoseAnalyzer:
         if mode not in AIServerConfig.SUPPORTED_MODES:
             return False
         self.current_mode = mode
+        self.current_pose_index = 0  # 모드 변경 시 포즈 인덱스 초기화
         return True
+
+    def set_pose_index(self, pose_index):
+        """
+        현재 포즈 인덱스 설정
+
+        Args:
+            pose_index: 포즈 인덱스 (0부터 시작)
+
+        Returns:
+            bool: 설정 성공 여부
+        """
+        if self.current_mode is None:
+            return False
+
+        poses = AIServerConfig.MODE_POSES.get(self.current_mode, [])
+        if pose_index < 0 or pose_index >= len(poses):
+            return False
+
+        self.current_pose_index = pose_index
+        return True
+
+    def get_current_pose_info(self):
+        """
+        현재 포즈 정보 가져오기
+
+        Returns:
+            dict: 포즈 정보 또는 None
+        """
+        if self.current_mode is None:
+            return None
+
+        poses = AIServerConfig.MODE_POSES.get(self.current_mode, [])
+        if self.current_pose_index >= len(poses):
+            return None
+
+        return poses[self.current_pose_index]
 
     def analyze_frame(self, frame):
         """
-        프레임 분석 (현재 모드에 따라)
+        프레임 분석 (현재 모드 및 포즈에 따라)
 
         Args:
             frame: OpenCV 이미지 (numpy 배열)
@@ -51,13 +89,22 @@ class PoseAnalyzer:
                     'is_correct': bool,
                     'score': int (0-100),
                     'feedback': str,
-                    'keypoints': dict (선택사항)
+                    'current_pose': str,  # 현재 확인하는 포즈 이름
+                    'pose_description': str  # 포즈 설명
                 }
         """
         if self.current_mode is None:
             return {
                 'status': 'error',
                 'message': 'No mode selected'
+            }
+
+        # 현재 포즈 정보 가져오기
+        pose_info = self.get_current_pose_info()
+        if pose_info is None:
+            return {
+                'status': 'error',
+                'message': 'Invalid pose index'
             }
 
         # YOLO Pose 추론
@@ -68,7 +115,9 @@ class PoseAnalyzer:
                 'status': 'success',
                 'is_correct': False,
                 'score': 0,
-                'feedback': '사람이 감지되지 않았습니다'
+                'feedback': '사람이 감지되지 않았습니다',
+                'current_pose': pose_info['name'],
+                'pose_description': pose_info['description']
             }
 
         # 키포인트 추출
@@ -84,102 +133,95 @@ class PoseAnalyzer:
             box = boxes[0].xyxy.cpu().numpy()[0]  # [x1, y1, x2, y2]
             bbox = [float(x) for x in box]
 
-        # 모드에 따라 분석
-        if self.current_mode == 't_pose':
-            return self._analyze_t_pose(xy, conf, bbox)
-        elif self.current_mode == 'squat':
-            return self._analyze_squat(xy, conf, bbox)
+        # 포즈 이름에 따라 분석
+        pose_name = pose_info['name']
+
+        # 분석 결과 가져오기
+        if pose_name == 'squat_stand':
+            result = self._analyze_squat_stand(xy, conf, bbox)
+        elif pose_name == 'squat_down':
+            result = self._analyze_squat_down(xy, conf, bbox)
+        elif pose_name == 'pushup_up':
+            result = self._analyze_pushup_up(xy, conf, bbox)
+        elif pose_name == 'pushup_down':
+            result = self._analyze_pushup_down(xy, conf, bbox)
         else:
             return {
                 'status': 'error',
-                'message': f'Mode {self.current_mode} not implemented yet'
+                'message': f'Pose {pose_name} not implemented yet'
             }
 
-    def _analyze_t_pose(self, xy, conf, bbox=None):
-        """T자 서기 자세 분석"""
+        # 포즈 정보 추가
+        result['current_pose'] = pose_info['name']
+        result['pose_description'] = pose_info['description']
+
+        return result
+
+    def _analyze_squat_stand(self, xy, conf, bbox=None):
+        """스쿼트 준비 자세 (선 자세) 분석"""
         threshold = AIServerConfig.CONFIDENCE_THRESHOLD
 
-        # 필요한 키포인트 추출
-        left_shoulder = xy[5] if conf[5] > threshold else None
-        right_shoulder = xy[6] if conf[6] > threshold else None
-        left_elbow = xy[7] if conf[7] > threshold else None
-        right_elbow = xy[8] if conf[8] > threshold else None
-        left_wrist = xy[9] if conf[9] > threshold else None
-        right_wrist = xy[10] if conf[10] > threshold else None
+        # 필요한 키포인트 추출 (엉덩이, 무릎, 발목)
+        left_hip = xy[11] if conf[11] > threshold else None
+        right_hip = xy[12] if conf[12] > threshold else None
+        left_knee = xy[13] if conf[13] > threshold else None
+        right_knee = xy[14] if conf[14] > threshold else None
+        left_ankle = xy[15] if conf[15] > threshold else None
+        right_ankle = xy[16] if conf[16] > threshold else None
 
-        points = [left_shoulder, right_shoulder, left_elbow,
-                  right_elbow, left_wrist, right_wrist]
+        points = [left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
 
         if any(p is None for p in points):
-            return {
+            result = {
                 'status': 'success',
                 'is_correct': False,
                 'score': 0,
-                'feedback': '팔 전체가 보이도록 카메라 앞에 서주세요'
+                'feedback': '전신이 보이도록 카메라 앞에 서주세요'
             }
+        else:
+            # 각도 계산 (엉덩이-무릎-발목)
+            left_leg_angle = self._calculate_angle(left_hip, left_knee, left_ankle)
+            right_leg_angle = self._calculate_angle(right_hip, right_knee, right_ankle)
 
-        # 각도 계산
-        left_arm_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
-        right_arm_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
-        left_horizontal = self._calculate_horizontal_angle(left_shoulder, left_wrist)
-        right_horizontal = self._calculate_horizontal_angle(right_shoulder, right_wrist)
+            if None in [left_leg_angle, right_leg_angle]:
+                result = {
+                    'status': 'success',
+                    'is_correct': False,
+                    'score': 0,
+                    'feedback': '각도 계산 실패'
+                }
+            else:
+                # 선 자세 판정 (다리가 펴져 있어야 함)
+                stand_threshold = AIServerConfig.SQUAT_STAND_HIP_KNEE_THRESHOLD
 
-        if None in [left_arm_angle, right_arm_angle, left_horizontal, right_horizontal]:
-            return {
-                'status': 'success',
-                'is_correct': False,
-                'score': 0,
-                'feedback': '각도 계산 실패'
-            }
+                left_leg_ok = left_leg_angle > stand_threshold
+                right_leg_ok = right_leg_angle > stand_threshold
 
-        # T자 판정
-        arm_threshold = AIServerConfig.T_POSE_ARM_STRAIGHT_THRESHOLD
-        horizontal_threshold = AIServerConfig.T_POSE_HORIZONTAL_THRESHOLD
+                # 점수 계산
+                score = 0
+                if left_leg_ok:
+                    score += 50
+                if right_leg_ok:
+                    score += 50
 
-        left_arm_ok = left_arm_angle > arm_threshold
-        right_arm_ok = right_arm_angle > arm_threshold
-        left_horizontal_ok = left_horizontal < horizontal_threshold
-        right_horizontal_ok = right_horizontal < horizontal_threshold
+                # 피드백 생성
+                feedback = []
+                if not left_leg_ok:
+                    feedback.append(f"왼쪽 다리 펴기 ({left_leg_angle:.0f}°)")
+                if not right_leg_ok:
+                    feedback.append(f"오른쪽 다리 펴기 ({right_leg_angle:.0f}°)")
 
-        # 점수 계산
-        score = 0
-        if left_arm_ok:
-            score += 25
-        if right_arm_ok:
-            score += 25
-        if left_horizontal_ok:
-            score += 25
-        if right_horizontal_ok:
-            score += 25
+                is_correct = score == 100
+                message = "준비 자세 완료!" if is_correct else ", ".join(feedback)
 
-        # 피드백 생성
-        feedback = []
-        if not left_arm_ok:
-            feedback.append(f"왼팔 펴기 ({left_arm_angle:.0f}°)")
-        if not right_arm_ok:
-            feedback.append(f"오른팔 펴기 ({right_arm_angle:.0f}°)")
-        if not left_horizontal_ok:
-            feedback.append(f"왼팔 수평 ({left_horizontal:.0f}°)")
-        if not right_horizontal_ok:
-            feedback.append(f"오른팔 수평 ({right_horizontal:.0f}°)")
+                result = {
+                    'status': 'success',
+                    'is_correct': is_correct,
+                    'score': score,
+                    'feedback': message
+                }
 
-        is_correct = score == 100
-        message = "완벽한 T자 자세!" if is_correct else ", ".join(feedback)
-
-        result = {
-            'status': 'success',
-            'is_correct': is_correct,
-            'score': score,
-            'feedback': message,
-            'keypoints': {
-                'left_arm_angle': float(left_arm_angle),
-                'right_arm_angle': float(right_arm_angle),
-                'left_horizontal': float(left_horizontal),
-                'right_horizontal': float(right_horizontal)
-            }
-        }
-
-        # 추적 정보 추가 (바운딩 박스가 있는 경우)
+        # 추적 정보 추가
         if bbox:
             x1, y1, x2, y2 = bbox
             center_x = (x1 + x2) / 2
@@ -192,12 +234,259 @@ class PoseAnalyzer:
 
         return result
 
-    def _analyze_squat(self, xy, conf, bbox=None):
-        """스쿼트 자세 분석 (향후 구현)"""
-        return {
-            'status': 'error',
-            'message': 'Squat mode not implemented yet'
-        }
+    def _analyze_squat_down(self, xy, conf, bbox=None):
+        """스쿼트 자세 (무릎 90도) 분석"""
+        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
+
+        # 필요한 키포인트 추출
+        left_hip = xy[11] if conf[11] > threshold else None
+        right_hip = xy[12] if conf[12] > threshold else None
+        left_knee = xy[13] if conf[13] > threshold else None
+        right_knee = xy[14] if conf[14] > threshold else None
+        left_ankle = xy[15] if conf[15] > threshold else None
+        right_ankle = xy[16] if conf[16] > threshold else None
+
+        points = [left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
+
+        if any(p is None for p in points):
+            result = {
+                'status': 'success',
+                'is_correct': False,
+                'score': 0,
+                'feedback': '전신이 보이도록 카메라 앞에 서주세요'
+            }
+        else:
+            # 각도 계산
+            left_knee_angle = self._calculate_angle(left_hip, left_knee, left_ankle)
+            right_knee_angle = self._calculate_angle(right_hip, right_knee, right_ankle)
+
+            if None in [left_knee_angle, right_knee_angle]:
+                result = {
+                    'status': 'success',
+                    'is_correct': False,
+                    'score': 0,
+                    'feedback': '각도 계산 실패'
+                }
+            else:
+                # 스쿼트 자세 판정 (무릎 각도가 80~100도 사이)
+                min_angle = AIServerConfig.SQUAT_DOWN_KNEE_ANGLE_MIN
+                max_angle = AIServerConfig.SQUAT_DOWN_KNEE_ANGLE_MAX
+
+                left_knee_ok = min_angle <= left_knee_angle <= max_angle
+                right_knee_ok = min_angle <= right_knee_angle <= max_angle
+
+                # 점수 계산
+                score = 0
+                if left_knee_ok:
+                    score += 50
+                if right_knee_ok:
+                    score += 50
+
+                # 피드백 생성
+                feedback = []
+                if not left_knee_ok:
+                    if left_knee_angle < min_angle:
+                        feedback.append(f"왼쪽 무릎 너무 깊음 ({left_knee_angle:.0f}°)")
+                    else:
+                        feedback.append(f"왼쪽 무릎 더 굽히기 ({left_knee_angle:.0f}°)")
+                if not right_knee_ok:
+                    if right_knee_angle < min_angle:
+                        feedback.append(f"오른쪽 무릎 너무 깊음 ({right_knee_angle:.0f}°)")
+                    else:
+                        feedback.append(f"오른쪽 무릎 더 굽히기 ({right_knee_angle:.0f}°)")
+
+                is_correct = score == 100
+                message = "완벽한 스쿼트 자세!" if is_correct else ", ".join(feedback)
+
+                result = {
+                    'status': 'success',
+                    'is_correct': is_correct,
+                    'score': score,
+                    'feedback': message
+                }
+
+        # 추적 정보 추가
+        if bbox:
+            x1, y1, x2, y2 = bbox
+            center_x = (x1 + x2) / 2
+            center_y = (y1 + y2) / 2
+            result['tracking'] = {
+                'center_x': float(center_x),
+                'center_y': float(center_y),
+                'bbox': bbox
+            }
+
+        return result
+
+    def _analyze_pushup_up(self, xy, conf, bbox=None):
+        """푸시업 준비 자세 (팔 펴기) 분석"""
+        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
+
+        # 필요한 키포인트 추출 (어깨, 팔꿈치, 손목, 엉덩이, 발목)
+        left_shoulder = xy[5] if conf[5] > threshold else None
+        right_shoulder = xy[6] if conf[6] > threshold else None
+        left_elbow = xy[7] if conf[7] > threshold else None
+        right_elbow = xy[8] if conf[8] > threshold else None
+        left_wrist = xy[9] if conf[9] > threshold else None
+        right_wrist = xy[10] if conf[10] > threshold else None
+        left_hip = xy[11] if conf[11] > threshold else None
+        right_hip = xy[12] if conf[12] > threshold else None
+        left_ankle = xy[15] if conf[15] > threshold else None
+        right_ankle = xy[16] if conf[16] > threshold else None
+
+        arm_points = [left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist]
+        body_points = [left_shoulder, right_shoulder, left_hip, right_hip, left_ankle, right_ankle]
+
+        if any(p is None for p in arm_points):
+            result = {
+                'status': 'success',
+                'is_correct': False,
+                'score': 0,
+                'feedback': '상체가 전체적으로 보이도록 카메라 앞에 위치해주세요'
+            }
+        else:
+            # 팔꿈치 각도 계산 (어깨-팔꿈치-손목)
+            left_elbow_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
+            right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
+
+            if None in [left_elbow_angle, right_elbow_angle]:
+                result = {
+                    'status': 'success',
+                    'is_correct': False,
+                    'score': 0,
+                    'feedback': '각도 계산 실패'
+                }
+            else:
+                # 팔 펴기 판정 (팔꿈치가 펴져 있어야 함)
+                min_angle = AIServerConfig.PUSHUP_UP_ELBOW_ANGLE_MIN
+
+                left_arm_ok = left_elbow_angle > min_angle
+                right_arm_ok = right_elbow_angle > min_angle
+
+                # 점수 계산
+                score = 0
+                if left_arm_ok:
+                    score += 50
+                if right_arm_ok:
+                    score += 50
+
+                # 피드백 생성
+                feedback = []
+                if not left_arm_ok:
+                    feedback.append(f"왼팔 더 펴기 ({left_elbow_angle:.0f}°)")
+                if not right_arm_ok:
+                    feedback.append(f"오른팔 더 펴기 ({right_elbow_angle:.0f}°)")
+
+                is_correct = score == 100
+                message = "준비 자세 완료!" if is_correct else ", ".join(feedback)
+
+                result = {
+                    'status': 'success',
+                    'is_correct': is_correct,
+                    'score': score,
+                    'feedback': message
+                }
+
+        # 추적 정보 추가
+        if bbox:
+            x1, y1, x2, y2 = bbox
+            center_x = (x1 + x2) / 2
+            center_y = (y1 + y2) / 2
+            result['tracking'] = {
+                'center_x': float(center_x),
+                'center_y': float(center_y),
+                'bbox': bbox
+            }
+
+        return result
+
+    def _analyze_pushup_down(self, xy, conf, bbox=None):
+        """푸시업 자세 (팔 굽히기) 분석"""
+        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
+
+        # 필요한 키포인트 추출
+        left_shoulder = xy[5] if conf[5] > threshold else None
+        right_shoulder = xy[6] if conf[6] > threshold else None
+        left_elbow = xy[7] if conf[7] > threshold else None
+        right_elbow = xy[8] if conf[8] > threshold else None
+        left_wrist = xy[9] if conf[9] > threshold else None
+        right_wrist = xy[10] if conf[10] > threshold else None
+        left_hip = xy[11] if conf[11] > threshold else None
+        right_hip = xy[12] if conf[12] > threshold else None
+        left_ankle = xy[15] if conf[15] > threshold else None
+        right_ankle = xy[16] if conf[16] > threshold else None
+
+        arm_points = [left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist]
+
+        if any(p is None for p in arm_points):
+            result = {
+                'status': 'success',
+                'is_correct': False,
+                'score': 0,
+                'feedback': '상체가 전체적으로 보이도록 카메라 앞에 위치해주세요'
+            }
+        else:
+            # 팔꿈치 각도 계산
+            left_elbow_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
+            right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
+
+            if None in [left_elbow_angle, right_elbow_angle]:
+                result = {
+                    'status': 'success',
+                    'is_correct': False,
+                    'score': 0,
+                    'feedback': '각도 계산 실패'
+                }
+            else:
+                # 팔 굽히기 판정 (팔꿈치 각도가 70~110도 사이)
+                min_angle = AIServerConfig.PUSHUP_DOWN_ELBOW_ANGLE_MIN
+                max_angle = AIServerConfig.PUSHUP_DOWN_ELBOW_ANGLE_MAX
+
+                left_arm_ok = min_angle <= left_elbow_angle <= max_angle
+                right_arm_ok = min_angle <= right_elbow_angle <= max_angle
+
+                # 점수 계산
+                score = 0
+                if left_arm_ok:
+                    score += 50
+                if right_arm_ok:
+                    score += 50
+
+                # 피드백 생성
+                feedback = []
+                if not left_arm_ok:
+                    if left_elbow_angle < min_angle:
+                        feedback.append(f"왼팔 너무 깊이 굽힘 ({left_elbow_angle:.0f}°)")
+                    else:
+                        feedback.append(f"왼팔 더 굽히기 ({left_elbow_angle:.0f}°)")
+                if not right_arm_ok:
+                    if right_elbow_angle < min_angle:
+                        feedback.append(f"오른팔 너무 깊이 굽힘 ({right_elbow_angle:.0f}°)")
+                    else:
+                        feedback.append(f"오른팔 더 굽히기 ({right_elbow_angle:.0f}°)")
+
+                is_correct = score == 100
+                message = "완벽한 푸시업 자세!" if is_correct else ", ".join(feedback)
+
+                result = {
+                    'status': 'success',
+                    'is_correct': is_correct,
+                    'score': score,
+                    'feedback': message
+                }
+
+        # 추적 정보 추가
+        if bbox:
+            x1, y1, x2, y2 = bbox
+            center_x = (x1 + x2) / 2
+            center_y = (y1 + y2) / 2
+            result['tracking'] = {
+                'center_x': float(center_x),
+                'center_y': float(center_y),
+                'bbox': bbox
+            }
+
+        return result
 
     @staticmethod
     def _calculate_angle(p1, p2, p3):
@@ -219,22 +508,3 @@ class PoseAnalyzer:
         cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
         angle = np.arccos(np.clip(cos_angle, -1.0, 1.0))
         return np.degrees(angle)
-
-    @staticmethod
-    def _calculate_horizontal_angle(p1, p2):
-        """
-        두 점이 수평선과 이루는 각도 계산
-
-        Args:
-            p1, p2: (x, y) 좌표
-
-        Returns:
-            float: 각도 (0도 = 완전 수평) 또는 None
-        """
-        if p1 is None or p2 is None:
-            return None
-
-        dx = p2[0] - p1[0]
-        dy = p2[1] - p1[1]
-        angle = np.degrees(np.arctan2(dy, dx))
-        return abs(angle)

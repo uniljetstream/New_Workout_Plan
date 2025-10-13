@@ -23,16 +23,54 @@ class AIServerConfig:
     # 운동 모드 설정
     # ============================================
     SUPPORTED_MODES = [
-        't_pose',      # T자 서기
-        'squat',       # 스쿼트 (향후 구현)
-        'pushup',      # 푸시업 (향후 구현)
+        'squat',       # 스쿼트
+        'pushup',      # 푸시업
     ]
 
     # ============================================
-    # T-Pose 판정 기준
+    # 모드별 포즈 시퀀스 정의
     # ============================================
-    T_POSE_ARM_STRAIGHT_THRESHOLD = 160  # 팔이 펴진 정도 (도)
-    T_POSE_HORIZONTAL_THRESHOLD = 20     # 수평 정도 (도)
+    MODE_POSES = {
+        'squat': [
+            {
+                'name': 'squat_stand',
+                'description': '스쿼트 준비 자세 (선 자세)',
+                'duration': 1.0
+            },
+            {
+                'name': 'squat_down',
+                'description': '스쿼트 자세 (무릎 90도)',
+                'duration': 2.0
+            }
+        ],
+        'pushup': [
+            {
+                'name': 'pushup_up',
+                'description': '푸시업 준비 자세 (팔 펴기)',
+                'duration': 1.0
+            },
+            {
+                'name': 'pushup_down',
+                'description': '푸시업 자세 (팔 굽히기)',
+                'duration': 1.0
+            }
+        ]
+    }
+
+    # ============================================
+    # Squat 판정 기준
+    # ============================================
+    SQUAT_STAND_HIP_KNEE_THRESHOLD = 160  # 선 자세: 엉덩이-무릎-발목 각도
+    SQUAT_DOWN_KNEE_ANGLE_MIN = 80        # 앉은 자세: 무릎 최소 각도
+    SQUAT_DOWN_KNEE_ANGLE_MAX = 100       # 앉은 자세: 무릎 최대 각도
+
+    # ============================================
+    # Pushup 판정 기준
+    # ============================================
+    PUSHUP_UP_ELBOW_ANGLE_MIN = 160       # 팔 펴기: 팔꿈치 최소 각도
+    PUSHUP_DOWN_ELBOW_ANGLE_MIN = 70      # 팔 굽히기: 팔꿈치 최소 각도
+    PUSHUP_DOWN_ELBOW_ANGLE_MAX = 110     # 팔 굽히기: 팔꿈치 최대 각도
+    PUSHUP_BODY_ALIGNMENT_THRESHOLD = 20  # 몸통 정렬: 어깨-엉덩이-발목 직선 허용 오차 (도)
 
     # ============================================
     # 디버그 설정

@@ -6,6 +6,7 @@ Qt, MQTT, HTTP를 통합하는 메인 시스템
 
 import time
 import cv2
+import base64
 import threading
 from mqtt_controller import MQTTController
 from http_client import HTTPClient
@@ -303,6 +304,8 @@ class WatchTowerMain:
         """
         frame_interval = 1.0 / self.config.STREAM_FPS
         frame_count = 0
+        stream_frame_index = 0
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.config.JPEG_QUALITY]
 
         print(f"→ 스트리밍 루프 시작 (목표 FPS: {self.config.STREAM_FPS})")
 
@@ -317,8 +320,29 @@ class WatchTowerMain:
                     time.sleep(0.1)
                     continue
 
+                # 프레임 JPEG 인코딩
+                success, encoded_frame = cv2.imencode('.jpg', frame, encode_param)
+                if not success:
+                    print("⚠ 프레임 인코딩 실패")
+                    time.sleep(0.05)
+                    continue
+
+                # Base64 변환 (Qt 스트리밍 및 AI 서버 전송에 사용)
+                frame_base64 = base64.b64encode(encoded_frame).decode('utf-8')
+
                 # AI 서버에 프레임 전송 및 분석 결과 수신
-                result = self.http.send_frame(frame)
+                result = self.http.send_frame(frame_base64=frame_base64)
+
+                # Qt 앱에 프레임 전송
+                metadata = {
+                    'timestamp': int(time.time() * 1000),
+                    'frame_index': stream_frame_index,
+                    'pose_index': self.http.current_pose_index
+                }
+                if self.http.current_mode:
+                    metadata['mode'] = self.http.current_mode
+                self.mqtt.send_qt_frame(frame_base64, metadata)
+                stream_frame_index += 1
 
                 if result and result.get('status') == 'success':
                     frame_count += 1

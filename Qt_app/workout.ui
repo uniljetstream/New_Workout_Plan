@@ -246,7 +246,7 @@
       </layout>
      </item>
      <item>
-      <widget class="QWidget" name="cursorCanvasWidget" native="true">
+      <widget class="VideoFrameWidget" name="videoWidget">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>0</horstretch>
@@ -265,6 +265,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>VideoFrameWidget</class>
+   <extends>QLabel</extends>
+   <header>videoframewidget.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

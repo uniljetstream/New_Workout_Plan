@@ -54,12 +54,17 @@ def select_mode():
         # 모드 설정
         analyzer.set_mode(mode)
 
-        print(f"✓ 운동 모드 선택됨: {mode}")
+        # 해당 모드의 포즈 시퀀스 정보 가져오기
+        poses = AIServerConfig.MODE_POSES.get(mode, [])
+
+        print(f"✓ 운동 모드 선택됨: {mode} (포즈 개수: {len(poses)})")
 
         return jsonify({
             'status': 'success',
             'message': f'{mode.upper()} mode selected',
-            'mode': mode
+            'mode': mode,
+            'poses': poses,  # 포즈 시퀀스 정보 추가
+            'total_poses': len(poses)
         }), 200
 
     except Exception as e:
@@ -78,6 +83,7 @@ def analyze_frame():
     Request:
         {
             "frame": "base64_encoded_image",
+            "pose_index": 0,  # 현재 확인할 포즈 인덱스
             "timestamp": 1234567890  # optional
         }
 
@@ -87,7 +93,8 @@ def analyze_frame():
             "is_correct": true/false,
             "score": 85,
             "feedback": "완벽한 T자 자세!",
-            "keypoints": {...}  # optional
+            "current_pose": "t_pose_stand",
+            "pose_description": "T자 서기 자세"
         }
     """
     try:
@@ -97,6 +104,14 @@ def analyze_frame():
             return jsonify({
                 'status': 'error',
                 'message': 'Missing frame data'
+            }), 400
+
+        # pose_index 설정 (옵션, 기본값 0)
+        pose_index = data.get('pose_index', 0)
+        if not analyzer.set_pose_index(pose_index):
+            return jsonify({
+                'status': 'error',
+                'message': f'Invalid pose_index: {pose_index}'
             }), 400
 
         # Base64 디코딩

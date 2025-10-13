@@ -92,6 +92,8 @@ idf.py menuconfig
 - `http_client.py` - AI server communication
   - REST API client for pose analysis
   - Frame transmission and result reception
+  - Manages pose sequences (stores poses list, current pose index)
+  - Methods: `send_frame(frame, pose_index)`, `set_pose_index(idx)`, `get_current_pose_info()`
 - `uart_controller.py` - STM32 serial communication for pan-tilt
 - `pantilt_tracker.py` - YOLO-based person tracking algorithm
 - `watchtower_config.py` - Centralized configuration
@@ -136,22 +138,21 @@ This tool is useful for:
 
 See [WatchTower_test/README.md](WatchTower_test/README.md) for detailed usage.
 
-### AI Server & Streaming (`streaming/`)
+### AI Server (`ai_server/`)
 
-**AI Server** (`streaming/ai_server/`):
+**Flask server for YOLO Pose analysis with multi-pose sequence support:**
+
 - `ai_server.py` - Flask REST API server
 - `pose_analyzer.py` - YOLO Pose analysis module (PoseAnalyzer class)
-- `ai_config.py` - Configuration (host, port, model path, thresholds)
+  - Manages pose sequences within each exercise mode
+  - Supports multiple poses per exercise (e.g., squat has stand + down poses)
+- `ai_config.py` - Configuration (host, port, model path, pose sequences, thresholds)
+  - `MODE_POSES` defines pose sequences for each exercise mode
+  - Each pose has `name`, `description`, and `duration`
 
-**WatchTower Client** (`streaming/watchtower/`):
-- `watchtower_client.py` - Standalone HTTP client for streaming to AI server (legacy)
-- `watchtower_config.py` - Configuration (server IP, camera settings, FPS, UART, pan-tilt)
-- `uart_controller.py` - UART communication with STM32 for pan-tilt control
-- `pantilt_tracker.py` - Person tracking logic based on YOLO keypoints
-
-**Legacy TCP Streaming** (`streaming/streaming/`):
-- `jetson_streaming/` - Old TCP streaming client (deprecated)
-- `server_streaming/` - Old TCP streaming server (deprecated)
+**Legacy Streaming Code** (`streaming/`):
+- `streaming/watchtower/` - Old standalone client (deprecated, use `WatchTower/` instead)
+- `streaming/streaming/` - Old TCP streaming implementation (deprecated)
 
 ### MQTT Device Code (`mpu6050_mqtt/`)
 
@@ -189,14 +190,12 @@ Edit `main/config.h` to set WiFi credentials and MQTT broker IP:
 
 ### YOLO Pose Detection (`yolo_test/`)
 
-**`webcam_yolo.py`** - Standalone webcam test for YOLO v11 Pose with T-pose detection:
+**`webcam_yolo.py`** - Standalone webcam test for YOLO v11 Pose:
 - Loads `yolo11s-pose.pt` model (YOLO v11 Pose small variant)
 - Detects 17 keypoints (COCO format): nose, eyes, ears, shoulders, elbows, wrists, hips, knees, ankles
-- Implements T-pose validation using angle calculations:
+- Implements pose validation using angle calculations:
   - `calculate_angle(p1, p2, p3)` - Calculates angle at p2 using 3 points
-  - `calculate_horizontal_angle(p1, p2)` - Calculates deviation from horizontal
-  - `check_t_pose()` - Validates T-pose with scoring (0-100%) and feedback
-- T-pose criteria: arms straight (>160°), arms horizontal (<20° deviation)
+- Test bed for developing new exercise pose detection logic
 
 ### Utility Tools
 
@@ -217,11 +216,13 @@ Subscribes to all topics (`#` wildcard) and displays incoming messages with time
 
 Start AI server on PC or server:
 ```bash
-cd streaming/ai_server
+cd ai_server
 python ai_server.py
 ```
 
 Default: `http://0.0.0.0:5000`
+
+**Note**: AI server is now in `ai_server/` directory (moved from `streaming/ai_server/`)
 
 ### Run WatchTower System
 
@@ -237,9 +238,8 @@ cd streaming/watchtower
 python watchtower_client.py
 ```
 
-**Important**: Update AI server IP in config files:
+**Important**: Update AI server IP in config file:
 - `WatchTower/watchtower_config.py`
-- `streaming/watchtower/watchtower_config.py`
 
 ```python
 AI_SERVER_HOST = '192.168.1.100'  # Replace with actual AI server IP
@@ -357,7 +357,7 @@ WatchTower commands:
 ```json
 {
   "command": "start",
-  "mode": "t_pose",
+  "mode": "squat",
   "timestamp": 1234567890
 }
 ```
@@ -388,31 +388,48 @@ left_shoulder = xy[5] if conf[5] > 0.5 else None
 **AI Server Endpoints:**
 - `GET /api/health` - Health check
 - `GET /api/status` - Server status
-- `POST /api/mode/select` - Select workout mode
-- `POST /api/stream/frame` - Send frame for analysis
+- `POST /api/mode/select` - Select workout mode (returns pose sequences)
+- `POST /api/stream/frame` - Send frame for analysis (with pose_index)
 - `POST /api/stream/stop` - Stop streaming session
 
-Frame transmission (POST /api/stream/frame):
+**Mode selection** (POST /api/mode/select):
+```json
+{
+  "mode": "squat"
+}
+```
+
+Response includes pose sequences:
+```json
+{
+  "status": "success",
+  "mode": "squat",
+  "total_poses": 2,
+  "poses": [
+    {"name": "squat_stand", "description": "스쿼트 준비 자세 (선 자세)", "duration": 1.0},
+    {"name": "squat_down", "description": "스쿼트 자세 (무릎 90도)", "duration": 2.0}
+  ]
+}
+```
+
+**Frame transmission** (POST /api/stream/frame):
 ```json
 {
   "frame": "base64_encoded_jpeg_image",
+  "pose_index": 0,
   "timestamp": 1234567890
 }
 ```
 
-Analysis response:
+**Analysis response** (no keypoints, includes pose info):
 ```json
 {
   "status": "success",
   "is_correct": false,
   "score": 75,
-  "feedback": "왼팔 수평 (25°)",
-  "keypoints": {
-    "left_arm_angle": 165.3,
-    "right_arm_angle": 170.2,
-    "left_horizontal": 25.1,
-    "right_horizontal": 15.3
-  },
+  "feedback": "왼쪽 다리 펴기 (155°)",
+  "current_pose": "squat_stand",
+  "pose_description": "스쿼트 준비 자세 (선 자세)",
   "tracking": {
     "center_x": 320,
     "center_y": 240,
@@ -420,6 +437,8 @@ Analysis response:
   }
 }
 ```
+
+**Important**: `keypoints` field has been removed from responses. Internal angle calculations are hidden.
 
 ### Pan-Tilt Camera Control (UART Protocol)
 
@@ -451,11 +470,10 @@ Supported commands (MG996R: -60~60° range, center at 0,0):
 Always use config files for server addresses and hardware settings:
 
 **AI Server:**
-- `streaming/ai_server/ai_config.py` - Host, port, model path, thresholds
+- `ai_server/ai_config.py` - Host, port, model path, pose sequences, thresholds
 
 **WatchTower:**
 - `WatchTower/watchtower_config.py` - Full system config (MQTT, HTTP, Camera, UART)
-- `streaming/watchtower/watchtower_config.py` - Legacy streaming client config
 
 **MQTT Test:**
 - `WatchTower_test/mqtt_config.py` - MQTT broker settings and topics
@@ -464,35 +482,87 @@ Always use config files for server addresses and hardware settings:
 - `mpu6050_mqtt/main/config.h` - WiFi credentials and MQTT broker URL
 
 When deploying to Jetson Nano:
-- Update `AI_SERVER_HOST` to AI server IP
+- Update `AI_SERVER_HOST` in `WatchTower/watchtower_config.py` to AI server IP
 - Update `UART_PORT` to actual STM32 port (`/dev/ttyUSB0` or `/dev/ttyACM0`)
 - Set UART permissions: `sudo usermod -a -G dialout $USER` (requires re-login)
 
 ### Adding New Exercise Modes
 
-1. Add mode to `streaming/ai_server/ai_config.py`:
+**Current supported modes**: `squat`, `pushup`
+
+Each mode supports **multiple poses** (pose sequences). For example:
+- `squat` has 2 poses: `squat_stand` (준비), `squat_down` (앉기)
+- `pushup` has 2 poses: `pushup_up` (팔 펴기), `pushup_down` (팔 굽히기)
+
+**To add a new exercise mode:**
+
+1. **Define pose sequence** in `ai_server/ai_config.py`:
 ```python
-SUPPORTED_MODES = ['t_pose', 'squat', 'pushup', 'new_mode']
+SUPPORTED_MODES = ['squat', 'pushup', 'new_exercise']
+
+MODE_POSES = {
+    'new_exercise': [
+        {
+            'name': 'new_exercise_pose1',
+            'description': '첫 번째 자세 설명',
+            'duration': 2.0
+        },
+        {
+            'name': 'new_exercise_pose2',
+            'description': '두 번째 자세 설명',
+            'duration': 3.0
+        }
+    ]
+}
 ```
 
-2. Implement analysis method in `streaming/ai_server/pose_analyzer.py`:
+2. **Add pose thresholds** in `ai_server/ai_config.py`:
 ```python
-def _analyze_new_mode(self, xy, conf):
-    # Keypoint analysis logic
+# New Exercise 판정 기준
+NEW_EXERCISE_ANGLE_MIN = 80
+NEW_EXERCISE_ANGLE_MAX = 100
+```
+
+3. **Implement pose analysis methods** in `ai_server/pose_analyzer.py`:
+```python
+def _analyze_new_exercise_pose1(self, xy, conf, bbox=None):
+    """첫 번째 자세 분석"""
+    threshold = AIServerConfig.CONFIDENCE_THRESHOLD
+
+    # Extract keypoints
+    left_shoulder = xy[5] if conf[5] > threshold else None
+    # ... extract other needed keypoints
+
+    # Calculate angles
+    angle = self._calculate_angle(p1, p2, p3)
+
+    # Validate pose
+    is_correct = angle_min <= angle <= angle_max
+    score = 100 if is_correct else 0
+
     return {
         'status': 'success',
-        'is_correct': True/False,
-        'score': 0-100,
-        'feedback': 'feedback message',
-        'keypoints': {...}
+        'is_correct': is_correct,
+        'score': score,
+        'feedback': '피드백 메시지',
+        'tracking': {...}  # optional
     }
 ```
 
-3. Connect mode in `PoseAnalyzer.analyze_frame()`:
+4. **Connect poses** in `analyze_frame()` method:
 ```python
-if self.current_mode == 'new_mode':
-    return self._analyze_new_mode(xy, conf)
+if pose_name == 'new_exercise_pose1':
+    result = self._analyze_new_exercise_pose1(xy, conf, bbox)
+elif pose_name == 'new_exercise_pose2':
+    result = self._analyze_new_exercise_pose2(xy, conf, bbox)
 ```
+
+**Important notes:**
+- Each exercise mode can have multiple poses (pose sequences)
+- `pose_index` parameter controls which pose to analyze (0-based)
+- Do NOT return `keypoints` in analysis results (internal only)
+- Always include `current_pose` and `pose_description` in results
+- See [POSE_SEQUENCE_USAGE.md](POSE_SEQUENCE_USAGE.md) for detailed usage examples
 
 ## Hardware Components
 

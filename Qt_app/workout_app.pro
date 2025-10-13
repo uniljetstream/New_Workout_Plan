@@ -12,12 +12,18 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     cursorcanvas.cpp \
-    config.cpp
+    config.cpp \
+    airmouse_manager.cpp \
+    cursor_overlay.cpp \
+    videoframewidget.cpp
 
 HEADERS += \
     mainwindow.h \
     cursorcanvas.h \
-    config.h
+    config.h \
+    airmouse_manager.h \
+    cursor_overlay.h \
+    videoframewidget.h
 
 FORMS += \
     main.ui \

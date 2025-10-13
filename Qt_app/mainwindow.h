@@ -6,8 +6,11 @@
 #include <QtMqtt/QMqttClient>
 #include <QTimer>
 #include <QDateTime>
+#include <QJsonObject>
+#include <QJsonArray>
 #include "config.h"
-#include "cursorcanvas.h"
+#include "videoframewidget.h"
+#include "airmouse_manager.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -96,8 +99,9 @@ private:
     QMqttClient *m_client;
     Config &m_config;
 
-    // AirMouse Canvas
-    CursorCanvas *m_cursorCanvas;
+    // AirMouse
+    VideoFrameWidget *m_videoWidget;    // Displays WatchTower video stream
+    AirMouseManager *m_airMouseManager;  // Global airmouse controller
 
     // Workout state
     QString m_currentExercise;
@@ -106,10 +110,17 @@ private:
     int m_workoutSeconds;
     bool m_isWorkoutRunning;
 
+    // Pose sequence state
+    int m_currentPoseIndex;      // Current pose index (0-based)
+    int m_totalPoses;            // Total number of poses in current mode
+    QJsonArray m_poses;          // Array of pose objects from AI server
+    int m_repCount;              // Repetition count
+
     // Helper methods
     void setupPages();
     void setupMqttClient();
-    void setupCursorCanvas();
+    void setupVideoWidget();
+    void setupAirMouse();
     void switchToPage(Page page);
     void loadConfiguration();
     void subscribeToTopics();
@@ -118,6 +129,8 @@ private:
     void updateSensorData(const QJsonObject &data, bool isJoystick);
     void updateAirMouseData(const QJsonObject &data);
     void updateWorkoutFeedback(const QJsonObject &data);
+    void displayVideoFrame(const QString &base64Frame);
+    void clearVideoFrame(const QString &message = QString());
     void startWorkout(const QString &exerciseName);
     void stopWorkout();
     void updateWorkoutTimer();
@@ -128,6 +141,11 @@ private:
     QString convertExerciseNameToMode(const QString &exerciseName);
     void sendModeSelectCommand(const QString &mode);
     void handleQtResponse(const QString &responseType, const QJsonObject &data);
+
+    // Pose sequence helpers
+    void updatePoseDisplay();
+    void nextPose();
+    bool isLastPose() const;
 };
 
 #endif // MAINWINDOW_H

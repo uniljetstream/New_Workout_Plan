@@ -651,6 +651,38 @@ class MQTTController:
         except Exception as e:
             print(f"✗ Qt 분석 결과 전송 오류: {e}")
 
+    def send_qt_frame(self, frame_base64, metadata=None):
+        """
+        Qt에 카메라 영상 프레임 전송
+
+        Args:
+            frame_base64: Base64로 인코딩된 JPEG 프레임 문자열
+            metadata: 추가 메타데이터(dict, optional)
+        """
+        if not self.connected or not frame_base64:
+            return
+
+        try:
+            payload = {
+                'frame': frame_base64,
+                'timestamp': int(time.time() * 1000)
+            }
+
+            if metadata:
+                payload.update(metadata)
+
+            result = self.client.publish(
+                self.config.TOPIC_QT_RESPONSE_FRAME,
+                json.dumps(payload),
+                qos=self.config.MQTT_QOS
+            )
+
+            if result.rc != 0:
+                print("✗ Qt 영상 프레임 전송 실패")
+
+        except Exception as e:
+            print(f"✗ Qt 영상 프레임 전송 오류: {e}")
+
     def send_qt_status(self, status, message=""):
         """
         Qt에 상태 응답 전송
