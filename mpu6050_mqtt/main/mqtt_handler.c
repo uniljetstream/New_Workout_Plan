@@ -52,6 +52,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
     case MQTT_EVENT_DISCONNECTED:   //연결 실패 이벤트가 발생하면
         ESP_LOGI(TAG_MQTT, "MQTT Disconnected");    
         mqtt_connected = false; //mqtt_connected 를 false로 바꿈
+        
+        // 자동 재연결 시도
+        ESP_LOGI(TAG_MQTT, "Attempting to reconnect...");
+        esp_mqtt_client_reconnect(mqtt_client);
         break;
 
     case MQTT_EVENT_SUBSCRIBED: //int msg_id = esp_mqtt_client_subscribe(mqtt_client, MQTT_TOPIC_COMMAND, 1); 에서 발생한 구독이 성공하면 발생하는 이벤트
@@ -129,6 +133,10 @@ void mqtt_init_and_start(void)
     //mqtt 설정 구조체, 브로커 url 설정
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = MQTT_BROKER_URL,
+        .session.keepalive = 60,        // Keep-alive 시간 (60초)
+        .session.disable_clean_session = false,  // Clean session 활성화
+        .network.reconnect_timeout_ms = 10000,   // 재연결 타임아웃 (10초)
+        .network.timeout_ms = 10000,             // 네트워크 타임아웃 (10초)
     };
 
     //mqtt 클라이언트 생성
@@ -233,6 +241,10 @@ void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data)
 {
     if (!mqtt_connected || mqtt_client == NULL) {
         ESP_LOGW(TAG_MQTT, "MQTT not connected, skipping airmouse publish");
+        
+        // 연결 재시도
+        ESP_LOGI(TAG_MQTT, "Attempting to reconnect MQTT...");
+        esp_mqtt_client_reconnect(mqtt_client);
         return;
     }
 
@@ -260,6 +272,10 @@ void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data)
                  mouse_data->scroll_delta);
     } else {
         ESP_LOGE(TAG_MQTT, "Failed to publish airmouse data");
+        
+        // 전송 실패 시 재연결 시도
+        ESP_LOGI(TAG_MQTT, "Publish failed, attempting reconnect...");
+        esp_mqtt_client_reconnect(mqtt_client);
     }
 }
 
