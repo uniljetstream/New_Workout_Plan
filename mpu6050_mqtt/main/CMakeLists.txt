@@ -1,4 +1,4 @@
-idf_component_register(SRCS "app_main.c"
+idf_component_register(SRCS "airmouse.c" "app_main.c"
                             "wifi_handler.c"
                             "mqtt_handler.c"
                             "sensor_task.c"

@@ -14,6 +14,7 @@
 #include "wifi_handler.h"
 #include "mqtt_handler.h"
 #include "sensor_task.h"
+#include "airmouse.h"
 
 /**
  * @brief 메인 함수 - ESP32 부팅 시 자동 실행
@@ -30,6 +31,7 @@ void app_main(void)
     esp_log_level_set(TAG_WIFI, ESP_LOG_INFO);
     esp_log_level_set(TAG_MQTT, ESP_LOG_INFO);
     esp_log_level_set(TAG_SENSOR, ESP_LOG_INFO);
+    esp_log_level_set("AIRMOUSE", ESP_LOG_INFO);
 
     // NVS 초기화
     ESP_ERROR_CHECK(nvs_flash_init());
@@ -40,6 +42,12 @@ void app_main(void)
         return;
     }
 
+    // 에어마우스 초기화
+    if (!airmouse_init()) {
+        ESP_LOGE(TAG_MAIN, "AirMouse initialization failed");
+        return;
+    }
+
     // MQTT 시작
     mqtt_init_and_start();
 
@@ -47,5 +55,11 @@ void app_main(void)
     // sensor_task는 WatchTower에서 start 명령이 오면 자동으로 시작됨
 
     ESP_LOGI(TAG_MAIN, "System initialization complete");
-    ESP_LOGI(TAG_MAIN, "Waiting for START command from WatchTower...");
+    ESP_LOGI(TAG_MAIN, "Available commands:");
+    ESP_LOGI(TAG_MAIN, "  - start: Start sensor task");
+    ESP_LOGI(TAG_MAIN, "  - stop: Stop sensor task");
+    ESP_LOGI(TAG_MAIN, "  - airmouse_mode: Switch to airmouse mode");
+    ESP_LOGI(TAG_MAIN, "  - sensor_mode: Switch to sensor mode");
+    ESP_LOGI(TAG_MAIN, "  - calibrate: Calibrate airmouse");
+    ESP_LOGI(TAG_MAIN, "Waiting for commands from WatchTower...");
 }

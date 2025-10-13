@@ -4,6 +4,7 @@
 #include "mqtt_handler.h"
 #include "mpu6050.h"
 #include "config.h"
+#include "airmouse.h"
 
 #include "esp_log.h"
 #include "esp_system.h"
@@ -86,8 +87,25 @@ static void sensor_task(void *pvParameters)
 
         // 센서 데이터 읽기
         if (sensor_read_data(&sensor_data)) {
-            // MQTT로 발행
-            mqtt_publish_mpu6050_data(&sensor_data);
+            // 현재 모드에 따라 다른 데이터 전송
+            airmouse_mode_t current_mode = airmouse_get_mode();
+            
+            if (current_mode == AIRMOUSE_MODE_MOUSE) {
+                // 에어마우스 모드: 센서 데이터를 마우스 데이터로 변환하여 전송
+                mouse_data_t mouse_data;
+                if (airmouse_convert_sensor_to_mouse(&sensor_data, &mouse_data)) {
+                    mqtt_publish_airmouse_data(&mouse_data);
+                    ESP_LOGD(TAG_SENSOR, "AirMouse data sent: X=%.2f Y=%.2f Scroll=%d", 
+                             mouse_data.mouse_x, mouse_data.mouse_y, mouse_data.scroll_delta);
+                } else {
+                    ESP_LOGE(TAG_SENSOR, "Failed to convert sensor data to mouse data");
+                }
+            } else {
+                // 센서 모드: 기존 방식으로 센서 데이터 전송
+                mqtt_publish_mpu6050_data(&sensor_data);
+                ESP_LOGD(TAG_SENSOR, "Sensor data sent: Accel X=%.3f Y=%.3f Z=%.3f", 
+                         sensor_data.accel_x, sensor_data.accel_y, sensor_data.accel_z);
+            }
         } else {
             ESP_LOGE(TAG_SENSOR, "Failed to read sensor data");
         }
