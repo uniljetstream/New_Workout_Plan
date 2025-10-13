@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Widget</class>
+ <widget class="QWidget" name="Widget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1280</width>
+    <height>720</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>New Workout Plan</string>
+  </property>
+  <layout class="QHBoxLayout" name="horizontalLayout">
+   <item>
+    <!-- 왼쪽: 카메라 영역 -->
+    <widget class="QWidget" name="leftWidget" native="true">
+     <layout class="QVBoxLayout" name="leftLayout">
+      <item>
+       <!-- 카메라 디스플레이 -->
+       <widget class="QLabel" name="lblCamera">
+        <property name="minimumSize">
+         <size>
+          <width>640</width>
+          <height>480</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color: black; border: 2px solid #555;</string>
+        </property>
+        <property name="text">
+         <string>카메라 대기 중...</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <!-- 분석 결과 그룹 -->
+       <widget class="QGroupBox" name="groupResult">
+        <property name="title">
+         <string>실시간 분석 결과</string>
+        </property>
+        <layout class="QVBoxLayout" name="resultLayout">
+         <item>
+          <widget class="QLabel" name="lblScore">
+           <property name="text">
+            <string>점수: --</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">font-size: 18pt; font-weight: bold;</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="lblFeedback">
+           <property name="text">
+            <string>피드백: 운동을 시작하세요</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <!-- 오른쪽: 컨트롤 패널 -->
+    <widget class="QWidget" name="rightWidget" native="true">
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>450</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <layout class="QVBoxLayout" name="rightLayout">
+      <item>
+       <!-- 타이틀 -->
+       <widget class="QLabel" name="lblTitle">
+        <property name="text">
+         <string>New Workout Plan</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">font-size: 24pt; font-weight: bold;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <!-- 운동 모드 선택 그룹 -->
+       <widget class="QGroupBox" name="groupMode">
+        <property name="title">
+         <string>운동 모드 선택</string>
+        </property>
+        <layout class="QVBoxLayout" name="modeLayout">
+         <item>
+          <widget class="QPushButton" name="btnSquat">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>60</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>스쿼트 (Squat)</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+QPushButton {
+    background-color: #f0f0f0;
+    border: 2px solid #999;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14pt;
+}
+QPushButton:hover {
+    background-color: #e0e0e0;
+}
+QPushButton:checked {
+    background-color: #4CAF50;
+    color: white;
+    border: 2px solid #45a049;
+}
+            </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnPushup">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>60</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>푸시업 (Push-up)</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+QPushButton {
+    background-color: #f0f0f0;
+    border: 2px solid #999;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14pt;
+}
+QPushButton:hover {
+    background-color: #e0e0e0;
+}
+QPushButton:checked {
+    background-color: #4CAF50;
+    color: white;
+    border: 2px solid #45a049;
+}
+            </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnLunge">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>60</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>런지 (Lunge)</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+QPushButton {
+    background-color: #f0f0f0;
+    border: 2px solid #999;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14pt;
+}
+QPushButton:hover {
+    background-color: #e0e0e0;
+}
+QPushButton:checked {
+    background-color: #4CAF50;
+    color: white;
+    border: 2px solid #45a049;
+}
+            </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnPlank">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>60</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>플랭크 (Plank)</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+QPushButton {
+    background-color: #f0f0f0;
+    border: 2px solid #999;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14pt;
+}
+QPushButton:hover {
+    background-color: #e0e0e0;
+}
+QPushButton:checked {
+    background-color: #4CAF50;
+    color: white;
+    border: 2px solid #45a049;
+}
+            </string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <!-- 선택된 운동 표시 -->
+       <widget class="QLabel" name="lblSelectedMode">
+        <property name="text">
+         <string>선택된 운동: 없음</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">
+background-color: #2196F3;
+color: white;
+padding: 15px;
+border-radius: 8px;
+font-size: 16pt;
+font-weight: bold;
+         </string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <!-- 시작 버튼 -->
+       <widget class="QPushButton" name="btnStart">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>80</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>운동 시작</string>
+        </property>
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">
+QPushButton {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16pt;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #45a049;
+}
+QPushButton:disabled {
+    background-color: #cccccc;
+    color: #666666;
+}
+         </string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <!-- 정지 버튼 -->
+       <widget class="QPushButton" name="btnStop">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>80</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>운동 정지</string>
+        </property>
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">
+QPushButton {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16pt;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #da190b;
+}
+QPushButton:disabled {
+    background-color: #cccccc;
+    color: #666666;
+}
+         </string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <!-- 상태 표시 -->
+       <widget class="QLabel" name="lblStatus">
+        <property name="text">
+         <string>상태: 대기 중</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">
+background-color: #f0f0f0;
+padding: 10px;
+border-radius: 5px;
+font-size: 12pt;
+         </string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="verticalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>40</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
