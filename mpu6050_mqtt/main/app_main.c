@@ -43,8 +43,9 @@ void app_main(void)
     // MQTT 시작
     mqtt_init_and_start();
 
-    // 센서 데이터 전송 태스크 시작
-    sensor_task_start();
+    // WatchTower 프로토콜: MQTT 연결 후 ready 상태를 발행하고 start 명령을 대기
+    // sensor_task는 WatchTower에서 start 명령이 오면 자동으로 시작됨
 
     ESP_LOGI(TAG_MAIN, "System initialization complete");
+    ESP_LOGI(TAG_MAIN, "Waiting for START command from WatchTower...");
 }

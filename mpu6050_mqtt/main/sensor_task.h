@@ -15,6 +15,11 @@
 void sensor_task_start(void);
 
 /**
+ * @brief 센서 태스크 중지
+ */
+void sensor_task_stop(void);
+
+/**
  * @brief MPU6050 센서 데이터 읽기
  *
  * @param data MPU6050 센서 데이터를 저장할 포인터
