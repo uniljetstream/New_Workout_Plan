@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QAbstractButton>
 #include <QCursor>
 #include <QDebug>
 #include <QtMath>
@@ -212,38 +213,67 @@ void AirMouseManager::simulateClick()
     QWidget *targetWidget = getWidgetAtCursor();
 
     if (targetWidget) {
-        QPoint globalPos = m_parentWidget->mapToGlobal(m_cursorPos);
-        QPoint localPos = targetWidget->mapFromGlobal(globalPos);
+        // 버튼 등 실제 클릭 가능한 위젯으로 승격
+        QWidget *clickTarget = targetWidget;
+        for (QWidget *searchWidget = targetWidget; searchWidget; searchWidget = searchWidget->parentWidget()) {
+            if (!searchWidget->isEnabled() || !searchWidget->isVisible()) {
+                continue;
+            }
+            if (qobject_cast<QAbstractButton *>(searchWidget)) {
+                clickTarget = searchWidget;
+                break;
+            }
+        }
 
-        // 마우스 프레스 이벤트
-        QMouseEvent pressEvent(
-            QEvent::MouseButtonPress,
-            localPos,
-            globalPos,
-            Qt::LeftButton,
-            Qt::LeftButton,
-            Qt::NoModifier
-        );
-        QApplication::sendEvent(targetWidget, &pressEvent);
+        QPoint globalPos = m_cursorOverlay
+            ? m_cursorOverlay->mapToGlobal(m_cursorPos)
+            : m_parentWidget->mapToGlobal(m_cursorPos);
 
-        // 마우스 릴리스 이벤트
-        QMouseEvent releaseEvent(
-            QEvent::MouseButtonRelease,
-            localPos,
-            globalPos,
-            Qt::LeftButton,
-            Qt::NoButton,
-            Qt::NoModifier
-        );
-        QApplication::sendEvent(targetWidget, &releaseEvent);
+        if (!clickTarget->isEnabled() || !clickTarget->isVisible()) {
+            qDebug() << "Click skipped - target not ready" << clickTarget;
+            return;
+        }
+
+        if (auto *button = qobject_cast<QAbstractButton *>(clickTarget)) {
+            button->setFocus(Qt::MouseFocusReason);
+            button->animateClick(1); // 즉시 클릭 애니메이션 및 시그널 발생
+        } else {
+            QPoint localPos = clickTarget->mapFromGlobal(globalPos);
+
+            // 마우스 프레스 이벤트
+            QMouseEvent pressEvent(
+                QEvent::MouseButtonPress,
+                localPos,
+                globalPos,
+                Qt::LeftButton,
+                Qt::LeftButton,
+                Qt::NoModifier
+            );
+            QApplication::sendEvent(clickTarget, &pressEvent);
+
+            // 마우스 릴리스 이벤트
+            QMouseEvent releaseEvent(
+                QEvent::MouseButtonRelease,
+                localPos,
+                globalPos,
+                Qt::LeftButton,
+                Qt::NoButton,
+                Qt::NoModifier
+            );
+            QApplication::sendEvent(clickTarget, &releaseEvent);
+        }
 
         // 클릭 애니메이션 표시
         if (m_cursorOverlay) {
             m_cursorOverlay->showClickAnimation();
         }
 
-        emit clicked(targetWidget);
-        qDebug() << "Click simulated on" << targetWidget->objectName();
+        emit clicked(clickTarget);
+        qDebug() << "Click simulated on" << clickTarget->metaObject()->className()
+                << clickTarget->objectName();
+    }
+    else {
+        qDebug() << "Click skipped - no target widget at cursor";
     }
 }
 
@@ -256,7 +286,9 @@ void AirMouseManager::simulateRightClick()
     QWidget *targetWidget = getWidgetAtCursor();
 
     if (targetWidget) {
-        QPoint globalPos = m_parentWidget->mapToGlobal(m_cursorPos);
+        const QPoint globalPos = m_cursorOverlay
+            ? m_cursorOverlay->mapToGlobal(m_cursorPos)
+            : m_parentWidget->mapToGlobal(m_cursorPos);
         QPoint localPos = targetWidget->mapFromGlobal(globalPos);
 
         // 우클릭 이벤트
@@ -290,15 +322,39 @@ QWidget* AirMouseManager::getWidgetAtCursor() const
         return nullptr;
     }
 
-    // 부모 위젯 기준의 로컬 좌표에서 위젯 찾기
-    QWidget *widget = m_parentWidget->childAt(m_cursorPos);
+    // 전역 좌표 계산 (오버레이가 있으면 오버레이 기준)
+    const QPoint globalPos = m_cursorOverlay
+        ? m_cursorOverlay->mapToGlobal(m_cursorPos)
+        : m_parentWidget->mapToGlobal(m_cursorPos);
+
+    // 부모 위젯 좌표계로 변환한 뒤 자식 위젯 검색
+    const QPoint parentLocalPos = m_parentWidget->mapFromGlobal(globalPos);
+    QWidget *widget = m_parentWidget->childAt(parentLocalPos);
 
     // 찾지 못했으면 전역 좌표로 시도
     if (!widget) {
-        QPoint globalPos = m_parentWidget->mapToGlobal(m_cursorPos);
         widget = QApplication::widgetAt(globalPos);
 
         // 오버레이 자신은 무시
+        if (widget == m_cursorOverlay) {
+            widget = nullptr;
+        }
+    }
+
+    // 컨테이너 위젯인 경우 실제 하위 위젯 탐색
+    if (widget) {
+        QWidget *current = widget;
+        while (current) {
+            const QPoint localPos = current->mapFromGlobal(globalPos);
+            QWidget *candidate = current->childAt(localPos);
+            if (!candidate || candidate == current) {
+                break;
+            }
+            current = candidate;
+        }
+        widget = current;
+
+        // 여전히 오버레이면 무시
         if (widget == m_cursorOverlay) {
             widget = nullptr;
         }

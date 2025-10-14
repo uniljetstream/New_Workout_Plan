@@ -56,6 +56,10 @@ public:
     QLabel *sensitivityValueLabel;
     QCheckBox *smoothingCheckBox;
     QCheckBox *trailCheckBox;
+    QHBoxLayout *horizontalLayout_airmouseStatus;
+    QLabel *airmouseStatusLabel;
+    QLabel *airmouseStatusValueLabel;
+    QSpacerItem *horizontalSpacer_airmouseStatus;
     QHBoxLayout *horizontalLayout_calibrate;
     QPushButton *calibrateButton;
     QPushButton *testAirMouseButton;
@@ -218,6 +222,27 @@ public:
 
         verticalLayout_airmouse->addWidget(trailCheckBox);
 
+        horizontalLayout_airmouseStatus = new QHBoxLayout();
+        horizontalLayout_airmouseStatus->setObjectName(QString::fromUtf8("horizontalLayout_airmouseStatus"));
+        airmouseStatusLabel = new QLabel(airmouseGroupBox);
+        airmouseStatusLabel->setObjectName(QString::fromUtf8("airmouseStatusLabel"));
+        airmouseStatusLabel->setFont(font2);
+
+        horizontalLayout_airmouseStatus->addWidget(airmouseStatusLabel);
+
+        airmouseStatusValueLabel = new QLabel(airmouseGroupBox);
+        airmouseStatusValueLabel->setObjectName(QString::fromUtf8("airmouseStatusValueLabel"));
+        airmouseStatusValueLabel->setStyleSheet(QString::fromUtf8("color: #f44336; font-weight: bold;"));
+
+        horizontalLayout_airmouseStatus->addWidget(airmouseStatusValueLabel);
+
+        horizontalSpacer_airmouseStatus = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
+
+        horizontalLayout_airmouseStatus->addItem(horizontalSpacer_airmouseStatus);
+
+
+        verticalLayout_airmouse->addLayout(horizontalLayout_airmouseStatus);
+
         horizontalLayout_calibrate = new QHBoxLayout();
         horizontalLayout_calibrate->setObjectName(QString::fromUtf8("horizontalLayout_calibrate"));
         calibrateButton = new QPushButton(airmouseGroupBox);
@@ -303,6 +328,8 @@ public:
         sensitivityValueLabel->setText(QCoreApplication::translate("SettingsPage", "1.0x", nullptr));
         smoothingCheckBox->setText(QCoreApplication::translate("SettingsPage", "\354\212\244\353\254\264\353\224\251 \354\202\254\354\232\251", nullptr));
         trailCheckBox->setText(QCoreApplication::translate("SettingsPage", "\354\273\244\354\204\234 \352\266\244\354\240\201 \355\221\234\354\213\234", nullptr));
+        airmouseStatusLabel->setText(QCoreApplication::translate("SettingsPage", "\354\227\220\354\226\264\353\247\210\354\232\260\354\212\244 \354\203\201\355\203\234:", nullptr));
+        airmouseStatusValueLabel->setText(QCoreApplication::translate("SettingsPage", "\353\271\204\355\231\234\354\204\261\355\231\224", nullptr));
         calibrateButton->setText(QCoreApplication::translate("SettingsPage", "\354\272\230\353\246\254\353\270\214\353\240\210\354\235\264\354\205\230", nullptr));
         testAirMouseButton->setText(QCoreApplication::translate("SettingsPage", "\354\227\220\354\226\264\353\247\210\354\232\260\354\212\244 \355\205\214\354\212\244\355\212\270", nullptr));
         saveButton->setText(QCoreApplication::translate("SettingsPage", "\354\240\200\354\236\245", nullptr));

@@ -135,6 +135,7 @@ private:
     void updateWorkoutTimer();
     void sendAirMouseModeCommand();
     void sendSensorModeCommand();
+    void updateAirMouseStatusIndicator(bool enabled);
 
     // MQTT protocol helpers
     QString convertExerciseNameToMode(const QString &exerciseName);

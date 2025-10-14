@@ -240,11 +240,11 @@ void mqtt_publish_status(const char *status)
 /**
  * @brief 에어마우스 데이터 발행
  */
-void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data)
+void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data, bool button_pressed)
 {
     if (!mqtt_connected || mqtt_client == NULL) {
         ESP_LOGW(TAG_MQTT, "MQTT not connected, skipping airmouse publish");
-        
+
         // 연결 재시도
         ESP_LOGI(TAG_MQTT, "Attempting to reconnect MQTT...");
         esp_mqtt_client_reconnect(mqtt_client);
@@ -257,9 +257,11 @@ void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data)
              "{\"mode\":\"airmouse\","
              "\"mouse_x\":%.2f,\"mouse_y\":%.2f,"
              "\"scroll_delta\":%d,"
+             "\"button_pressed\":%s,"
              "\"timestamp\":%lld}",
              mouse_data->mouse_x, mouse_data->mouse_y,
              mouse_data->scroll_delta,
+             button_pressed ? "true" : "false",
              (long long)timestamp);
 
     int msg_id = esp_mqtt_client_publish(mqtt_client,
@@ -269,9 +271,10 @@ void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data)
 
     if (msg_id != -1) {
         ESP_LOGI(TAG_MQTT, "Published airmouse data (msg_id=%d)", msg_id);
-        ESP_LOGI(TAG_MQTT, "Mouse: X=%.2f Y=%.2f | Scroll: %d",
+        ESP_LOGI(TAG_MQTT, "Mouse: X=%.2f Y=%.2f | Scroll: %d | Button: %s",
                  mouse_data->mouse_x, mouse_data->mouse_y,
-                 mouse_data->scroll_delta);
+                 mouse_data->scroll_delta,
+                 button_pressed ? "PRESSED" : "RELEASED");
     } else {
         ESP_LOGE(TAG_MQTT, "Failed to publish airmouse data");
         

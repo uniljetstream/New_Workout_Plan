@@ -15,6 +15,7 @@
 #include "mqtt_handler.h"
 #include "sensor_task.h"
 #include "airmouse.h"
+#include "button_handler.h"  // 버튼 핸들러 추가
 
 /**
  * @brief 메인 함수 - ESP32 부팅 시 자동 실행
@@ -45,6 +46,12 @@ void app_main(void)
     // 에어마우스 초기화
     if (!airmouse_init()) {
         ESP_LOGE(TAG_MAIN, "AirMouse initialization failed");
+        return;
+    }
+
+    // 버튼 초기화
+    if (!button_init()) {
+        ESP_LOGE(TAG_MAIN, "Button initialization failed");
         return;
     }
 

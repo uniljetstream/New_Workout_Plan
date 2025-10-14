@@ -5,7 +5,7 @@
 #include "ui_workout.h"
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QMessageBox>
+#include <QStatusBar>
 #include <QScrollBar>
 #include <QtMath>
 
@@ -213,13 +213,14 @@ void MainWindow::setupAirMouse()
     // Create global airmouse manager
     m_airMouseManager = new AirMouseManager(this);
 
-    // Set default settings
-    m_airMouseManager->setSensitivity(1.5);
+    // Set default settings (감도 낮춤)
+    m_airMouseManager->setSensitivity(0.8);  // 1.5 → 0.8 (약 절반으로 감소)
     m_airMouseManager->setSmoothing(true);
     m_airMouseManager->setShowCursor(true);
 
     // Initially disabled
     m_airMouseManager->setEnabled(false);
+    updateAirMouseStatusIndicator(false);
 
     qDebug() << "AirMouse manager initialized";
 }
@@ -289,6 +290,27 @@ void MainWindow::updateMqttConnectionStatus(bool connected)
     }
 }
 
+void MainWindow::updateAirMouseStatusIndicator(bool enabled)
+{
+    if (!ui_settings) {
+        return;
+    }
+
+    const QString statusText = enabled ? tr("활성화") : tr("비활성화");
+    const QString color = enabled ? "#4CAF50" : "#f44336";
+    ui_settings->airmouseStatusValueLabel->setText(statusText);
+    ui_settings->airmouseStatusValueLabel->setStyleSheet(
+        QStringLiteral("color: %1; font-weight: bold;").arg(color));
+
+    if (enabled) {
+        ui_settings->testAirMouseButton->setText(tr("에어마우스 끄기"));
+        ui_settings->testAirMouseButton->setStyleSheet(QStringLiteral("background-color: #f44336; color: white; padding: 5px; border-radius: 5px;"));
+    } else {
+        ui_settings->testAirMouseButton->setText(tr("에어마우스 테스트"));
+        ui_settings->testAirMouseButton->setStyleSheet(QStringLiteral("background-color: #2196F3; color: white; padding: 5px; border-radius: 5px;"));
+    }
+}
+
 // ============================================================================
 // Main Menu Page Slots
 // ============================================================================
@@ -319,32 +341,32 @@ void MainWindow::on_pushupButton_clicked()
 
 void MainWindow::on_plankButton_clicked()
 {
-    QMessageBox::information(this, "런지", "런지 운동은 곧 출시됩니다.");
+    statusBar()->showMessage(tr("런지 운동은 곧 출시됩니다."), 5000);
 }
 
 void MainWindow::on_lungeButton_clicked()
 {
-    QMessageBox::information(this, "점핑잭", "점핑잭 운동은 곧 출시됩니다.");
+    statusBar()->showMessage(tr("점핑잭 운동은 곧 출시됩니다."), 5000);
 }
 
 void MainWindow::on_jumpingJackButton_clicked()
 {
-    QMessageBox::information(this, "마운틴 클라이머", "마운틴 클라이머 운동은 곧 출시됩니다.");
+    statusBar()->showMessage(tr("마운틴 클라이머 운동은 곧 출시됩니다."), 5000);
 }
 
 void MainWindow::on_mountainClimberButton_clicked()
 {
-    QMessageBox::information(this, "버피", "버피 운동은 곧 출시됩니다.");
+    statusBar()->showMessage(tr("버피 운동은 곧 출시됩니다."), 5000);
 }
 
 void MainWindow::on_burpeeButton_clicked()
 {
-    QMessageBox::information(this, "사용자 정의 1", "사용자 정의 운동 기능은 곧 출시됩니다.");
+    statusBar()->showMessage(tr("사용자 정의 운동 기능은 곧 출시됩니다."), 5000);
 }
 
 void MainWindow::on_customButton_clicked()
 {
-    QMessageBox::information(this, "사용자 정의 2", "사용자 정의 운동 기능은 곧 출시됩니다.");
+    statusBar()->showMessage(tr("사용자 정의 운동 기능은 곧 출시됩니다."), 5000);
 }
 
 void MainWindow::on_scrollUpButton_clicked()
@@ -396,28 +418,24 @@ void MainWindow::on_settings_calibrateButton_clicked()
     QJsonDocument doc(json);
     publishMessage(m_config.topicWatchtowerCmdJoystick(), doc.toJson(QJsonDocument::Compact));
 
-    QMessageBox::information(this, "캘리브레이션", "조이스틱 캘리브레이션 명령을 전송했습니다.");
+    statusBar()->showMessage(tr("조이스틱 캘리브레이션 명령을 전송했습니다."), 5000);
 }
 
 void MainWindow::on_settings_testAirMouseButton_clicked()
 {
     // Toggle global airmouse mode
     if (m_airMouseManager) {
-        bool isEnabled = m_airMouseManager->isEnabled();
-        m_airMouseManager->setEnabled(!isEnabled);
+        const bool newState = !m_airMouseManager->isEnabled();
+        m_airMouseManager->setEnabled(newState);
 
-        if (!isEnabled) {
-            // 에어마우스 활성화
+        if (newState) {
             sendAirMouseModeCommand();
-            QMessageBox::information(this, "에어마우스",
-                "에어마우스가 활성화되었습니다.\n"
-                "조이스틱을 움직여 모든 페이지의 UI를 제어할 수 있습니다.\n"
-                "다시 클릭하면 비활성화됩니다.");
         } else {
-            // 에어마우스 비활성화
             sendSensorModeCommand();
-            QMessageBox::information(this, "에어마우스", "에어마우스가 비활성화되었습니다.");
         }
+
+        updateAirMouseStatusIndicator(newState);
+        qDebug() << "AirMouse toggled. Enabled?" << newState;
     }
 }
 
@@ -428,9 +446,10 @@ void MainWindow::on_settings_saveButton_clicked()
     m_config.setMqttPort(ui_settings->portSpinBox->value());
 
     if (m_config.saveToFile("config.json")) {
-        QMessageBox::information(this, "저장 완료", "설정이 저장되었습니다.");
+        statusBar()->showMessage(tr("설정이 저장되었습니다."), 5000);
     } else {
-        QMessageBox::warning(this, "저장 실패", "설정 저장에 실패했습니다.");
+        statusBar()->showMessage(tr("설정 저장에 실패했습니다."), 5000);
+        qWarning() << "설정 저장 실패";
     }
 }
 
@@ -628,6 +647,17 @@ void MainWindow::updateAirMouseData(const QJsonObject &data)
     // Update global airmouse manager
     if (m_airMouseManager && m_airMouseManager->isEnabled()) {
         m_airMouseManager->handleMouseData(data);
+
+        // 버튼 입력 처리 (왼쪽 클릭만)
+        if (data.contains("button_pressed")) {
+            bool buttonPressed = data["button_pressed"].toBool();
+
+            // 버튼이 눌렸을 때만 클릭 시뮬레이션
+            if (buttonPressed) {
+                m_airMouseManager->simulateClick();
+                qDebug() << "Button pressed - simulating click";
+            }
+        }
     }
 }
 

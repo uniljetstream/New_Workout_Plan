@@ -47,8 +47,9 @@ void mqtt_publish_status(const char *status);
  * @brief 에어마우스 데이터 발행
  *
  * @param mouse_data 마우스 데이터
+ * @param button_pressed 버튼 눌림 상태
  */
-void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data);
+void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data, bool button_pressed);
 
 /**
  * @brief 에어마우스 모드 변경 명령 발행

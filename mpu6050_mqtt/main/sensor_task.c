@@ -5,6 +5,7 @@
 #include "mpu6050.h"
 #include "config.h"
 #include "airmouse.h"
+#include "button_handler.h"  // 버튼 핸들러 추가
 
 #include "esp_log.h"
 #include "esp_system.h"
@@ -131,10 +132,13 @@ static void sensor_task(void *pvParameters)
                     // 에어마우스 모드: 센서 데이터를 마우스 데이터로 변환하여 전송 (고정 버퍼 사용)
                     ESP_LOGD(TAG_SENSOR, "Converting to mouse data...");
                     if (airmouse_convert_sensor_to_mouse(&sensor_data_cache, &mouse_data_cache)) {
+                        // 버튼 상태 읽기
+                        bool button_pressed = button_is_pressed();
+
                         ESP_LOGD(TAG_SENSOR, "Publishing airmouse data...");
-                        mqtt_publish_airmouse_data(&mouse_data_cache);
-                        ESP_LOGD(TAG_SENSOR, "AirMouse data sent: X=%.2f Y=%.2f Scroll=%d", 
-                                 mouse_data_cache.mouse_x, mouse_data_cache.mouse_y, mouse_data_cache.scroll_delta);
+                        mqtt_publish_airmouse_data(&mouse_data_cache, button_pressed);
+                        ESP_LOGD(TAG_SENSOR, "AirMouse data sent: X=%.2f Y=%.2f Scroll=%d Button=%d",
+                                 mouse_data_cache.mouse_x, mouse_data_cache.mouse_y, mouse_data_cache.scroll_delta, button_pressed);
                     } else {
                         ESP_LOGE(TAG_SENSOR, "Failed to convert sensor data to mouse data");
                     }

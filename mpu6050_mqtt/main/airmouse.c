@@ -17,15 +17,15 @@ static const char *TAG = "AIRMOUSE";
 static airmouse_mode_t current_mode = AIRMOUSE_MODE_SENSOR;
 static calibration_data_t calibration_data = {0};
 static filter_config_t filter_config = {
-    .alpha = 0.8f,              // 저역통과 필터 계수
-    .threshold = 0.1f,          // 움직임 임계값
+    .alpha = 0.9f,              // 저역통과 필터 계수 (0.8 → 0.9, 더 부드럽게)
+    .threshold = 0.2f,          // 움직임 임계값 (0.1 → 0.2, 작은 움직임 무시)
     .smoothing_samples = 5       // 스무딩 샘플 수
 };
 static sensitivity_config_t sensitivity_config = {
-    .sensitivity_x = 1.0f,      // X축 감도
-    .sensitivity_y = 1.0f,      // Y축 감도
-    .sensitivity_z = 1.0f,      // Z축 감도
-    .max_speed = 100.0f         // 최대 마우스 속도
+    .sensitivity_x = 0.5f,      // X축 감도 (1.0 → 0.5, 절반으로 감소)
+    .sensitivity_y = 0.5f,      // Y축 감도 (1.0 → 0.5, 절반으로 감소)
+    .sensitivity_z = 0.5f,      // Z축 감도 (1.0 → 0.5, 절반으로 감소)
+    .max_speed = 50.0f          // 최대 마우스 속도 (100 → 50, 절반으로 감소)
 };
 static gesture_config_t gesture_config = {
     .scroll_threshold = 1.5f   // 스크롤 감지 임계값
@@ -228,8 +228,8 @@ bool airmouse_convert_sensor_to_mouse(const mpu6050_data_t *sensor_data, mouse_d
     if (fabs(accel_z) < filter_config.threshold) accel_z = 0;
     
     // 감도 적용 및 마우스 좌표 변환 (고정 버퍼 사용)
-    mouse_data_cache.mouse_x = accel_x * sensitivity_config.sensitivity_x * 50.0f; // 스케일링
-    mouse_data_cache.mouse_y = accel_y * sensitivity_config.sensitivity_y * 50.0f;
+    mouse_data_cache.mouse_x = accel_x * sensitivity_config.sensitivity_x * 20.0f; // 스케일링 (50 → 20, 더 낮게)
+    mouse_data_cache.mouse_y = accel_y * sensitivity_config.sensitivity_y * 20.0f;
     
     // 최대 속도 제한
     if (fabs(mouse_data_cache.mouse_x) > sensitivity_config.max_speed) {
