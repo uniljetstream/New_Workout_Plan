@@ -8,6 +8,7 @@
 
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -21,6 +22,10 @@ static bool mpu6050_initialized = false;
 static bool sensor_task_running = false;
 static TaskHandle_t sensor_task_handle = NULL;
 
+// 센서 데이터 캐시 (메모리 재사용)
+static mpu6050_data_t sensor_data_cache;
+static mouse_data_t mouse_data_cache;
+
 /**
  * @brief 센서 데이터 읽기 (MPU6050)
  */
@@ -31,10 +36,22 @@ bool sensor_read_data(mpu6050_data_t *data)
         return false;
     }
 
-    // MPU6050 센서 데이터 읽기
-    esp_err_t ret = mpu6050_read_data(data);
+    // MPU6050 센서 데이터 읽기 (재시도 로직 포함)
+    esp_err_t ret = ESP_FAIL;
+    int retry_count = 0;
+    const int max_retries = 5;  // 재시도 횟수 증가
+    
+    while (ret != ESP_OK && retry_count < max_retries) {
+        ret = mpu6050_read_data(data);
+        if (ret != ESP_OK) {
+            retry_count++;
+            ESP_LOGW(TAG_SENSOR, "MPU6050 read failed (attempt %d/%d), retrying...", retry_count, max_retries);
+            vTaskDelay(pdMS_TO_TICKS(20)); // 20ms 대기 후 재시도 (더 긴 대기)
+        }
+    }
+    
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG_SENSOR, "Failed to read MPU6050 data");
+        ESP_LOGE(TAG_SENSOR, "Failed to read MPU6050 data after %d retries", max_retries);
         return false;
     }
 
@@ -83,31 +100,73 @@ static void sensor_task(void *pvParameters)
     ESP_LOGI(TAG_SENSOR, "MPU6050 initialized successfully");
 
     while (sensor_task_running) {
-        mpu6050_data_t sensor_data;
+        // Watchdog 피드 (태스크가 살아있음을 알림)
+        vTaskDelay(pdMS_TO_TICKS(1));
+        
+        // 메모리 사용량 모니터링 (10초마다)
+        static uint32_t last_memory_check = 0;
+        uint32_t current_time = esp_timer_get_time() / 1000;
+        if (current_time - last_memory_check > 10000) {
+            ESP_LOGI(TAG_SENSOR, "Free heap: %" PRIu32 " bytes", esp_get_free_heap_size());
+            last_memory_check = current_time;
+        }
 
-        // 센서 데이터 읽기
-        if (sensor_read_data(&sensor_data)) {
-            // 현재 모드에 따라 다른 데이터 전송
-            airmouse_mode_t current_mode = airmouse_get_mode();
-            
-            if (current_mode == AIRMOUSE_MODE_MOUSE) {
-                // 에어마우스 모드: 센서 데이터를 마우스 데이터로 변환하여 전송
-                mouse_data_t mouse_data;
-                if (airmouse_convert_sensor_to_mouse(&sensor_data, &mouse_data)) {
-                    mqtt_publish_airmouse_data(&mouse_data);
-                    ESP_LOGD(TAG_SENSOR, "AirMouse data sent: X=%.2f Y=%.2f Scroll=%d", 
-                             mouse_data.mouse_x, mouse_data.mouse_y, mouse_data.scroll_delta);
+        // 센서 데이터 읽기 (재시도 로직 포함, 고정 버퍼 사용)
+        bool data_read_success = false;
+        int retry_count = 0;
+        const int max_retries = 3;
+        
+        // 센서 읽기 시작 로그
+        ESP_LOGD(TAG_SENSOR, "Starting sensor data read...");
+        
+        while (!data_read_success && retry_count < max_retries) {
+            if (sensor_read_data(&sensor_data_cache)) {
+                data_read_success = true;
+                ESP_LOGD(TAG_SENSOR, "Sensor data read successful");
+                
+                // 현재 모드에 따라 다른 데이터 전송
+                airmouse_mode_t current_mode = airmouse_get_mode();
+                
+                if (current_mode == AIRMOUSE_MODE_MOUSE) {
+                    // 에어마우스 모드: 센서 데이터를 마우스 데이터로 변환하여 전송 (고정 버퍼 사용)
+                    ESP_LOGD(TAG_SENSOR, "Converting to mouse data...");
+                    if (airmouse_convert_sensor_to_mouse(&sensor_data_cache, &mouse_data_cache)) {
+                        ESP_LOGD(TAG_SENSOR, "Publishing airmouse data...");
+                        mqtt_publish_airmouse_data(&mouse_data_cache);
+                        ESP_LOGD(TAG_SENSOR, "AirMouse data sent: X=%.2f Y=%.2f Scroll=%d", 
+                                 mouse_data_cache.mouse_x, mouse_data_cache.mouse_y, mouse_data_cache.scroll_delta);
+                    } else {
+                        ESP_LOGE(TAG_SENSOR, "Failed to convert sensor data to mouse data");
+                    }
                 } else {
-                    ESP_LOGE(TAG_SENSOR, "Failed to convert sensor data to mouse data");
+                    // 센서 모드: 기존 방식으로 센서 데이터 전송 (고정 버퍼 사용)
+                    ESP_LOGD(TAG_SENSOR, "Publishing sensor data...");
+                    mqtt_publish_mpu6050_data(&sensor_data_cache);
+                    ESP_LOGD(TAG_SENSOR, "Sensor data sent: Accel X=%.3f Y=%.3f Z=%.3f", 
+                             sensor_data_cache.accel_x, sensor_data_cache.accel_y, sensor_data_cache.accel_z);
                 }
             } else {
-                // 센서 모드: 기존 방식으로 센서 데이터 전송
-                mqtt_publish_mpu6050_data(&sensor_data);
-                ESP_LOGD(TAG_SENSOR, "Sensor data sent: Accel X=%.3f Y=%.3f Z=%.3f", 
-                         sensor_data.accel_x, sensor_data.accel_y, sensor_data.accel_z);
+                retry_count++;
+                ESP_LOGW(TAG_SENSOR, "Failed to read sensor data (attempt %d/%d)", retry_count, max_retries);
+                
+                if (retry_count < max_retries) {
+                    vTaskDelay(pdMS_TO_TICKS(10)); // 10ms 대기 후 재시도
+                }
             }
-        } else {
-            ESP_LOGE(TAG_SENSOR, "Failed to read sensor data");
+        }
+        
+        if (!data_read_success) {
+            ESP_LOGE(TAG_SENSOR, "Failed to read sensor data after %d retries", max_retries);
+            
+            // 센서 재초기화 시도
+            ESP_LOGW(TAG_SENSOR, "Attempting sensor reinitialization...");
+            mpu6050_deinit();
+            vTaskDelay(pdMS_TO_TICKS(100)); // 100ms 대기
+            if (mpu6050_init_sensor() == ESP_OK) {
+                ESP_LOGI(TAG_SENSOR, "Sensor reinitialized successfully");
+            } else {
+                ESP_LOGE(TAG_SENSOR, "Sensor reinitialization failed");
+            }
         }
 
         // 동적 전송 주기로 대기
@@ -130,8 +189,8 @@ void sensor_task_start(void)
     }
 
     sensor_task_running = true;
-    xTaskCreate(sensor_task, "sensor_task", 8192, NULL, 5, &sensor_task_handle);
-    ESP_LOGI(TAG_SENSOR, "Sensor task created");
+    xTaskCreate(sensor_task, "sensor_task", 20480, NULL, 4, &sensor_task_handle);
+    ESP_LOGI(TAG_SENSOR, "Sensor task created with 20KB stack, priority 4");
 }
 
 /**

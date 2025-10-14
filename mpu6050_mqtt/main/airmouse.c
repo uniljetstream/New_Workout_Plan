@@ -39,12 +39,15 @@ static float prev_gyro_x = 0.0f;
 static float prev_gyro_y = 0.0f;
 static float prev_gyro_z = 0.0f;
 
-// 스무딩을 위한 버퍼
+// 스무딩을 위한 버퍼 (메모리 재사용)
 #define SMOOTHING_BUFFER_SIZE 10
 static float smoothing_buffer_x[SMOOTHING_BUFFER_SIZE] = {0};
 static float smoothing_buffer_y[SMOOTHING_BUFFER_SIZE] = {0};
 static float smoothing_buffer_z[SMOOTHING_BUFFER_SIZE] = {0};
 static uint8_t smoothing_index = 0;
+
+// 마우스 데이터 캐시 (메모리 재사용)
+static mouse_data_t mouse_data_cache;
 
 /**
  * @brief 저역통과 필터 적용
@@ -195,8 +198,8 @@ bool airmouse_convert_sensor_to_mouse(const mpu6050_data_t *sensor_data, mouse_d
         return false;
     }
     
-    // 마우스 데이터 초기화
-    memset(mouse_data, 0, sizeof(mouse_data_t));
+    // 마우스 데이터 초기화 (고정 버퍼 재사용)
+    memset(&mouse_data_cache, 0, sizeof(mouse_data_t));
     
     // 캘리브레이션 적용
     float accel_x = sensor_data->accel_x - calibration_data.accel_x_offset;
@@ -224,20 +227,20 @@ bool airmouse_convert_sensor_to_mouse(const mpu6050_data_t *sensor_data, mouse_d
     if (fabs(accel_y) < filter_config.threshold) accel_y = 0;
     if (fabs(accel_z) < filter_config.threshold) accel_z = 0;
     
-    // 감도 적용 및 마우스 좌표 변환
-    mouse_data->mouse_x = accel_x * sensitivity_config.sensitivity_x * 50.0f; // 스케일링
-    mouse_data->mouse_y = accel_y * sensitivity_config.sensitivity_y * 50.0f;
+    // 감도 적용 및 마우스 좌표 변환 (고정 버퍼 사용)
+    mouse_data_cache.mouse_x = accel_x * sensitivity_config.sensitivity_x * 50.0f; // 스케일링
+    mouse_data_cache.mouse_y = accel_y * sensitivity_config.sensitivity_y * 50.0f;
     
     // 최대 속도 제한
-    if (fabs(mouse_data->mouse_x) > sensitivity_config.max_speed) {
-        mouse_data->mouse_x = (mouse_data->mouse_x > 0) ? sensitivity_config.max_speed : -sensitivity_config.max_speed;
+    if (fabs(mouse_data_cache.mouse_x) > sensitivity_config.max_speed) {
+        mouse_data_cache.mouse_x = (mouse_data_cache.mouse_x > 0) ? sensitivity_config.max_speed : -sensitivity_config.max_speed;
     }
-    if (fabs(mouse_data->mouse_y) > sensitivity_config.max_speed) {
-        mouse_data->mouse_y = (mouse_data->mouse_y > 0) ? sensitivity_config.max_speed : -sensitivity_config.max_speed;
+    if (fabs(mouse_data_cache.mouse_y) > sensitivity_config.max_speed) {
+        mouse_data_cache.mouse_y = (mouse_data_cache.mouse_y > 0) ? sensitivity_config.max_speed : -sensitivity_config.max_speed;
     }
     
     // 제스처 인식
-    detect_gestures(sensor_data, mouse_data);
+    detect_gestures(sensor_data, &mouse_data_cache);
     
     // 이전 값 업데이트
     prev_accel_x = accel_x;
@@ -246,6 +249,9 @@ bool airmouse_convert_sensor_to_mouse(const mpu6050_data_t *sensor_data, mouse_d
     prev_gyro_x = gyro_x;
     prev_gyro_y = gyro_y;
     prev_gyro_z = gyro_z;
+    
+    // 결과를 출력 매개변수에 복사
+    *mouse_data = mouse_data_cache;
     
     return true;
 }

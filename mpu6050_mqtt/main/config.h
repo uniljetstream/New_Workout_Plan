@@ -25,7 +25,7 @@
 #define MQTT_TOPIC_COMMAND CONFIG_MQTT_TOPIC_COMMAND           // watchtower/command/joystick
 
 // ========== 센서 설정 ==========
-#define DEFAULT_PUBLISH_INTERVAL_MS 100  // 기본 전송 주기: 100ms (10Hz, WatchTower용)
+#define DEFAULT_PUBLISH_INTERVAL_MS 200  // 기본 전송 주기: 200ms (더 안정적)
 
 // ========== MPU6050 I2C 설정 ==========
 #define I2C_MASTER_SCL_IO 22           // I2C 클럭 핀 (SCL)
