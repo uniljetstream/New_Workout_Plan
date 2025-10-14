@@ -97,6 +97,9 @@ private:
     // MQTT
     QMqttClient *m_client;
     Config &m_config;
+    QTimer *m_mqttReconnectTimer;
+    bool m_shouldAutoReconnect;
+    bool m_userRequestedDisconnect;
 
     // AirMouse
     VideoFrameWidget *m_videoWidget;    // Displays WatchTower video stream
@@ -136,6 +139,8 @@ private:
     void sendAirMouseModeCommand();
     void sendSensorModeCommand();
     void updateAirMouseStatusIndicator(bool enabled);
+    void attemptMqttReconnect();
+    void scheduleMqttReconnect();
 
     // MQTT protocol helpers
     QString convertExerciseNameToMode(const QString &exerciseName);

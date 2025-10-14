@@ -33,7 +33,7 @@
         "watchtower_cmd_watch": "watchtower/command/watch"
     },
     "ui_settings": {
-        "auto_connect": false,
+        "auto_connect": true,
         "save_window_position": true,
         "window_height": 600,
         "window_width": 800

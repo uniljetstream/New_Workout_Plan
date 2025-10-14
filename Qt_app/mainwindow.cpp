@@ -35,6 +35,13 @@ MainWindow::MainWindow(QWidget *parent)
 {
     loadConfiguration();
     setupPages();
+    m_mqttReconnectTimer = new QTimer(this);
+    m_mqttReconnectTimer->setInterval(3000);
+    m_mqttReconnectTimer->setSingleShot(true);
+    connect(m_mqttReconnectTimer, &QTimer::timeout,
+            this, &MainWindow::attemptMqttReconnect);
+    m_shouldAutoReconnect = m_config.autoConnect();
+    m_userRequestedDisconnect = false;
     setupMqttClient();
     setupVideoWidget();
     setupAirMouse();
@@ -191,6 +198,10 @@ void MainWindow::setupMqttClient()
     connect(m_client, &QMqttClient::stateChanged, this, &MainWindow::onMqttStateChanged);
     connect(m_client, &QMqttClient::errorChanged, this, &MainWindow::onMqttError);
 
+    if (m_shouldAutoReconnect) {
+        attemptMqttReconnect();
+    }
+
     qDebug() << "MQTT client setup complete";
 }
 
@@ -311,6 +322,41 @@ void MainWindow::updateAirMouseStatusIndicator(bool enabled)
     }
 }
 
+void MainWindow::attemptMqttReconnect()
+{
+    if (!m_client) {
+        return;
+    }
+
+    if (!m_shouldAutoReconnect && m_userRequestedDisconnect) {
+        qDebug() << "MQTT reconnect skipped (user requested disconnect)";
+        return;
+    }
+
+    if (m_client->state() == QMqttClient::Connected || m_client->state() == QMqttClient::Connecting) {
+        return;
+    }
+
+    qDebug() << "Attempting MQTT connection to" << m_client->hostname() << ":" << m_client->port();
+    m_client->connectToHost();
+}
+
+void MainWindow::scheduleMqttReconnect()
+{
+    if (!m_mqttReconnectTimer || m_userRequestedDisconnect || !m_shouldAutoReconnect) {
+        return;
+    }
+
+    if (m_client && m_client->state() == QMqttClient::Connected) {
+        return;
+    }
+
+    if (!m_mqttReconnectTimer->isActive()) {
+        qDebug() << "Scheduling MQTT reconnect in" << m_mqttReconnectTimer->interval() << "ms";
+        m_mqttReconnectTimer->start();
+    }
+}
+
 // ============================================================================
 // Main Menu Page Slots
 // ============================================================================
@@ -400,12 +446,22 @@ void MainWindow::on_settings_connectButton_clicked()
 {
     m_client->setHostname(ui_settings->brokerLineEdit->text());
     m_client->setPort(ui_settings->portSpinBox->value());
-    m_client->connectToHost();
+    if (m_mqttReconnectTimer) {
+        m_mqttReconnectTimer->stop();
+    }
+    m_userRequestedDisconnect = false;
+    m_shouldAutoReconnect = true;
+    attemptMqttReconnect();
     qDebug() << "Connecting to broker...";
 }
 
 void MainWindow::on_settings_disconnectButton_clicked()
 {
+    if (m_mqttReconnectTimer) {
+        m_mqttReconnectTimer->stop();
+    }
+    m_userRequestedDisconnect = true;
+    m_shouldAutoReconnect = false;
     m_client->disconnectFromHost();
     qDebug() << "Disconnecting from broker...";
 }
@@ -538,6 +594,10 @@ void MainWindow::on_workout_backButton_clicked()
 void MainWindow::onMqttConnected()
 {
     qDebug() << "Connected to MQTT broker";
+    if (m_mqttReconnectTimer) {
+        m_mqttReconnectTimer->stop();
+    }
+    m_userRequestedDisconnect = false;
     updateMqttConnectionStatus(true);
     subscribeToTopics();
 }
@@ -547,6 +607,7 @@ void MainWindow::onMqttDisconnected()
     qDebug() << "Disconnected from MQTT broker";
     updateMqttConnectionStatus(false);
     clearVideoFrame(tr("MQTT 연결이 끊어졌습니다."));
+    scheduleMqttReconnect();
 }
 
 void MainWindow::onMqttMessageReceived(const QByteArray &message, const QMqttTopicName &topic)
@@ -623,6 +684,7 @@ void MainWindow::onMqttError(QMqttClient::ClientError error)
     if (error != QMqttClient::NoError) {
         qDebug() << "MQTT Error:" << error;
     }
+    scheduleMqttReconnect();
 }
 
 // ============================================================================

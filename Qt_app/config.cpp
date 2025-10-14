@@ -43,7 +43,7 @@ void Config::setDefaults()
     // UI Settings defaults
     m_windowWidth = 900;
     m_windowHeight = 700;
-    m_autoConnect = false;
+    m_autoConnect = true;
     m_saveWindowPosition = true;
 
     // Logging Settings defaults
