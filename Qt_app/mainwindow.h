@@ -8,18 +8,15 @@
 #include <QDateTime>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QString>
 #include "config.h"
-#include "videoframewidget.h"
 #include "airmouse_manager.h"
 
-QT_BEGIN_NAMESPACE
-namespace Ui {
-    class MainMenuPage;
-    class ExerciseSelectionPage;
-    class SettingsPage;
-    class WorkoutPage;
-}
-QT_END_NAMESPACE
+class MainMenuPageWidget;
+class ExerciseSelectionPageWidget;
+class SettingsPageWidget;
+class WorkoutPageWidget;
+class VideoFrameWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -38,38 +35,30 @@ public:
     };
 
 private slots:
-    // Main Menu Page slots
-    void on_exerciseSelectButton_clicked();
-    void on_settingsButton_clicked();
+    // Main Menu Page handlers
+    void handleExerciseSelectRequested();
+    void handleSettingsRequested();
 
-    // Exercise Selection Page slots
-    void on_squatButton_clicked();
-    void on_pushupButton_clicked();
-    void on_plankButton_clicked();
-    void on_lungeButton_clicked();
-    void on_jumpingJackButton_clicked();
-    void on_mountainClimberButton_clicked();
-    void on_burpeeButton_clicked();
-    void on_customButton_clicked();
-    void on_scrollUpButton_clicked();
-    void on_scrollDownButton_clicked();
-    void on_exerciseSelection_backButton_clicked();
+    // Exercise Selection Page handlers
+    void handleExerciseSelected(const QString &exerciseName);
+    void handleFeatureUnavailable(const QString &message);
+    void handleExerciseSelectionBack();
 
-    // Settings Page slots
-    void on_settings_connectButton_clicked();
-    void on_settings_disconnectButton_clicked();
-    void on_settings_calibrateButton_clicked();
-    void on_settings_testAirMouseButton_clicked();
-    void on_settings_saveButton_clicked();
-    void on_settings_backButton_clicked();
-    void on_sensitivitySlider_valueChanged(int value);
-    void on_smoothingCheckBox_toggled(bool checked);
-    void on_trailCheckBox_toggled(bool checked);
+    // Settings Page handlers
+    void handleConnectRequested();
+    void handleDisconnectRequested();
+    void handleCalibrateRequested();
+    void handleAirMouseToggleRequested();
+    void handleSaveRequested();
+    void handleSettingsBackRequested();
+    void handleSensitivityChanged(double value);
+    void handleSmoothingChanged(bool checked);
+    void handleTrailChanged(bool checked);
 
-    // Workout Page slots
-    void on_workout_startButton_clicked();
-    void on_workout_stopButton_clicked();
-    void on_workout_backButton_clicked();
+    // Workout Page handlers
+    void handleWorkoutStartRequested();
+    void handleWorkoutStopRequested();
+    void handleWorkoutBackRequested();
 
     // MQTT client slots
     void onMqttConnected();
@@ -84,15 +73,10 @@ private slots:
 private:
     // UI
     QStackedWidget *m_stackedWidget;
-    QWidget *m_mainMenuPage;
-    QWidget *m_exerciseSelectionPage;
-    QWidget *m_settingsPage;
-    QWidget *m_workoutPage;
-
-    Ui::MainMenuPage *ui_mainMenu;
-    Ui::ExerciseSelectionPage *ui_exerciseSelection;
-    Ui::SettingsPage *ui_settings;
-    Ui::WorkoutPage *ui_workout;
+    MainMenuPageWidget *m_mainMenuPage;
+    ExerciseSelectionPageWidget *m_exerciseSelectionPage;
+    SettingsPageWidget *m_settingsPage;
+    WorkoutPageWidget *m_workoutPage;
 
     // MQTT
     QMqttClient *m_client;
