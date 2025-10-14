@@ -7,7 +7,7 @@
 #include <QDebug>
 
 CursorOverlay::CursorOverlay(QWidget *parent)
-    : QWidget(parent)
+    : QWidget(nullptr)  // 독립적인 윈도우로 생성 (부모 없음)
     , m_cursorPos(0, 0)
     , m_cursorVisible(true)
     , m_cursorColor(255, 100, 100)
@@ -17,14 +17,19 @@ CursorOverlay::CursorOverlay(QWidget *parent)
     , m_clickAnimationActive(false)
     , m_clickAnimationRadius(0)
 {
-    // 투명 배경, 마우스 이벤트 전달
-    setAttribute(Qt::WA_TransparentForMouseEvents, false);
+    Q_UNUSED(parent);  // parent는 geometry 설정에만 사용
+
+    // 독립적인 투명 오버레이 윈도우 설정
+    setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
     setAttribute(Qt::WA_TranslucentBackground);
-    setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
+    setAttribute(Qt::WA_TransparentForMouseEvents, true);  // 모든 마우스 이벤트 통과
+    setAttribute(Qt::WA_ShowWithoutActivating);  // 포커스를 가져가지 않음
 
     // 클릭 애니메이션 타이머
     m_clickAnimationTimer = new QTimer(this);
     connect(m_clickAnimationTimer, &QTimer::timeout, this, &CursorOverlay::updateClickAnimation);
+
+    qDebug() << "CursorOverlay created as independent window";
 }
 
 void CursorOverlay::setCursorPosition(const QPoint &pos)
@@ -161,32 +166,8 @@ void CursorOverlay::paintEvent(QPaintEvent *event)
 
 bool CursorOverlay::event(QEvent *event)
 {
-    // 마우스 이벤트를 하위 위젯으로 전달
-    if (event->type() == QEvent::MouseButtonPress ||
-        event->type() == QEvent::MouseButtonRelease ||
-        event->type() == QEvent::MouseMove) {
-
-        // 현재 커서 위치의 위젯 찾기
-        QWidget *targetWidget = QApplication::widgetAt(mapToGlobal(m_cursorPos));
-
-        if (targetWidget && targetWidget != this) {
-            // 이벤트를 대상 위젯의 로컬 좌표로 변환
-            QPoint localPos = targetWidget->mapFromGlobal(mapToGlobal(m_cursorPos));
-
-            QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
-            QMouseEvent newEvent(
-                mouseEvent->type(),
-                localPos,
-                mouseEvent->button(),
-                mouseEvent->buttons(),
-                mouseEvent->modifiers()
-            );
-
-            // 대상 위젯으로 이벤트 전송
-            QApplication::sendEvent(targetWidget, &newEvent);
-            return true;
-        }
-    }
-
+    // Qt::WA_TransparentForMouseEvents가 활성화되어 있으므로
+    // 모든 마우스 이벤트는 자동으로 하위 위젯으로 전달됨
+    // 여기서는 특별한 처리 없이 기본 동작만 수행
     return QWidget::event(event);
 }

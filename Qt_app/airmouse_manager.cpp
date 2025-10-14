@@ -20,9 +20,16 @@ AirMouseManager::AirMouseManager(QWidget *parent)
     , m_bufferSize(3)
     , m_hoveredWidget(nullptr)
 {
-    // 커서 오버레이 생성
+    if (!parent) {
+        qWarning() << "AirMouseManager: parent widget is null!";
+        return;
+    }
+
+    // 커서 오버레이 생성 (독립 윈도우)
     m_cursorOverlay = new CursorOverlay(parent);
-    m_cursorOverlay->setGeometry(parent->rect());
+
+    // 부모 위젯과 동일한 위치/크기로 설정
+    m_cursorOverlay->setGeometry(parent->geometry());
     m_cursorOverlay->setCursorPosition(m_cursorPos);
     m_cursorOverlay->hide();
 
@@ -42,26 +49,43 @@ AirMouseManager::~AirMouseManager()
 
 void AirMouseManager::setEnabled(bool enabled)
 {
+    if (!m_parentWidget || !m_cursorOverlay) {
+        qWarning() << "AirMouseManager: Cannot enable, widgets not initialized";
+        return;
+    }
+
     m_enabled = enabled;
 
     if (m_enabled) {
         // 에어마우스 활성화
-        m_cursorOverlay->show();
-        m_cursorOverlay->raise(); // 최상위로
 
         // 커서를 중앙으로 초기화
         m_cursorPos = QPoint(m_parentWidget->width() / 2, m_parentWidget->height() / 2);
         m_cursorOverlay->setCursorPosition(m_cursorPos);
 
-        // 호버 타이머 시작
-        m_hoverTimer->start(50); // 20 Hz
+        // 오버레이 geometry 업데이트 (MainWindow와 동일하게)
+        m_cursorOverlay->setGeometry(m_parentWidget->geometry());
 
-        qDebug() << "AirMouse enabled";
+        // 오버레이 표시
+        m_cursorOverlay->show();
+        m_cursorOverlay->raise(); // 최상위로
+
+        // 약간의 딜레이 후 타이머 시작 (오버레이가 완전히 표시된 후)
+        QTimer::singleShot(100, this, [this]() {
+            if (m_enabled && m_hoverTimer) {
+                m_hoverTimer->start(50); // 20 Hz
+                qDebug() << "AirMouse hover timer started";
+            }
+        });
+
+        qDebug() << "AirMouse enabled at position" << m_cursorPos;
     } else {
         // 에어마우스 비활성화
-        m_cursorOverlay->hide();
-        m_hoverTimer->stop();
+        if (m_hoverTimer) {
+            m_hoverTimer->stop();
+        }
         m_hoveredWidget = nullptr;
+        m_cursorOverlay->hide();
 
         qDebug() << "AirMouse disabled";
     }
@@ -152,6 +176,10 @@ QPoint AirMouseManager::applySmoothingFilter(const QPoint &delta)
 
 void AirMouseManager::handleScroll(int delta)
 {
+    if (!m_parentWidget) {
+        return;
+    }
+
     QWidget *targetWidget = getWidgetAtCursor();
 
     if (targetWidget) {
@@ -177,7 +205,7 @@ void AirMouseManager::handleScroll(int delta)
 
 void AirMouseManager::simulateClick()
 {
-    if (!m_enabled) {
+    if (!m_enabled || !m_parentWidget) {
         return;
     }
 
@@ -210,7 +238,9 @@ void AirMouseManager::simulateClick()
         QApplication::sendEvent(targetWidget, &releaseEvent);
 
         // 클릭 애니메이션 표시
-        m_cursorOverlay->showClickAnimation();
+        if (m_cursorOverlay) {
+            m_cursorOverlay->showClickAnimation();
+        }
 
         emit clicked(targetWidget);
         qDebug() << "Click simulated on" << targetWidget->objectName();
@@ -219,7 +249,7 @@ void AirMouseManager::simulateClick()
 
 void AirMouseManager::simulateRightClick()
 {
-    if (!m_enabled) {
+    if (!m_enabled || !m_parentWidget) {
         return;
     }
 
@@ -256,12 +286,22 @@ void AirMouseManager::simulateRightClick()
 
 QWidget* AirMouseManager::getWidgetAtCursor() const
 {
-    QPoint globalPos = m_parentWidget->mapToGlobal(m_cursorPos);
-    QWidget *widget = QApplication::widgetAt(globalPos);
+    if (!m_parentWidget) {
+        return nullptr;
+    }
 
-    // 오버레이 자신은 무시
-    if (widget == m_cursorOverlay) {
-        widget = m_parentWidget->childAt(m_cursorPos);
+    // 부모 위젯 기준의 로컬 좌표에서 위젯 찾기
+    QWidget *widget = m_parentWidget->childAt(m_cursorPos);
+
+    // 찾지 못했으면 전역 좌표로 시도
+    if (!widget) {
+        QPoint globalPos = m_parentWidget->mapToGlobal(m_cursorPos);
+        widget = QApplication::widgetAt(globalPos);
+
+        // 오버레이 자신은 무시
+        if (widget == m_cursorOverlay) {
+            widget = nullptr;
+        }
     }
 
     return widget;
@@ -269,7 +309,7 @@ QWidget* AirMouseManager::getWidgetAtCursor() const
 
 void AirMouseManager::updateHoverState()
 {
-    if (!m_enabled) {
+    if (!m_enabled || !m_parentWidget) {
         return;
     }
 
@@ -288,7 +328,7 @@ void AirMouseManager::updateHoverState()
         }
 
         // 새 위젯 호버 시작
-        if (currentWidget) {
+        if (currentWidget && m_parentWidget) {
             QPoint globalPos = m_parentWidget->mapToGlobal(m_cursorPos);
             QPoint localPos = currentWidget->mapFromGlobal(globalPos);
 
@@ -302,7 +342,7 @@ void AirMouseManager::updateHoverState()
         }
 
         m_hoveredWidget = currentWidget;
-    } else if (currentWidget) {
+    } else if (currentWidget && m_parentWidget) {
         // 호버 이동
         QPoint globalPos = m_parentWidget->mapToGlobal(m_cursorPos);
         QPoint localPos = currentWidget->mapFromGlobal(globalPos);

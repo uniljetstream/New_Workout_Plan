@@ -1,46 +1,41 @@
 {
-  "mqtt_broker": {
-    "host": "10.10.16.111",
-    "port": 1883,
-    "client_id": "qt_workout_app",
-    "username": "",
-    "password": ""
-  },
-  "mqtt_topics": {
-    "joystick_data": "joystick/sensor/data",
-    "joystick_status": "joystick/status",
-    "watch_heartrate": "watch/sensor/heartrate",
-    "watch_status": "watch/status",
-    "watchtower_cmd_joystick": "watchtower/command/joystick",
-    "watchtower_cmd_watch": "watchtower/command/watch",
-    "qt_cmd_select": "qt/command/select_mode",
-    "qt_cmd_start": "qt/command/start",
-    "qt_cmd_stop": "qt/command/stop",
-    "qt_response": "qt/response/#"
-  },
-  "exercise_modes": [
-    "Squat",
-    "Pushup",
-    "Plank",
-    "Lunge",
-    "Jumping Jack",
-    "Mountain Climber",
-    "Burpee"
-  ],
-  "ui_settings": {
-    "window_width": 800,
-    "window_height": 600,
-    "auto_connect": false,
-    "save_window_position": true
-  },
-  "logging": {
-    "enabled": true,
-    "max_log_lines": 1000,
-    "timestamps": true
-  },
-  "airmouse": {
-    "default_sensitivity": 10,
-    "enable_smoothing": true,
-    "show_trail": true
-  }
+    "exercise_modes": [
+        "Squat",
+        "Pushup",
+        "Plank",
+        "Lunge",
+        "Jumping Jack",
+        "Mountain Climber",
+        "Burpee"
+    ],
+    "logging": {
+        "enabled": true,
+        "max_log_lines": 1000,
+        "timestamps": true
+    },
+    "mqtt_broker": {
+        "client_id": "qt_workout_app",
+        "host": "10.10.16.111",
+        "password": "",
+        "port": 1883,
+        "username": ""
+    },
+    "mqtt_topics": {
+        "joystick_data": "joystick/sensor/data",
+        "joystick_status": "joystick/status",
+        "qt_cmd_select": "qt/command/select_mode",
+        "qt_cmd_start": "qt/command/start",
+        "qt_cmd_stop": "qt/command/stop",
+        "qt_response": "qt/response/#",
+        "watch_heartrate": "watch/sensor/heartrate",
+        "watch_status": "watch/status",
+        "watchtower_cmd_joystick": "watchtower/command/joystick",
+        "watchtower_cmd_watch": "watchtower/command/watch"
+    },
+    "ui_settings": {
+        "auto_connect": false,
+        "save_window_position": true,
+        "window_height": 600,
+        "window_width": 800
+    }
 }
