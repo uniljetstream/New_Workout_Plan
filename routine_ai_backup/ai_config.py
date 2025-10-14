@@ -54,215 +54,193 @@ class AIServerConfig:
         # 카테고리 루틴 (3개) - 모든 운동을 순차적으로 실행
         # ============================================
         'bodyweight_routine': [
-            # Squat (Side view)
+            # Squat
             {
                 'name': 'squat_stand',
-                'description': '[1/4] Squat - Ready (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[맨몸 1/4] 스쿼트 준비 자세',
+                'duration': 1.0
             },
             {
                 'name': 'squat_down',
-                'description': '[1/4] Squat - Down (Side view)',
-                'duration': 2.0,
-                'view': 'side'
+                'description': '[맨몸 1/4] 스쿼트 자세',
+                'duration': 2.0
             },
-            # Pushup (Side view)
+            # Pushup
             {
                 'name': 'pushup_up',
-                'description': '[2/4] Pushup - Up (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[맨몸 2/4] 푸시업 준비 자세',
+                'duration': 1.0
             },
             {
                 'name': 'pushup_down',
-                'description': '[2/4] Pushup - Down (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[맨몸 2/4] 푸시업 자세',
+                'duration': 1.0
             },
-            # Plank (Side view)
+            # Plank
             {
                 'name': 'plank_knee',
-                'description': '[3/4] Plank - Knee (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[맨몸 3/4] 플랭크 준비',
+                'duration': 1.0
             },
             {
                 'name': 'plank_hold',
-                'description': '[3/4] Plank - Hold 30s (Side view)',
-                'duration': 30.0,
-                'view': 'side'
+                'description': '[맨몸 3/4] 플랭크 유지 (30초)',
+                'duration': 30.0
             },
-            # Lunge (Side view)
+            # Lunge
             {
                 'name': 'lunge_center',
-                'description': '[4/4] Lunge - Ready (Side view)',
-                'duration': 0.5,
-                'view': 'side'
+                'description': '[맨몸 4/4] 런지 준비',
+                'duration': 0.5
             },
             {
                 'name': 'lunge_left',
-                'description': '[4/4] Lunge - Left (Side view)',
-                'duration': 2.0,
-                'view': 'side'
+                'description': '[맨몸 4/4] 왼쪽 런지',
+                'duration': 2.0
             },
             {
                 'name': 'lunge_right',
-                'description': '[4/4] Lunge - Right (Side view)',
-                'duration': 2.0,
-                'view': 'side'
+                'description': '[맨몸 4/4] 오른쪽 런지',
+                'duration': 2.0
             }
         ],
         'kettlebell_routine': [
-            # Kettlebell Swing (Side view)
+            # Kettlebell Swing
             {
                 'name': 'swing_start',
-                'description': '[1/5] KB Swing - Start (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[케틀벨 1/5] 스윙 시작 자세',
+                'duration': 1.0
             },
             {
                 'name': 'swing_up',
-                'description': '[1/5] KB Swing - Up (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[케틀벨 1/5] 스윙 자세',
+                'duration': 1.0
             },
-            # Kettlebell Deadlift (Side view)
+            # Kettlebell Deadlift
             {
                 'name': 'deadlift_down',
-                'description': '[2/5] KB Deadlift - Down (Side view)',
-                'duration': 1.5,
-                'view': 'side'
+                'description': '[케틀벨 2/5] 데드리프트 시작 자세',
+                'duration': 1.5
             },
             {
                 'name': 'deadlift_up',
-                'description': '[2/5] KB Deadlift - Up (Side view)',
-                'duration': 1.5,
-                'view': 'side'
+                'description': '[케틀벨 2/5] 데드리프트 완료 자세',
+                'duration': 1.5
             },
-            # Side Lunge (Front view)
+            # Side Lunge
             {
                 'name': 'lunge_center',
-                'description': '[3/5] Side Lunge - Ready (Front view)',
-                'duration': 0.5,
-                'view': 'front'
+                'description': '[케틀벨 3/5] 사이드 런지 준비',
+                'duration': 0.5
             },
             {
                 'name': 'lunge_left',
-                'description': '[3/5] Side Lunge - Left (Front view)',
-                'duration': 2.0,
-                'view': 'front'
+                'description': '[케틀벨 3/5] 왼쪽 사이드 런지',
+                'duration': 2.0
             },
             {
                 'name': 'lunge_right',
-                'description': '[3/5] Side Lunge - Right (Front view)',
-                'duration': 2.0,
-                'view': 'front'
+                'description': '[케틀벨 3/5] 오른쪽 사이드 런지',
+                'duration': 2.0
             },
-            # Bridge (Side view)
+            # Bridge
             {
                 'name': 'bridge_down',
-                'description': '[4/5] Bridge - Down (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[케틀벨 4/5] 브릿지 시작',
+                'duration': 1.0
             },
             {
                 'name': 'bridge_up',
-                'description': '[4/5] Bridge - Up (Side view)',
-                'duration': 2.0,
-                'view': 'side'
+                'description': '[케틀벨 4/5] 브릿지',
+                'duration': 2.0
             },
-            # Knee Drive (Front view)
+            # Knee Drive
             {
                 'name': 'knee_start',
-                'description': '[5/5] Knee Drive - Ready (Front view)',
-                'duration': 0.5,
-                'view': 'front'
+                'description': '[케틀벨 5/5] 니 드라이브 준비',
+                'duration': 0.5
             },
             {
                 'name': 'knee_left',
-                'description': '[5/5] Knee Drive - Left (Front view)',
-                'duration': 1.5,
-                'view': 'front'
+                'description': '[케틀벨 5/5] 왼쪽 무릎 들기',
+                'duration': 1.5
             },
             {
                 'name': 'knee_right',
-                'description': '[5/5] Knee Drive - Right (Front view)',
-                'duration': 1.5,
-                'view': 'front'
+                'description': '[케틀벨 5/5] 오른쪽 무릎 들기',
+                'duration': 1.5
             }
         ],
         'barbell_routine': [
-            # Barbell Row (Side view)
+            # Barbell Row
             {
                 'name': 'barbell_row_start',
-                'description': '[1/5] Barbell Row - Start (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[바벨 1/5] 로우 시작 자세',
+                'duration': 1.0
             },
             {
                 'name': 'barbell_row_pull',
-                'description': '[1/5] Barbell Row - Pull (Side view)',
-                'duration': 1.5,
-                'view': 'side'
+                'description': '[바벨 1/5] 로우 당기기',
+                'duration': 1.5
             },
             {
                 'name': 'barbell_row_hold',
-                'description': '[1/5] Barbell Row - Hold (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[바벨 1/5] 로우 홀드',
+                'duration': 1.0
             },
-            # Barbell Upright Row (Side view)
+            # Barbell Upright Row
             {
                 'name': 'barbell_upright_start',
-                'description': '[2/5] Upright Row - Start (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[바벨 2/5] 업라이트 로우 시작',
+                'duration': 1.0
+            },
+            {
+                'name': 'barbell_upright_mid',
+                'description': '[바벨 2/5] 업라이트 로우 중간',
+                'duration': 1.0
             },
             {
                 'name': 'barbell_upright_top',
-                'description': '[2/5] Upright Row - Top (Side view)',
-                'duration': 2.0,
-                'view': 'side'
+                'description': '[바벨 2/5] 업라이트 로우 최상단',
+                'duration': 1.5
             },
-            # Barbell Overhead Press (Side view)
+            # Barbell Overhead Press
             {
                 'name': 'overhead_start',
-                'description': '[3/5] Overhead Press - Start (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[바벨 3/5] 오버헤드 프레스 시작',
+                'duration': 1.0
+            },
+            {
+                'name': 'overhead_mid',
+                'description': '[바벨 3/5] 오버헤드 프레스 중간',
+                'duration': 1.0
             },
             {
                 'name': 'overhead_top',
-                'description': '[3/5] Overhead Press - Top (Side view)',
-                'duration': 2.0,
-                'view': 'side'
+                'description': '[바벨 3/5] 오버헤드 프레스 완료',
+                'duration': 1.5
             },
-            # Barbell Biceps Curl (Side view)
+            # Barbell Biceps Curl
             {
                 'name': 'curl_down',
-                'description': '[4/5] Biceps Curl - Down (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[바벨 4/5] 바이셉스 컬 시작',
+                'duration': 1.0
             },
             {
                 'name': 'curl_up',
-                'description': '[4/5] Biceps Curl - Up (Side view)',
-                'duration': 1.5,
-                'view': 'side'
+                'description': '[바벨 4/5] 바이셉스 컬 완료',
+                'duration': 1.5
             },
-            # Barbell Reverse Curl (Side view)
+            # Barbell Reverse Curl
             {
                 'name': 'reverse_curl_down',
-                'description': '[5/5] Reverse Curl - Down (Side view)',
-                'duration': 1.0,
-                'view': 'side'
+                'description': '[바벨 5/5] 리버스 컬 시작',
+                'duration': 1.0
             },
             {
                 'name': 'reverse_curl_up',
-                'description': '[5/5] Reverse Curl - Up (Side view)',
-                'duration': 1.5,
-                'view': 'side'
+                'description': '[바벨 5/5] 리버스 컬 완료',
+                'duration': 1.5
             }
         ],
         # ============================================
@@ -417,29 +395,35 @@ class AIServerConfig:
         'barbell_upright_row': [
             {
                 'name': 'barbell_upright_start',
-                'description': 'Upright Row - Start (Front view)',
-                'duration': 1.0,
-                'view': 'front'
+                'description': '바벨 업라이트 로우 시작 (허벅지 앞)',
+                'duration': 1.0
+            },
+            {
+                'name': 'barbell_upright_mid',
+                'description': '바벨 업라이트 로우 중간 (가슴 높이)',
+                'duration': 1.0
             },
             {
                 'name': 'barbell_upright_top',
-                'description': 'Upright Row - Top (Front view)',
-                'duration': 2.0,
-                'view': 'front'
+                'description': '바벨 업라이트 로우 최상단 (턱 높이)',
+                'duration': 1.5
             }
         ],
         'barbell_overhead_press': [
             {
                 'name': 'overhead_start',
-                'description': 'Overhead Press - Start (Front view)',
-                'duration': 1.0,
-                'view': 'front'
+                'description': '오버헤드 프레스 시작 (어깨 높이)',
+                'duration': 1.0
+            },
+            {
+                'name': 'overhead_mid',
+                'description': '오버헤드 프레스 중간',
+                'duration': 1.0
             },
             {
                 'name': 'overhead_top',
-                'description': 'Overhead Press - Top (Front view)',
-                'duration': 2.0,
-                'view': 'front'
+                'description': '오버헤드 프레스 완료 (머리 위)',
+                'duration': 1.5
             }
         ],
         'barbell_biceps_curl': [

@@ -2,7 +2,6 @@
 """
 AI 서버 (Flask)
 WatchTower로부터 운동 모드 선택 및 영상을 수신하여 실시간 자세 분석 제공
-카테고리별 루틴 지원
 """
 
 from flask import Flask, request, jsonify
@@ -20,7 +19,7 @@ analyzer = PoseAnalyzer()
 @app.route('/api/mode/select', methods=['POST'])
 def select_mode():
     """
-    운동 모드 선택 API (단일 모드)
+    운동 모드 선택 API
 
     Request:
         {
@@ -64,7 +63,7 @@ def select_mode():
             'status': 'success',
             'message': f'{mode.upper()} mode selected',
             'mode': mode,
-            'poses': poses,
+            'poses': poses,  # 포즈 시퀀스 정보 추가
             'total_poses': len(poses)
         }), 200
 
@@ -80,6 +79,23 @@ def select_mode():
 def analyze_frame():
     """
     프레임 분석 API (스트리밍 중 반복 호출)
+
+    Request:
+        {
+            "frame": "base64_encoded_image",
+            "pose_index": 0,  # 현재 확인할 포즈 인덱스
+            "timestamp": 1234567890  # optional
+        }
+
+    Response:
+        {
+            "status": "success",
+            "is_correct": true/false,
+            "score": 85,
+            "feedback": "스쿼트 자세가 정확합니다!",
+            "current_pose": "squat_stand",
+            "pose_description": "스쿼트 준비 자세"
+        }
     """
     try:
         data = request.get_json()
@@ -117,22 +133,8 @@ def analyze_frame():
                 'message': f'Frame decoding error: {str(e)}'
             }), 400
 
-        # YOLO 추론으로 키포인트 추출
-        results = analyzer.model(frame, verbose=False)
-        
         # 프레임 분석
         result = analyzer.analyze_frame(frame)
-
-        # 키포인트 정보 추가 (시각화용)
-        if results[0].keypoints is not None and len(results[0].keypoints) > 0:
-            keypoints = results[0].keypoints[0]
-            xy = keypoints.xy.cpu().numpy()[0].tolist()  # (17, 2)
-            conf = keypoints.conf.cpu().numpy()[0].tolist()  # (17,)
-            
-            result['keypoints'] = {
-                'xy': xy,
-                'conf': conf
-            }
 
         # 타임스탬프 추가 (있는 경우)
         if 'timestamp' in data:
@@ -169,6 +171,9 @@ def stop_stream():
         mode = data.get('mode', analyzer.current_mode)
 
         print(f"✓ 스트리밍 중단됨: {mode}")
+
+        # 모드 초기화 (선택사항)
+        # analyzer.current_mode = None
 
         return jsonify({
             'status': 'success',
@@ -215,17 +220,15 @@ def main():
     print("  AI 서버 (YOLO Pose 분석)")
     print("=" * 50)
     print(f"주소: http://{AIServerConfig.HOST}:{AIServerConfig.PORT}")
-    print(f"지원 모드: {len(AIServerConfig.SUPPORTED_MODES)}개")
+    print(f"지원 모드: {', '.join(AIServerConfig.SUPPORTED_MODES)}")
     print(f"모델: {AIServerConfig.MODEL_PATH}")
     print("=" * 50)
     print("\nAPI 엔드포인트:")
-    print("  [운동 모드]")
-    print("  POST /api/mode/select      - 운동 모드 선택")
-    print("  POST /api/stream/frame     - 프레임 분석")
-    print("  POST /api/stream/stop      - 스트리밍 중단")
-    print("\n  [기타]")
-    print("  GET  /api/status           - 서버 상태 확인")
-    print("  GET  /api/health           - 헬스 체크")
+    print("  POST /api/mode/select  - 운동 모드 선택")
+    print("  POST /api/stream/frame - 프레임 분석")
+    print("  POST /api/stream/stop  - 스트리밍 중단")
+    print("  GET  /api/status       - 서버 상태 확인")
+    print("  GET  /api/health       - 헬스 체크")
     print("=" * 50)
 
     app.run(
