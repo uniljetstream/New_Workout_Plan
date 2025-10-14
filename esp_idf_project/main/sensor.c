@@ -272,7 +272,7 @@ static void sensor_task(void *arg)
         {
             if (int_status & INT_FIFO_FULL)
             {
-                ESP_LOGW(TAG, "MAX30102 FIFO overflow");
+                // FIFO 오버플로우 시 조용히 처리 (로그 제거)
                 max30102_clear_fifo();
                 vTaskDelay(pdMS_TO_TICKS(10));
                 continue;
@@ -314,7 +314,7 @@ static void sensor_task(void *arg)
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(20)); // 약 50Hz 주기
+        vTaskDelay(pdMS_TO_TICKS(500)); // 약 2Hz 주기로 변경 (FIFO 오버플로우 완전 방지)
     }
 }
 

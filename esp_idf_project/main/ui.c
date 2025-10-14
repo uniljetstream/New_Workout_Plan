@@ -147,29 +147,39 @@ static void lvgl_task(void *pvParameter)
     {
         vTaskDelay(pdMS_TO_TICKS(5));
 
-        // WiFi 상태 변경 확인
+        // WiFi 상태 변경 확인 (백업 처리)
         if (wifi_status_changed)
         {
+            ESP_LOGI(TAG, "🔍 LVGL 태스크에서 WiFi 상태 변경 감지됨!");
             wifi_status_changed = false;
-
-            // 메인 화면으로 돌아가기
-            lv_scr_load(screen_main);
-
-            // 배경색 변경 (연결 성공: 초록, 실패: 빨강)
-            if (wifi_last_status)
+            
+            // 현재 화면이 메인 화면일 때만 배경색 변경
+            if (lv_scr_act() == screen_main)
             {
-                ESP_LOGI(TAG, "배경색을 초록색으로 변경");
-                lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x00FF00), 0);  //초록색
+                ESP_LOGI(TAG, "🔍 LVGL 태스크에서 메인 화면에서 WiFi 상태 처리: %s", wifi_last_status ? "연결됨" : "연결 안됨");
+                
+                // 배경색 변경 (연결 성공: 초록, 실패: 빨강)
+                if (wifi_last_status)
+                {
+                    ESP_LOGI(TAG, "✅ LVGL 태스크에서 배경색을 초록색으로 변경");
+                    lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x00FF00), 0);  // 초록색
+                    // 성공 시에는 리셋하지 않음 - 초록색 유지
+                }
+                else
+                {
+                    ESP_LOGI(TAG, "❌ LVGL 태스크에서 배경색을 빨간색으로 변경");
+                    lv_obj_set_style_bg_color(screen_main, lv_color_hex(0xFF0000), 0);  // 빨간색
+                    // 실패 시에만 2초 후 배경색을 원래대로 복구
+                    lv_timer_create(reset_bg_color_cb, 2000, NULL);
+                }
             }
             else
             {
-                ESP_LOGI(TAG, "배경색을 빨간색으로 변경");
-                lv_obj_set_style_bg_color(screen_main, lv_color_hex(0xFF0000), 0);  // 빨간색
+                ESP_LOGI(TAG, "🔍 LVGL 태스크에서 현재 화면이 메인 화면이 아님: %p", lv_scr_act());
             }
-
-            // 2초 후 배경색을 원래대로 복구
-            lv_timer_create(reset_bg_color_cb, 2000, NULL);
         }
+        
+        // WiFi 상태 변경 감지 로직 제거 - 콜백 함수에서만 처리
 
         // 심박수 업데이트 확인
         if (heart_rate_updated)
@@ -191,11 +201,34 @@ static void lvgl_task(void *pvParameter)
  */
 static void wifi_status_callback(bool connected, const char *message)
 {
-    ESP_LOGI(TAG, "WiFi 상태: %s - %s", connected ? "연결됨" : "연결 안됨", message);
+    ESP_LOGI(TAG, "🔔 WiFi 상태: %s - %s", connected ? "연결됨" : "연결 안됨", message);
+    ESP_LOGI(TAG, "🔍 콜백에서 받은 connected 값: %s", connected ? "true" : "false");
 
     // 플래그 설정 (LVGL 태스크에서 처리하도록)
     wifi_last_status = connected;
     wifi_status_changed = true;
+    
+    ESP_LOGI(TAG, "🔍 설정된 wifi_last_status: %s", wifi_last_status ? "true" : "false");
+    ESP_LOGI(TAG, "🔍 설정된 wifi_status_changed: %s", wifi_status_changed ? "true" : "false");
+    
+    // 즉시 화면 색상 변경 시도 (메인 화면일 때만)
+    if (lv_scr_act() == screen_main) {
+        ESP_LOGI(TAG, "🔍 콜백에서 직접 화면 색상 변경 시도");
+        
+        // 배경색 변경 (연결 성공: 초록, 실패: 빨강)
+        if (connected) {
+            ESP_LOGI(TAG, "✅ 콜백에서 배경색을 초록색으로 변경");
+            lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x00FF00), 0);  // 초록색
+            // 성공 시에는 리셋하지 않음 - 초록색 유지
+        } else {
+            ESP_LOGI(TAG, "❌ 콜백에서 배경색을 빨간색으로 변경");
+            lv_obj_set_style_bg_color(screen_main, lv_color_hex(0xFF0000), 0);  // 빨간색
+            // 실패 시에만 2초 후 배경색을 원래대로 복구
+            lv_timer_create(reset_bg_color_cb, 2000, NULL);
+        }
+    } else {
+        ESP_LOGI(TAG, "🔍 콜백에서 현재 화면이 메인 화면이 아님: %p", lv_scr_act());
+    }
 }
 
 /**
@@ -208,9 +241,12 @@ static void password_connect_event_handler(lv_event_t *e)
     {
         const char *password = lv_textarea_get_text(password_textarea);
         ESP_LOGI(TAG, "WiFi 연결 시도: %s", selected_ssid);
+        ESP_LOGI(TAG, "입력된 비밀번호 길이: %d", strlen(password));
+        ESP_LOGI(TAG, "비밀번호 (처음 10자): %.10s", password);
 
         // WiFi 연결
-        wifi_connect(selected_ssid, password, wifi_status_callback);
+        esp_err_t result = wifi_connect(selected_ssid, password, wifi_status_callback);
+        ESP_LOGI(TAG, "WiFi 연결 함수 결과: %s", esp_err_to_name(result));
 
         // 메인 화면으로 돌아가기
         lv_scr_load(screen_main);

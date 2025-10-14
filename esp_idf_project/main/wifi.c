@@ -22,6 +22,7 @@ static const char *TAG = "WiFi";
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 #define MAX_RETRY 5
+#define WIFI_CONNECT_TIMEOUT_MS 15000  // 15초 타임아웃
 
 // NVS 키 정의
 #define NVS_NAMESPACE "wifi_config"
@@ -180,6 +181,38 @@ static void initialize_sntp(void)
 }
 
 /**
+ * WiFi 연결 타임아웃 처리 태스크
+ */
+static void wifi_connect_timeout_task(void *pvParameters)
+{
+    // 타임아웃까지 대기
+    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+                                          WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+                                          pdTRUE,
+                                          pdFALSE,
+                                          pdMS_TO_TICKS(WIFI_CONNECT_TIMEOUT_MS));
+    
+    // 타임아웃 발생 (연결 성공/실패 이벤트가 없음)
+    if ((bits & (WIFI_CONNECTED_BIT | WIFI_FAIL_BIT)) == 0) {
+        ESP_LOGW(TAG, "WiFi 연결 타임아웃 (%dms)", WIFI_CONNECT_TIMEOUT_MS);
+        
+        // 연결 시도 중단
+        esp_wifi_disconnect();
+        s_is_connected = false;
+        s_retry_num = 0;
+        
+        // 실패 콜백 호출
+        if (s_status_callback) {
+            ESP_LOGI(TAG, "🔔 타임아웃으로 인한 연결 실패 콜백 호출");
+            s_status_callback(false, "연결 타임아웃");
+        }
+    }
+    
+    // 태스크 종료
+    vTaskDelete(NULL);
+}
+
+/**
  * WiFi 이벤트 핸들러
  */
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
@@ -192,6 +225,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
+        ESP_LOGI(TAG, "WiFi 연결 해제됨 (재시도 횟수: %d)", s_retry_num);
+        
         // 연결 시도 중일 때만 재시도
         if (s_retry_num > 0 && s_retry_num < MAX_RETRY)
         {
@@ -204,17 +239,32 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
             s_is_connected = false;
             s_retry_num = 0;
+            ESP_LOGE(TAG, "WiFi 연결 실패 - 최대 재시도 횟수(%d) 초과", MAX_RETRY);
+            
+            // 연결 실패 콜백 호출
             if (s_status_callback)
             {
-                s_status_callback(false, "연결 실패");
+                ESP_LOGI(TAG, "🔔 연결 실패 콜백 호출");
+                s_status_callback(false, "연결 실패 - 최대 재시도 횟수 초과");
             }
-            ESP_LOGI(TAG, "WiFi 연결 실패");
+        }
+        else
+        {
+            ESP_LOGI(TAG, "WiFi 연결 해제됨 (재시도하지 않음)");
+            
+            // 연결 시도 중이었다면 실패로 처리
+            if (s_status_callback && s_retry_num == 0) {
+                ESP_LOGI(TAG, "🔔 연결 해제로 인한 실패 콜백 호출");
+                s_status_callback(false, "연결 해제됨");
+            }
         }
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        ESP_LOGI(TAG, "IP 주소: " IPSTR, IP2STR(&event->ip_info.ip));
+        ESP_LOGI(TAG, "🎉 WiFi 연결 성공! IP 주소: " IPSTR, IP2STR(&event->ip_info.ip));
+        ESP_LOGI(TAG, "연결된 SSID: %s", s_connected_ssid);
+        
         s_retry_num = 0;
         s_is_connected = true;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
@@ -225,8 +275,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         // NTP 시간 동기화 시작
         initialize_sntp();
 
+        // 연결 성공 콜백 호출
         if (s_status_callback)
         {
+            ESP_LOGI(TAG, "🔔 연결 성공 콜백 호출");
             s_status_callback(true, "연결 성공");
         }
     }
@@ -345,6 +397,17 @@ uint16_t wifi_scan(wifi_scan_result_t *results, uint16_t max_results)
 esp_err_t wifi_connect(const char *ssid, const char *password, wifi_status_cb_t callback)
 {
     ESP_LOGI(TAG, "WiFi 연결 시도: %s", ssid);
+    ESP_LOGI(TAG, "비밀번호 길이: %d", password ? strlen(password) : 0);
+    ESP_LOGI(TAG, "비밀번호 존재 여부: %s", password ? "있음" : "없음");
+
+    // 이미 같은 SSID에 연결되어 있는지 확인
+    if (s_is_connected && strcmp(s_connected_ssid, ssid) == 0) {
+        ESP_LOGI(TAG, "이미 %s에 연결되어 있습니다. 재연결하지 않습니다.", ssid);
+        if (callback) {
+            callback(true, "이미 연결됨");
+        }
+        return ESP_OK;
+    }
 
     s_status_callback = callback;
     s_retry_num = 1;  // 첫 번째 연결 시도 시작
@@ -359,11 +422,19 @@ esp_err_t wifi_connect(const char *ssid, const char *password, wifi_status_cb_t 
     if (password != NULL && strlen(password) > 0)
     {
         strncpy((char *)wifi_config.sta.password, password, sizeof(wifi_config.sta.password) - 1);
+        ESP_LOGI(TAG, "비밀번호 설정됨 (길이: %d)", strlen(password));
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Open 네트워크로 설정");
     }
 
-    wifi_config.sta.threshold.authmode = (password != NULL && strlen(password) > 0) ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
+    wifi_auth_mode_t auth_mode = (password != NULL && strlen(password) > 0) ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
+    wifi_config.sta.threshold.authmode = auth_mode;
     wifi_config.sta.pmf_cfg.capable = true;
     wifi_config.sta.pmf_cfg.required = false;
+    
+    ESP_LOGI(TAG, "인증 모드: %d", auth_mode);
 
     // SSID와 비밀번호 저장 (연결 성공 시 NVS에 저장하기 위해)
     strncpy(s_connected_ssid, ssid, sizeof(s_connected_ssid) - 1);
@@ -378,6 +449,11 @@ esp_err_t wifi_connect(const char *ssid, const char *password, wifi_status_cb_t 
 
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_connect());
+
+    ESP_LOGI(TAG, "WiFi 연결 명령 전송 완료, 비동기 연결 대기 중...");
+
+    // 타임아웃 처리 태스크 생성
+    xTaskCreate(wifi_connect_timeout_task, "wifi_timeout", 2048, NULL, 5, NULL);
 
     // 비동기 연결 - 이벤트 핸들러에서 콜백 호출
     return ESP_OK;
