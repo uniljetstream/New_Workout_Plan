@@ -23,31 +23,32 @@ class AIServerConfig:
     # 운동 모드 설정
     # ============================================
     SUPPORTED_MODES = [
-        # 맨몸 운동
+        # 맨몸 운동 (4개)
         'squat',                # 스쿼트
         'pushup',               # 푸시업
         'plank',                # 플랭크
         'lunge',                # 런지
-        # 케틀벨 운동
+        # 케틀벨 운동 (5개)
         'kettlebell_swing',     # 케틀벨 스윙
         'kettlebell_deadlift',  # 케틀벨 데드리프트
-        # 바벨 운동
+        'side_lunge',           # 사이드 런지
+        'bridge',               # 브릿지
+        'knee_drive',           # 니 드라이브
+        # 바벨 운동 (5개)
         'barbell_row',          # 바벨 로우
         'barbell_upright_row',  # 바벨 업라이트 로우
         'barbell_overhead_press', # 바벨 오버헤드 프레스
         'barbell_biceps_curl',  # 바벨 바이셉스 컬
         'barbell_reverse_curl', # 바벨 리버스 컬
-        # 기타 운동
-        'side_lunge',           # 사이드 런지
-        'bridge',               # 브릿지
-        'knee_drive',           # 니 드라이브
     ]
 
     # ============================================
     # 모드별 포즈 시퀀스 정의
     # ============================================
     MODE_POSES = {
-        # 맨몸 운동
+        # ============================================
+        # 맨몸 운동 (4개)
+        # ============================================
         'squat': [
             {
                 'name': 'squat_stand',
@@ -101,7 +102,9 @@ class AIServerConfig:
                 'duration': 2.0
             }
         ],
-        # 케틀벨 운동
+        # ============================================
+        # 케틀벨 운동 (5개)
+        # ============================================
         'kettlebell_swing': [
             {
                 'name': 'swing_start',
@@ -126,7 +129,55 @@ class AIServerConfig:
                 'duration': 1.5
             }
         ],
-        # 바벨 운동
+        'side_lunge': [
+            {
+                'name': 'lunge_center',
+                'description': '사이드 런지 준비 (중앙)',
+                'duration': 0.5
+            },
+            {
+                'name': 'lunge_left',
+                'description': '왼쪽 사이드 런지',
+                'duration': 2.0
+            },
+            {
+                'name': 'lunge_right',
+                'description': '오른쪽 사이드 런지',
+                'duration': 2.0
+            }
+        ],
+        'bridge': [
+            {
+                'name': 'bridge_down',
+                'description': '브릿지 시작 (바닥)',
+                'duration': 1.0
+            },
+            {
+                'name': 'bridge_up',
+                'description': '브릿지 (엉덩이 들기)',
+                'duration': 2.0
+            }
+        ],
+        'knee_drive': [
+            {
+                'name': 'knee_start',
+                'description': '니 드라이브 준비',
+                'duration': 0.5
+            },
+            {
+                'name': 'knee_left',
+                'description': '왼쪽 무릎 들기',
+                'duration': 1.5
+            },
+            {
+                'name': 'knee_right',
+                'description': '오른쪽 무릎 들기',
+                'duration': 1.5
+            }
+        ],
+        # ============================================
+        # 바벨 운동 (5개)
+        # ============================================
         'barbell_row': [
             {
                 'name': 'barbell_row_start',
@@ -199,53 +250,6 @@ class AIServerConfig:
             {
                 'name': 'reverse_curl_up',
                 'description': '리버스 컬 완료 (팔 굽히기)',
-                'duration': 1.5
-            }
-        ],
-        # 기타 운동
-        'side_lunge': [
-            {
-                'name': 'lunge_center',
-                'description': '사이드 런지 준비 (중앙)',
-                'duration': 0.5
-            },
-            {
-                'name': 'lunge_left',
-                'description': '왼쪽 사이드 런지',
-                'duration': 2.0
-            },
-            {
-                'name': 'lunge_right',
-                'description': '오른쪽 사이드 런지',
-                'duration': 2.0
-            }
-        ],
-        'bridge': [
-            {
-                'name': 'bridge_down',
-                'description': '브릿지 시작 (바닥)',
-                'duration': 1.0
-            },
-            {
-                'name': 'bridge_up',
-                'description': '브릿지 (엉덩이 들기)',
-                'duration': 2.0
-            }
-        ],
-        'knee_drive': [
-            {
-                'name': 'knee_start',
-                'description': '니 드라이브 준비',
-                'duration': 0.5
-            },
-            {
-                'name': 'knee_left',
-                'description': '왼쪽 무릎 들기',
-                'duration': 1.5
-            },
-            {
-                'name': 'knee_right',
-                'description': '오른쪽 무릎 들기',
                 'duration': 1.5
             }
         ]
