@@ -339,12 +339,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             // NTP 시간 동기화 시작
             initialize_sntp();
 
-            // IP 할당 완료 콜백 호출 (중복 방지)
-            if (s_status_callback)
-            {
-                ESP_LOGI(TAG, "🔔 IP 할당 완료 콜백 호출");
-                s_status_callback(true, "IP 할당 완료");
-            }
+            // IP 할당 완료 - 콜백 호출하지 않음 (중복 방지)
+            ESP_LOGI(TAG, "🔔 IP 할당 완료 (콜백 호출 안함 - 중복 방지)");
         } else {
             ESP_LOGW(TAG, "⚠️ IP 이벤트 수신했지만 연결 상태가 올바르지 않음");
             ESP_LOGW(TAG, "⚠️ s_is_connected: %s, s_retry_num: %d", s_is_connected ? "true" : "false", s_retry_num);

@@ -50,6 +50,7 @@ static lv_obj_t *password_textarea = NULL;
 static volatile bool wifi_status_changed = false;
 static volatile bool wifi_last_status = false;
 static volatile bool wifi_color_changed = false;  // 색상 변경 상태 플래그 추가
+static volatile bool wifi_callback_called = false;  // 콜백 중복 호출 방지
 
 // 심박수 표시용 변수
 static lv_obj_t *label_heart_rate_sensor = NULL;
@@ -171,7 +172,7 @@ static void lvgl_task(void *pvParameter)
                 // 배경색 변경 (연결 성공: 초록, 실패: 빨강)
                 if (wifi_last_status)
                 {
-                    ESP_LOGI(TAG, "✅ LVGL 태스크에서 배경색을 초록색으로 변경");
+                    ESP_LOGI(TAG, "✅ LVGL 태스크에서 배경색을 초록색으로 변경 (WiFi 연결 성공!)");
                     lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x0000FF), 0);  // 초록색
                     wifi_color_changed = true;  // 색상 변경 상태 설정
                     // 성공 시에도 1초 후 배경색을 원래대로 복구 (더 빠르게)
@@ -179,7 +180,7 @@ static void lvgl_task(void *pvParameter)
                 }
                 else
                 {
-                    ESP_LOGI(TAG, "❌ LVGL 태스크에서 배경색을 빨간색으로 변경");
+                    ESP_LOGI(TAG, "❌ LVGL 태스크에서 배경색을 빨간색으로 변경 (WiFi 연결 실패!)");
                     lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x00FF00), 0);  // 빨간색
                     wifi_color_changed = true;  // 색상 변경 상태 설정
                     // 실패 시에도 1초 후 배경색을 원래대로 복구 (더 빠르게)
@@ -216,10 +217,18 @@ void wifi_status_callback(bool connected, const char *message)
     ESP_LOGI(TAG, "🔔 WiFi 상태 콜백 호출됨!");
     ESP_LOGI(TAG, "🔔 연결 상태: %s", connected ? "연결됨" : "연결 안됨");
     ESP_LOGI(TAG, "🔔 메시지: %s", message);
+    ESP_LOGI(TAG, "🔔 배경색 변경 예정: %s", connected ? "초록색 (성공)" : "빨간색 (실패)");
+
+    // 중복 호출 방지 - 이미 같은 상태로 콜백이 호출되었으면 무시
+    if (wifi_callback_called && wifi_last_status == connected) {
+        ESP_LOGI(TAG, "🔔 중복 콜백 호출 무시 (이미 처리됨)");
+        return;
+    }
 
     // 플래그 설정 (LVGL 태스크에서 처리하도록)
     wifi_last_status = connected;
     wifi_status_changed = true;
+    wifi_callback_called = true;  // 콜백 호출됨 표시
     
     ESP_LOGI(TAG, "🔍 설정된 wifi_last_status: %s", wifi_last_status ? "true" : "false");
     ESP_LOGI(TAG, "🔍 설정된 wifi_status_changed: %s", wifi_status_changed ? "true" : "false");
@@ -241,6 +250,10 @@ static void password_connect_event_handler(lv_event_t *e)
         ESP_LOGI(TAG, "입력된 비밀번호 길이: %d", strlen(password));
         ESP_LOGI(TAG, "비밀번호 (처음 10자): %.10s", password);
 
+        // WiFi 연결 시작 - 콜백 플래그 리셋
+        wifi_callback_called = false;
+        wifi_status_changed = false;
+        
         // WiFi 연결
         esp_err_t result = wifi_connect(selected_ssid, password, wifi_status_callback);
         ESP_LOGI(TAG, "WiFi 연결 함수 결과: %s", esp_err_to_name(result));
@@ -355,6 +368,11 @@ static void wifi_list_event_handler(lv_event_t *e)
             if (wifi_scan_results[index].authmode == WIFI_AUTH_OPEN)
             {
                 ESP_LOGI(TAG, "Open 네트워크 - 바로 연결");
+                
+                // WiFi 연결 시작 - 콜백 플래그 리셋
+                wifi_callback_called = false;
+                wifi_status_changed = false;
+                
                 wifi_connect(selected_ssid, NULL, wifi_status_callback);
             }
             else
@@ -650,14 +668,14 @@ esp_err_t ui_start_task(void)
 {
     ESP_LOGI(TAG, "LVGL 태스크 시작 중...");
 
-    // 스택 크기를 늘리고 우선순위를 낮춤 (리셋 방지)
-    BaseType_t ret = xTaskCreate(lvgl_task, "lvgl_task", 16384, NULL, 3, NULL);
+    // 스택 크기를 더 늘리고 우선순위를 더 낮춤 (리셋 방지)
+    BaseType_t ret = xTaskCreate(lvgl_task, "lvgl_task", 20480, NULL, 2, NULL);
     if (ret != pdPASS)
     {
         ESP_LOGE(TAG, "LVGL 태스크 생성 실패");
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "LVGL 태스크 생성 완료 (스택: 16KB, 우선순위: 3)");
+    ESP_LOGI(TAG, "LVGL 태스크 생성 완료 (스택: 20KB, 우선순위: 2)");
     return ESP_OK;
 }
