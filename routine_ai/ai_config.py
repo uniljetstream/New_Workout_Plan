@@ -523,11 +523,6 @@ class AIServerConfig:
     UPRIGHT_START_ELBOW_ANGLE_MIN = 150   # 시작: 팔 펴짐
     UPRIGHT_START_WRIST_HIP_RATIO_MAX = 0.3  # 시작: 손목이 엉덩이 아래
     
-    UPRIGHT_MID_ELBOW_ANGLE_MIN = 70      # 중간: 팔꿈치 각도
-    UPRIGHT_MID_ELBOW_ANGLE_MAX = 110     # 중간: 팔꿈치 각도
-    UPRIGHT_MID_WRIST_HEIGHT_MIN = 0.4    # 중간: 손목 높이 (어깨 대비)
-    UPRIGHT_MID_WRIST_HEIGHT_MAX = 0.7    # 중간: 손목 높이 최대
-    
     UPRIGHT_TOP_ELBOW_ANGLE_MIN = 60      # 최상단: 팔꿈치 각도
     UPRIGHT_TOP_ELBOW_ANGLE_MAX = 100     # 최상단: 팔꿈치 각도
     UPRIGHT_TOP_WRIST_HEIGHT_MIN = 0.8    # 최상단: 손목이 어깨 높이 이상
@@ -537,9 +532,6 @@ class AIServerConfig:
     # ============================================
     OVERHEAD_START_ELBOW_ANGLE_MIN = 60   # 시작: 팔꿈치 각도 (어깨 높이)
     OVERHEAD_START_ELBOW_ANGLE_MAX = 100  # 시작: 팔꿈치 각도
-    
-    OVERHEAD_MID_ELBOW_ANGLE_MIN = 100    # 중간: 팔꿈치 각도
-    OVERHEAD_MID_ELBOW_ANGLE_MAX = 140    # 중간: 팔꿈치 각도
     
     OVERHEAD_TOP_ELBOW_ANGLE_MIN = 160    # 완료: 팔꿈치 각도 (팔 펴짐)
     OVERHEAD_TOP_WRIST_HEIGHT_MIN = 0.3   # 완료: 손목이 머리 위
@@ -581,6 +573,32 @@ class AIServerConfig:
     KNEE_LIFT_HIP_ANGLE_MAX = 90          # 들기: 엉덩이 각도
     KNEE_LIFT_KNEE_ANGLE_MIN = 50         # 들기: 무릎 각도
     KNEE_LIFT_KNEE_ANGLE_MAX = 90         # 들기: 무릎 각도
+
+    # ============================================
+    # Plank 판정 기준
+    # ============================================
+    PLANK_KNEE_ELBOW_ANGLE_MIN = 80       # 무릎 댄 자세: 팔꿈치 최소
+    PLANK_KNEE_ELBOW_ANGLE_MAX = 100      # 무릎 댄 자세: 팔꿈치 최대
+    PLANK_KNEE_HIP_ANGLE_MIN = 150        # 무릎 댄 자세: 엉덩이 최소
+    PLANK_KNEE_HIP_ANGLE_MAX = 180        # 무릎 댄 자세: 엉덩이 최대
+    
+    PLANK_HOLD_ELBOW_ANGLE_MIN = 80       # 무릎 뗀 자세: 팔꿈치 최소
+    PLANK_HOLD_ELBOW_ANGLE_MAX = 100      # 무릎 뗀 자세: 팔꿈치 최대
+    PLANK_HOLD_HIP_ANGLE_MIN = 160        # 무릎 뗀 자세: 엉덩이 최소
+    PLANK_HOLD_KNEE_ANGLE_MIN = 160       # 무릎 뗀 자세: 무릎 최소
+
+    # ============================================
+    # Forward Lunge 판정 기준
+    # ============================================
+    LUNGE_LEFT_FRONT_KNEE_MIN = 80        # 왼쪽 런지: 앞 무릎 최소
+    LUNGE_LEFT_FRONT_KNEE_MAX = 100       # 왼쪽 런지: 앞 무릎 최대
+    LUNGE_LEFT_BACK_KNEE_MIN = 80         # 왼쪽 런지: 뒤 무릎 최소
+    LUNGE_LEFT_BACK_KNEE_MAX = 120        # 왼쪽 런지: 뒤 무릎 최대
+    
+    LUNGE_RIGHT_FRONT_KNEE_MIN = 80       # 오른쪽 런지: 앞 무릎 최소
+    LUNGE_RIGHT_FRONT_KNEE_MAX = 100      # 오른쪽 런지: 앞 무릎 최대
+    LUNGE_RIGHT_BACK_KNEE_MIN = 80        # 오른쪽 런지: 뒤 무릎 최소
+    LUNGE_RIGHT_BACK_KNEE_MAX = 120       # 오른쪽 런지: 뒤 무릎 최대
 
     # ============================================
     # 디버그 설정

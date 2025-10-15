@@ -697,53 +697,6 @@ class PoseAnalyzer:
             result['tracking'] = {'center_x': float((x1 + x2) / 2), 'center_y': float((y1 + y2) / 2), 'bbox': bbox}
         return result
 
-    def _analyze_upright_mid(self, xy, conf, bbox=None):
-        """Upright row mid"""
-        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
-        left_shoulder = xy[5] if conf[5] > threshold else None
-        right_shoulder = xy[6] if conf[6] > threshold else None
-        left_elbow = xy[7] if conf[7] > threshold else None
-        right_elbow = xy[8] if conf[8] > threshold else None
-        left_wrist = xy[9] if conf[9] > threshold else None
-        right_wrist = xy[10] if conf[10] > threshold else None
-
-        arm_points = [left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist]
-
-        if any(p is None for p in arm_points):
-            result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': 'Position upper body in view'}
-        else:
-            left_elbow_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
-            right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
-
-            avg_shoulder_y = (left_shoulder[1] + right_shoulder[1]) / 2
-            avg_wrist_y = (left_wrist[1] + right_wrist[1]) / 2
-            wrist_height_ratio = (avg_shoulder_y - avg_wrist_y) / (avg_shoulder_y + 1e-6)
-
-            if None in [left_elbow_angle, right_elbow_angle]:
-                result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': 'Angle calculation failed'}
-            else:
-                min_angle = AIServerConfig.UPRIGHT_MID_ELBOW_ANGLE_MIN
-                max_angle = AIServerConfig.UPRIGHT_MID_ELBOW_ANGLE_MAX
-                height_min = AIServerConfig.UPRIGHT_MID_WRIST_HEIGHT_MIN
-                height_max = AIServerConfig.UPRIGHT_MID_WRIST_HEIGHT_MAX
-
-                left_arm_ok = min_angle <= left_elbow_angle <= max_angle
-                right_arm_ok = min_angle <= right_elbow_angle <= max_angle
-                height_ok = height_min <= wrist_height_ratio <= height_max
-
-                score = (33 if left_arm_ok else 0) + (33 if right_arm_ok else 0) + (34 if height_ok else 0)
-                feedback = []
-                if not left_arm_ok or not right_arm_ok: feedback.append(f"Adjust elbow angle")
-                if not height_ok: feedback.append(f"Adjust height")
-                is_correct = score >= 95
-                message = "Mid position complete!" if is_correct else ", ".join(feedback)
-                result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
-
-        if bbox:
-            x1, y1, x2, y2 = bbox
-            result['tracking'] = {'center_x': float((x1 + x2) / 2), 'center_y': float((y1 + y2) / 2), 'bbox': bbox}
-        return result
-
     def _analyze_upright_top(self, xy, conf, bbox=None):
         """Upright row top"""
         threshold = AIServerConfig.CONFIDENCE_THRESHOLD
@@ -1053,45 +1006,6 @@ class PoseAnalyzer:
                 if not left_ok or not right_ok: feedback.append(f"Position barbell at shoulder height")
                 is_correct = score == 100
                 message = "Starting position complete!" if is_correct else ", ".join(feedback)
-                result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
-
-        if bbox:
-            x1, y1, x2, y2 = bbox
-            result['tracking'] = {'center_x': float((x1 + x2) / 2), 'center_y': float((y1 + y2) / 2), 'bbox': bbox}
-        return result
-
-    def _analyze_overhead_mid(self, xy, conf, bbox=None):
-        """Overhead press mid"""
-        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
-        left_shoulder = xy[5] if conf[5] > threshold else None
-        right_shoulder = xy[6] if conf[6] > threshold else None
-        left_elbow = xy[7] if conf[7] > threshold else None
-        right_elbow = xy[8] if conf[8] > threshold else None
-        left_wrist = xy[9] if conf[9] > threshold else None
-        right_wrist = xy[10] if conf[10] > threshold else None
-
-        arm_points = [left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist]
-
-        if any(p is None for p in arm_points):
-            result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': 'Position upper body in view'}
-        else:
-            left_elbow_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
-            right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
-
-            if None in [left_elbow_angle, right_elbow_angle]:
-                result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': 'Angle calculation failed'}
-            else:
-                min_angle = AIServerConfig.OVERHEAD_MID_ELBOW_ANGLE_MIN
-                max_angle = AIServerConfig.OVERHEAD_MID_ELBOW_ANGLE_MAX
-
-                left_ok = min_angle <= left_elbow_angle <= max_angle
-                right_ok = min_angle <= right_elbow_angle <= max_angle
-
-                score = (50 if left_ok else 0) + (50 if right_ok else 0)
-                feedback = []
-                if not left_ok or not right_ok: feedback.append(f"Pressing barbell up")
-                is_correct = score == 100
-                message = "Mid phase complete!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
 
         if bbox:
