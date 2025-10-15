@@ -176,6 +176,12 @@ class PoseAnalyzer:
         result['current_pose'] = pose_info['name']
         result['pose_description'] = pose_info['description']
 
+        # Attach keypoint info for downstream visualization
+        result['keypoints'] = {
+            'xy': xy.tolist(),
+            'conf': conf.tolist()
+        }
+
         return result
 
     def _analyze_squat_stand(self, xy, conf, bbox=None):
