@@ -34,7 +34,7 @@
 #define I2C_MASTER_FREQ_HZ 400000      // I2C 주파수 (400kHz)
 
 // ========== 버튼 GPIO 설정 ==========
-#define BUTTON_GPIO 0                  // 버튼 GPIO 핀 (GPIO 0 = BOOT 버튼)
+#define BUTTON_GPIO 19                  // 버튼 GPIO 핀 (GPIO 0 = BOOT 버튼)
 #define BUTTON_ACTIVE_LEVEL 0          // 버튼 활성 레벨 (0 = Active LOW)
 #define BUTTON_DEBOUNCE_MS 50          // 디바운싱 시간 (50ms)
 
