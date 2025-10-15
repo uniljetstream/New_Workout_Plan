@@ -149,7 +149,7 @@ static void lvgl_task(void *pvParameter)
     
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(10));  // 5ms에서 10ms로 변경
+        vTaskDelay(pdMS_TO_TICKS(50));  // 10ms에서 50ms로 변경 (더 안정적)
         task_counter++;
 
         // 메모리 모니터링 (100번마다)
@@ -174,16 +174,16 @@ static void lvgl_task(void *pvParameter)
                     ESP_LOGI(TAG, "✅ LVGL 태스크에서 배경색을 초록색으로 변경");
                     lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x0000FF), 0);  // 초록색
                     wifi_color_changed = true;  // 색상 변경 상태 설정
-                    // 성공 시에도 2초 후 배경색을 원래대로 복구
-                    lv_timer_create(reset_bg_color_cb, 2000, NULL);
+                    // 성공 시에도 1초 후 배경색을 원래대로 복구 (더 빠르게)
+                    lv_timer_create(reset_bg_color_cb, 1000, NULL);
                 }
                 else
                 {
                     ESP_LOGI(TAG, "❌ LVGL 태스크에서 배경색을 빨간색으로 변경");
                     lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x00FF00), 0);  // 빨간색
                     wifi_color_changed = true;  // 색상 변경 상태 설정
-                    // 실패 시에도 2초 후 배경색을 원래대로 복구
-                    lv_timer_create(reset_bg_color_cb, 2000, NULL);
+                    // 실패 시에도 1초 후 배경색을 원래대로 복구 (더 빠르게)
+                    lv_timer_create(reset_bg_color_cb, 1000, NULL);
                 }
             }
             else
@@ -211,7 +211,7 @@ static void lvgl_task(void *pvParameter)
 /**
  * WiFi 연결 상태 콜백 (WiFi 이벤트 스레드에서 호출됨)
  */
-static void wifi_status_callback(bool connected, const char *message)
+void wifi_status_callback(bool connected, const char *message)
 {
     ESP_LOGI(TAG, "🔔 WiFi 상태 콜백 호출됨!");
     ESP_LOGI(TAG, "🔔 연결 상태: %s", connected ? "연결됨" : "연결 안됨");
@@ -634,7 +634,7 @@ esp_err_t ui_init(void)
     const esp_timer_create_args_t lvgl_tick_timer_args = {.callback = &lvgl_tick_timer_cb, .name = "lvgl_tick"};
     esp_timer_handle_t lvgl_tick_timer = NULL;
     esp_timer_create(&lvgl_tick_timer_args, &lvgl_tick_timer);
-    esp_timer_start_periodic(lvgl_tick_timer, 2000);
+    esp_timer_start_periodic(lvgl_tick_timer, 5000);  // 2ms에서 5ms로 변경 (더 안정적)
 
     // 기본 UI 생성
     create_default_ui();

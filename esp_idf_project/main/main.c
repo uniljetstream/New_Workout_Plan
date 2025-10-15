@@ -32,6 +32,15 @@ void app_main(void)
     esp_task_wdt_deinit();
     ESP_LOGI(TAG, "Watchdog 타이머 비활성화됨");
     
+    // 추가 안정성 설정
+    esp_task_wdt_config_t twdt_config = {
+        .timeout_ms = 30000,  // 30초 타임아웃
+        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,  // 모든 코어 모니터링
+        .trigger_panic = false  // 패닉 대신 리셋 방지
+    };
+    esp_task_wdt_reconfigure(&twdt_config);
+    ESP_LOGI(TAG, "Watchdog 재설정 완료 (30초 타임아웃)");
+    
     // 메모리 상태 확인
     ESP_LOGI(TAG, "초기 힙 메모리: %d bytes", esp_get_free_heap_size());
 
@@ -78,7 +87,7 @@ void app_main(void)
     // 6. 저장된 WiFi 자격 증명으로 자동 연결 시도
     // ========================================================================
     ESP_LOGI(TAG, "저장된 WiFi 자격 증명 확인 중...");
-    esp_err_t auto_connect_result = wifi_auto_connect(NULL);
+    esp_err_t auto_connect_result = wifi_auto_connect(wifi_status_callback);
     if (auto_connect_result == ESP_OK) {
         ESP_LOGI(TAG, "저장된 WiFi로 자동 연결 시도 중...");
     } else {
