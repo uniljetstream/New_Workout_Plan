@@ -8,7 +8,6 @@
 #include <stdbool.h>
 #include "mqtt_client.h"
 #include "mpu6050.h"
-#include "airmouse.h"
 
 /**
  * @brief MQTT 초기화 및 시작
@@ -37,25 +36,10 @@ esp_mqtt_client_handle_t mqtt_get_client(void);
 void mqtt_publish_mpu6050_data(const mpu6050_data_t *data);
 
 /**
- * @brief 조이스틱 상태 발행 (WatchTower 프로토콜)
+ * @brief 센서 상태 발행 (WatchTower 프로토콜)
  *
  * @param status 상태 문자열 ("ready", "stopped" 등)
  */
 void mqtt_publish_status(const char *status);
-
-/**
- * @brief 에어마우스 데이터 발행
- *
- * @param mouse_data 마우스 데이터
- * @param button_pressed 버튼 눌림 상태
- */
-void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data, bool button_pressed);
-
-/**
- * @brief 에어마우스 모드 변경 명령 발행
- *
- * @param mode 에어마우스 모드
- */
-void mqtt_publish_mode_change(airmouse_mode_t mode);
 
 #endif // MQTT_HANDLER_H

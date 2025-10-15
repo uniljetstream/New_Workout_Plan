@@ -4,8 +4,6 @@
 #include "mqtt_handler.h"
 #include "mpu6050.h"
 #include "config.h"
-#include "airmouse.h"
-#include "button_handler.h"  // 버튼 핸들러 추가
 
 #include "esp_log.h"
 #include "esp_system.h"
@@ -25,7 +23,6 @@ static TaskHandle_t sensor_task_handle = NULL;
 
 // 센서 데이터 캐시 (메모리 재사용)
 static mpu6050_data_t sensor_data_cache;
-static mouse_data_t mouse_data_cache;
 
 /**
  * @brief 센서 데이터 읽기 (MPU6050)
@@ -125,30 +122,12 @@ static void sensor_task(void *pvParameters)
                 data_read_success = true;
                 ESP_LOGD(TAG_SENSOR, "Sensor data read successful");
                 
-                // 현재 모드에 따라 다른 데이터 전송
-                airmouse_mode_t current_mode = airmouse_get_mode();
-                
-                if (current_mode == AIRMOUSE_MODE_MOUSE) {
-                    // 에어마우스 모드: 센서 데이터를 마우스 데이터로 변환하여 전송 (고정 버퍼 사용)
-                    ESP_LOGD(TAG_SENSOR, "Converting to mouse data...");
-                    if (airmouse_convert_sensor_to_mouse(&sensor_data_cache, &mouse_data_cache)) {
-                        // 버튼 상태 읽기
-                        bool button_pressed = button_is_pressed();
-
-                        ESP_LOGD(TAG_SENSOR, "Publishing airmouse data...");
-                        mqtt_publish_airmouse_data(&mouse_data_cache, button_pressed);
-                        ESP_LOGD(TAG_SENSOR, "AirMouse data sent: X=%.2f Y=%.2f Scroll=%d Button=%d",
-                                 mouse_data_cache.mouse_x, mouse_data_cache.mouse_y, mouse_data_cache.scroll_delta, button_pressed);
-                    } else {
-                        ESP_LOGE(TAG_SENSOR, "Failed to convert sensor data to mouse data");
-                    }
-                } else {
-                    // 센서 모드: 기존 방식으로 센서 데이터 전송 (고정 버퍼 사용)
-                    ESP_LOGD(TAG_SENSOR, "Publishing sensor data...");
-                    mqtt_publish_mpu6050_data(&sensor_data_cache);
-                    ESP_LOGD(TAG_SENSOR, "Sensor data sent: Accel X=%.3f Y=%.3f Z=%.3f", 
-                             sensor_data_cache.accel_x, sensor_data_cache.accel_y, sensor_data_cache.accel_z);
-                }
+                // 센서 데이터 전송
+                ESP_LOGD(TAG_SENSOR, "Publishing sensor data...");
+                mqtt_publish_mpu6050_data(&sensor_data_cache);
+                ESP_LOGD(TAG_SENSOR, "Sensor data sent: Accel X=%.3f Y=%.3f Z=%.3f Gyro X=%.2f Y=%.2f Z=%.2f", 
+                         sensor_data_cache.accel_x, sensor_data_cache.accel_y, sensor_data_cache.accel_z,
+                         sensor_data_cache.gyro_x, sensor_data_cache.gyro_y, sensor_data_cache.gyro_z);
             } else {
                 retry_count++;
                 ESP_LOGW(TAG_SENSOR, "Failed to read sensor data (attempt %d/%d)", retry_count, max_retries);

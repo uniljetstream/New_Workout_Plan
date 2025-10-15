@@ -3,7 +3,6 @@
 #include "mqtt_handler.h"
 #include "sensor_task.h"
 #include "config.h"
-#include "airmouse.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +23,6 @@ static bool sensor_running = false;
 // 고정 크기 버퍼들 (메모리 재사용)
 static char mqtt_payload_buffer[512];
 static char status_payload_buffer[256];
-static char mode_change_payload_buffer[256];
 
 /**
  * @brief MQTT 이벤트 핸들러
@@ -47,9 +45,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
         // 연결 후 ready 상태 발행
         mqtt_publish_status("ready");
         
-        // 자동으로 센서 태스크 시작 (에어마우스 모드로)
-        ESP_LOGI(TAG_MQTT, "Auto-starting sensor task in airmouse mode");
-        airmouse_set_mode(AIRMOUSE_MODE_MOUSE);
+        // 자동으로 센서 태스크 시작
+        ESP_LOGI(TAG_MQTT, "Auto-starting sensor task");
         sensor_running = true;
         sensor_task_start();
         break;
@@ -88,24 +85,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
             sensor_running = false;
             sensor_task_stop();  // 센서 태스크 중지
             mqtt_publish_status("stopped");
-        }
-        else if (strstr(event->data, "\"command\":\"airmouse_mode\"") != NULL) {
-            ESP_LOGI(TAG_MQTT, "Received AIRMOUSE MODE command from WatchTower");
-            airmouse_set_mode(AIRMOUSE_MODE_MOUSE);
-            mqtt_publish_mode_change(AIRMOUSE_MODE_MOUSE);
-        }
-        else if (strstr(event->data, "\"command\":\"sensor_mode\"") != NULL) {
-            ESP_LOGI(TAG_MQTT, "Received SENSOR MODE command from WatchTower");
-            airmouse_set_mode(AIRMOUSE_MODE_SENSOR);
-            mqtt_publish_mode_change(AIRMOUSE_MODE_SENSOR);
-        }
-        else if (strstr(event->data, "\"command\":\"calibrate\"") != NULL) {
-            ESP_LOGI(TAG_MQTT, "Received CALIBRATE command from WatchTower");
-            if (airmouse_start_calibration()) {
-                mqtt_publish_status("calibrated");
-            } else {
-                mqtt_publish_status("calibration_failed");
-            }
         }
         // 이전 호환성을 위한 주기 변경 명령
         else if (strncmp(event->data, "INTERVAL:", 9) == 0) {
@@ -200,12 +179,12 @@ void mqtt_publish_mpu6050_data(const mpu6050_data_t *data)
                                           0);   // retain 플래그
 
     if (msg_id != -1) {
-        ESP_LOGI(TAG_MQTT, "Published joystick data (msg_id=%d)", msg_id);
+        ESP_LOGI(TAG_MQTT, "Published sensor data (msg_id=%d)", msg_id);
         ESP_LOGI(TAG_MQTT, "Accel(g): X=%.3f Y=%.3f Z=%.3f | Gyro(°/s): X=%.2f Y=%.2f Z=%.2f",
                  data->accel_x, data->accel_y, data->accel_z,
                  data->gyro_x, data->gyro_y, data->gyro_z);
     } else {
-        ESP_LOGE(TAG_MQTT, "Failed to publish joystick data");
+        ESP_LOGE(TAG_MQTT, "Failed to publish sensor data");
     }
 }
 
@@ -231,84 +210,8 @@ void mqtt_publish_status(const char *status)
                                           0, 1, 0);
 
     if (msg_id != -1) {
-        ESP_LOGI(TAG_MQTT, "Published joystick status: %s", status);
+        ESP_LOGI(TAG_MQTT, "Published sensor status: %s", status);
     } else {
-        ESP_LOGE(TAG_MQTT, "Failed to publish joystick status");
-    }
-}
-
-/**
- * @brief 에어마우스 데이터 발행
- */
-void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data, bool button_pressed)
-{
-    if (!mqtt_connected || mqtt_client == NULL) {
-        ESP_LOGW(TAG_MQTT, "MQTT not connected, skipping airmouse publish");
-
-        // 연결 재시도
-        ESP_LOGI(TAG_MQTT, "Attempting to reconnect MQTT...");
-        esp_mqtt_client_reconnect(mqtt_client);
-        return;
-    }
-
-    // 에어마우스 데이터 JSON 형식 (고정 버퍼 재사용)
-    int64_t timestamp = esp_timer_get_time() / 1000;
-    snprintf(mqtt_payload_buffer, sizeof(mqtt_payload_buffer),
-             "{\"mode\":\"airmouse\","
-             "\"mouse_x\":%.2f,\"mouse_y\":%.2f,"
-             "\"scroll_delta\":%d,"
-             "\"button_pressed\":%s,"
-             "\"timestamp\":%lld}",
-             mouse_data->mouse_x, mouse_data->mouse_y,
-             mouse_data->scroll_delta,
-             button_pressed ? "true" : "false",
-             (long long)timestamp);
-
-    int msg_id = esp_mqtt_client_publish(mqtt_client,
-                                          MQTT_TOPIC_SENSOR_DATA,
-                                          mqtt_payload_buffer,
-                                          0, 1, 0);
-
-    if (msg_id != -1) {
-        ESP_LOGI(TAG_MQTT, "Published airmouse data (msg_id=%d)", msg_id);
-        ESP_LOGI(TAG_MQTT, "Mouse: X=%.2f Y=%.2f | Scroll: %d | Button: %s",
-                 mouse_data->mouse_x, mouse_data->mouse_y,
-                 mouse_data->scroll_delta,
-                 button_pressed ? "PRESSED" : "RELEASED");
-    } else {
-        ESP_LOGE(TAG_MQTT, "Failed to publish airmouse data");
-        
-        // 전송 실패 시 재연결 시도
-        ESP_LOGI(TAG_MQTT, "Publish failed, attempting reconnect...");
-        esp_mqtt_client_reconnect(mqtt_client);
-    }
-}
-
-/**
- * @brief 에어마우스 모드 변경 명령 발행
- */
-void mqtt_publish_mode_change(airmouse_mode_t mode)
-{
-    if (!mqtt_connected || mqtt_client == NULL) {
-        ESP_LOGW(TAG_MQTT, "MQTT not connected, skipping mode change publish");
-        return;
-    }
-
-    int64_t timestamp = esp_timer_get_time() / 1000;
-    snprintf(mode_change_payload_buffer, sizeof(mode_change_payload_buffer),
-             "{\"mode_change\":\"%s\",\"timestamp\":%lld}",
-             mode == AIRMOUSE_MODE_SENSOR ? "sensor" : "airmouse",
-             (long long)timestamp);
-
-    int msg_id = esp_mqtt_client_publish(mqtt_client,
-                                          MQTT_TOPIC_STATUS,
-                                          mode_change_payload_buffer,
-                                          0, 1, 0);
-
-    if (msg_id != -1) {
-        ESP_LOGI(TAG_MQTT, "Published mode change: %s", 
-                 mode == AIRMOUSE_MODE_SENSOR ? "SENSOR" : "AIRMOUSE");
-    } else {
-        ESP_LOGE(TAG_MQTT, "Failed to publish mode change");
+        ESP_LOGE(TAG_MQTT, "Failed to publish sensor status");
     }
 }

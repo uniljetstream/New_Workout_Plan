@@ -28,15 +28,11 @@
 #define DEFAULT_PUBLISH_INTERVAL_MS 200  // 기본 전송 주기: 200ms (더 안정적)
 
 // ========== MPU6050 I2C 설정 ==========
-#define I2C_MASTER_SCL_IO 22           // I2C 클럭 핀 (SCL)
-#define I2C_MASTER_SDA_IO 21           // I2C 데이터 핀 (SDA)
+// ESP32-C3 SuperMini 모듈용 핀 설정
+#define I2C_MASTER_SCL_IO 5            // I2C 클럭 핀 (SCL) - GPIO5
+#define I2C_MASTER_SDA_IO 4            // I2C 데이터 핀 (SDA) - GPIO4
 #define I2C_MASTER_NUM I2C_NUM_0       // I2C 포트 번호
 #define I2C_MASTER_FREQ_HZ 400000      // I2C 주파수 (400kHz)
-
-// ========== 버튼 GPIO 설정 ==========
-#define BUTTON_GPIO 19                  // 버튼 GPIO 핀 (GPIO 0 = BOOT 버튼)
-#define BUTTON_ACTIVE_LEVEL 0          // 버튼 활성 레벨 (0 = Active LOW)
-#define BUTTON_DEBOUNCE_MS 50          // 디바운싱 시간 (50ms)
 
 // ========== 로그 태그 ==========
 #define TAG_MAIN "ESP32_MAIN"
