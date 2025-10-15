@@ -14,6 +14,8 @@
 
 #include <stdio.h>
 #include "esp_log.h"
+#include "esp_system.h"
+#include "esp_task_wdt.h"
 #include "hardware.h"
 #include "ui.h"
 #include "wifi.h"
@@ -25,6 +27,13 @@ static const char *TAG = "MAIN";
 void app_main(void)
 {
     ESP_LOGI(TAG, "=== ESP32 IoT 시스템 시작 ===");
+    
+    // Watchdog 타이머 비활성화 (리셋 방지)
+    esp_task_wdt_deinit();
+    ESP_LOGI(TAG, "Watchdog 타이머 비활성화됨");
+    
+    // 메모리 상태 확인
+    ESP_LOGI(TAG, "초기 힙 메모리: %d bytes", esp_get_free_heap_size());
 
     // ========================================================================
     // 1. 하드웨어 초기화 (LCD, 터치 센서)
@@ -97,6 +106,11 @@ void app_main(void)
     // 9. 추가 통신 초기화 (TODO: MQTT 외 확장)
 
     ESP_LOGI(TAG, "=== 시스템 초기화 완료 ===");
+    
+    // 메모리 사용량 출력
+    ESP_LOGI(TAG, "사용 가능한 힙 메모리: %d bytes", esp_get_free_heap_size());
+    ESP_LOGI(TAG, "최소 힙 메모리: %d bytes", esp_get_minimum_free_heap_size());
+    
     if (auto_connect_result != ESP_OK) {
         ESP_LOGI(TAG, "WiFi 설정을 위해 WiFi 버튼을 눌러주세요.");
     }

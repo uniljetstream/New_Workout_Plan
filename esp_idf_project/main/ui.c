@@ -49,6 +49,7 @@ static lv_obj_t *password_textarea = NULL;
 // WiFi 상태 플래그
 static volatile bool wifi_status_changed = false;
 static volatile bool wifi_last_status = false;
+static volatile bool wifi_color_changed = false;  // 색상 변경 상태 플래그 추가
 
 // 심박수 표시용 변수
 static lv_obj_t *label_heart_rate_sensor = NULL;
@@ -134,21 +135,30 @@ static void reset_bg_color_cb(lv_timer_t *timer)
 {
     // 배경색을 원래대로 (기본 흰색)
     lv_obj_set_style_bg_color(screen_main, lv_color_white(), 0);
+    wifi_color_changed = false;  // 색상 변경 상태 초기화
     lv_timer_del(timer);  // 타이머 삭제
 }
 
 /**
  * LVGL 태스크 함수
- * 5ms마다 LVGL 이벤트를 처리합니다.
+ * 10ms마다 LVGL 이벤트를 처리합니다. (5ms에서 10ms로 변경하여 안정성 향상)
  */
 static void lvgl_task(void *pvParameter)
 {
+    static uint32_t task_counter = 0;
+    
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(pdMS_TO_TICKS(10));  // 5ms에서 10ms로 변경
+        task_counter++;
+
+        // 메모리 모니터링 (100번마다)
+        if (task_counter % 100 == 0) {
+            ESP_LOGI(TAG, "LVGL 태스크 실행 중 - 사용 가능한 힙: %d bytes", esp_get_free_heap_size());
+        }
 
         // WiFi 상태 변경 확인 (백업 처리)
-        if (wifi_status_changed)
+        if (wifi_status_changed && !wifi_color_changed)
         {
             ESP_LOGI(TAG, "🔍 LVGL 태스크에서 WiFi 상태 변경 감지됨!");
             wifi_status_changed = false;
@@ -162,14 +172,17 @@ static void lvgl_task(void *pvParameter)
                 if (wifi_last_status)
                 {
                     ESP_LOGI(TAG, "✅ LVGL 태스크에서 배경색을 초록색으로 변경");
-                    lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x00FF00), 0);  // 초록색
-                    // 성공 시에는 리셋하지 않음 - 초록색 유지
+                    lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x0000FF), 0);  // 초록색
+                    wifi_color_changed = true;  // 색상 변경 상태 설정
+                    // 성공 시에도 2초 후 배경색을 원래대로 복구
+                    lv_timer_create(reset_bg_color_cb, 2000, NULL);
                 }
                 else
                 {
                     ESP_LOGI(TAG, "❌ LVGL 태스크에서 배경색을 빨간색으로 변경");
-                    lv_obj_set_style_bg_color(screen_main, lv_color_hex(0xFF0000), 0);  // 빨간색
-                    // 실패 시에만 2초 후 배경색을 원래대로 복구
+                    lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x00FF00), 0);  // 빨간색
+                    wifi_color_changed = true;  // 색상 변경 상태 설정
+                    // 실패 시에도 2초 후 배경색을 원래대로 복구
                     lv_timer_create(reset_bg_color_cb, 2000, NULL);
                 }
             }
@@ -178,8 +191,6 @@ static void lvgl_task(void *pvParameter)
                 ESP_LOGI(TAG, "🔍 LVGL 태스크에서 현재 화면이 메인 화면이 아님: %p", lv_scr_act());
             }
         }
-        
-        // WiFi 상태 변경 감지 로직 제거 - 콜백 함수에서만 처리
 
         // 심박수 업데이트 확인
         if (heart_rate_updated)
@@ -192,6 +203,7 @@ static void lvgl_task(void *pvParameter)
             }
         }
 
+        // LVGL 타이머 핸들러 실행 (안전하게)
         lv_timer_handler();
     }
 }
@@ -201,8 +213,9 @@ static void lvgl_task(void *pvParameter)
  */
 static void wifi_status_callback(bool connected, const char *message)
 {
-    ESP_LOGI(TAG, "🔔 WiFi 상태: %s - %s", connected ? "연결됨" : "연결 안됨", message);
-    ESP_LOGI(TAG, "🔍 콜백에서 받은 connected 값: %s", connected ? "true" : "false");
+    ESP_LOGI(TAG, "🔔 WiFi 상태 콜백 호출됨!");
+    ESP_LOGI(TAG, "🔔 연결 상태: %s", connected ? "연결됨" : "연결 안됨");
+    ESP_LOGI(TAG, "🔔 메시지: %s", message);
 
     // 플래그 설정 (LVGL 태스크에서 처리하도록)
     wifi_last_status = connected;
@@ -211,24 +224,7 @@ static void wifi_status_callback(bool connected, const char *message)
     ESP_LOGI(TAG, "🔍 설정된 wifi_last_status: %s", wifi_last_status ? "true" : "false");
     ESP_LOGI(TAG, "🔍 설정된 wifi_status_changed: %s", wifi_status_changed ? "true" : "false");
     
-    // 즉시 화면 색상 변경 시도 (메인 화면일 때만)
-    if (lv_scr_act() == screen_main) {
-        ESP_LOGI(TAG, "🔍 콜백에서 직접 화면 색상 변경 시도");
-        
-        // 배경색 변경 (연결 성공: 초록, 실패: 빨강)
-        if (connected) {
-            ESP_LOGI(TAG, "✅ 콜백에서 배경색을 초록색으로 변경");
-            lv_obj_set_style_bg_color(screen_main, lv_color_hex(0x00FF00), 0);  // 초록색
-            // 성공 시에는 리셋하지 않음 - 초록색 유지
-        } else {
-            ESP_LOGI(TAG, "❌ 콜백에서 배경색을 빨간색으로 변경");
-            lv_obj_set_style_bg_color(screen_main, lv_color_hex(0xFF0000), 0);  // 빨간색
-            // 실패 시에만 2초 후 배경색을 원래대로 복구
-            lv_timer_create(reset_bg_color_cb, 2000, NULL);
-        }
-    } else {
-        ESP_LOGI(TAG, "🔍 콜백에서 현재 화면이 메인 화면이 아님: %p", lv_scr_act());
-    }
+    // 직접 화면 색상 변경하지 않음 - LVGL 태스크에서만 처리
 }
 
 /**
@@ -240,13 +236,15 @@ static void password_connect_event_handler(lv_event_t *e)
     if (code == LV_EVENT_CLICKED)
     {
         const char *password = lv_textarea_get_text(password_textarea);
-        ESP_LOGI(TAG, "WiFi 연결 시도: %s", selected_ssid);
+        ESP_LOGI(TAG, "=== WiFi 연결 시도 시작 ===");
+        ESP_LOGI(TAG, "선택된 SSID: %s", selected_ssid);
         ESP_LOGI(TAG, "입력된 비밀번호 길이: %d", strlen(password));
         ESP_LOGI(TAG, "비밀번호 (처음 10자): %.10s", password);
 
         // WiFi 연결
         esp_err_t result = wifi_connect(selected_ssid, password, wifi_status_callback);
         ESP_LOGI(TAG, "WiFi 연결 함수 결과: %s", esp_err_to_name(result));
+        ESP_LOGI(TAG, "=== WiFi 연결 시도 완료 ===");
 
         // 메인 화면으로 돌아가기
         lv_scr_load(screen_main);
@@ -652,12 +650,14 @@ esp_err_t ui_start_task(void)
 {
     ESP_LOGI(TAG, "LVGL 태스크 시작 중...");
 
-    BaseType_t ret = xTaskCreate(lvgl_task, "lvgl_task", 8192, NULL, 5, NULL);
+    // 스택 크기를 늘리고 우선순위를 낮춤 (리셋 방지)
+    BaseType_t ret = xTaskCreate(lvgl_task, "lvgl_task", 16384, NULL, 3, NULL);
     if (ret != pdPASS)
     {
         ESP_LOGE(TAG, "LVGL 태스크 생성 실패");
         return ESP_FAIL;
     }
 
+    ESP_LOGI(TAG, "LVGL 태스크 생성 완료 (스택: 16KB, 우선순위: 3)");
     return ESP_OK;
 }
