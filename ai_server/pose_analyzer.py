@@ -182,6 +182,9 @@ class PoseAnalyzer:
             'conf': conf.tolist()
         }
 
+        if 'is_correct' in result:
+            result['is_correct'] = bool(result['is_correct'])
+
         return result
 
     def _analyze_squat_stand(self, xy, conf, bbox=None):
@@ -246,13 +249,15 @@ class PoseAnalyzer:
                 max_angle = AIServerConfig.SQUAT_DOWN_KNEE_ANGLE_MAX
                 left_knee_ok = min_angle <= left_knee_angle <= max_angle
                 right_knee_ok = min_angle <= right_knee_angle <= max_angle
-                score = (50 if left_knee_ok else 0) + (50 if right_knee_ok else 0)
+                # 한쪽 다리라도 범위 안에 들어오면 성공으로 간주
+                at_least_one_ok = left_knee_ok or right_knee_ok
+                score = 100 if at_least_one_ok else 0
                 feedback = []
                 if not left_knee_ok:
                     feedback.append(f"Left knee {'too deep' if left_knee_angle < min_angle else 'bend more'} ({left_knee_angle:.0f}deg)")
                 if not right_knee_ok:
                     feedback.append(f"Right knee {'too deep' if right_knee_angle < min_angle else 'bend more'} ({right_knee_angle:.0f}deg)")
-                is_correct = score == 100
+                is_correct = at_least_one_ok
                 message = "Perfect squat!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
 

@@ -472,8 +472,8 @@ class AIServerConfig:
     # Squat 판정 기준
     # ============================================
     SQUAT_STAND_HIP_KNEE_THRESHOLD = 160  # 선 자세: 엉덩이-무릎-발목 각도
-    SQUAT_DOWN_KNEE_ANGLE_MIN = 80        # 앉은 자세: 무릎 최소 각도
-    SQUAT_DOWN_KNEE_ANGLE_MAX = 100       # 앉은 자세: 무릎 최대 각도
+    SQUAT_DOWN_KNEE_ANGLE_MIN = 70        # 앉은 자세: 무릎 최소 각도
+    SQUAT_DOWN_KNEE_ANGLE_MAX = 140       # 앉은 자세: 무릎 최대 각도
 
     # ============================================
     # Pushup 판정 기준

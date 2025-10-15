@@ -69,6 +69,7 @@ private slots:
 
     // Timer slot
     void onWorkoutTimerTimeout();
+    void onPoseAnalysisTimeout();
 
 private:
     // UI
@@ -93,6 +94,7 @@ private:
     QString m_currentExercise;
     QString m_currentMode;  // English mode name for MQTT
     QTimer *m_workoutTimer;
+    QTimer *m_poseAnalysisTimer;
     int m_workoutSeconds;
     bool m_isWorkoutRunning;
 
@@ -101,6 +103,12 @@ private:
     int m_totalPoses;            // Total number of poses in current mode
     QJsonArray m_poses;          // Array of pose objects from AI server
     int m_repCount;              // Repetition count
+    int m_poseSuccessCounter;    // 연속 성공 프레임 카운터
+    QString m_lastAnalyzedPoseName;
+    bool m_manualFeedbackActive;
+    int m_poseAnalysisTargetIndex;
+    bool m_poseAnalysisPending;
+    QString m_lastServerFeedback;
 
     // Helper methods
     void setupPages();
@@ -122,9 +130,12 @@ private:
     void updateWorkoutTimer();
     void sendAirMouseModeCommand();
     void sendSensorModeCommand();
+    void sendPoseIndex(int poseIndex);
     void updateAirMouseStatusIndicator(bool enabled);
     void attemptMqttReconnect();
     void scheduleMqttReconnect();
+    void schedulePoseAnalysis(int poseIndex, int delayMs = 1000);
+    void requestPoseAnalysis(int poseIndex);
 
     // MQTT protocol helpers
     QString convertExerciseNameToMode(const QString &exerciseName);
@@ -135,6 +146,14 @@ private:
     void updatePoseDisplay();
     void nextPose();
     bool isLastPose() const;
+    void handleSquatPoseSuccess();
+    void resetPoseSuccessState();
+    QString currentPoseName() const;
+    void setFeedbackBanner(const QString &message, bool success);
+    QString squatInstructionText(int poseIndex) const;
+    void updateFeedbackLabel(const QString &baseMessage, const QString &styleSheet = QString(), bool includeServerFeedback = true);
+    QString composeFeedbackMessage(const QString &baseMessage, bool includeServerFeedback) const;
+    QString translateFeedbackText(const QString &feedback) const;
 };
 
 #endif // MAINWINDOW_H

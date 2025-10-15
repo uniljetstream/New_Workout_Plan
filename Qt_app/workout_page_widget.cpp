@@ -5,12 +5,23 @@
 
 #include <QLabel>
 #include <QPushButton>
+#include <QSizePolicy>
 
 WorkoutPageWidget::WorkoutPageWidget(QWidget *parent)
     : QWidget(parent)
     , m_ui(new Ui::WorkoutPage)
 {
     m_ui->setupUi(this);
+
+    // 고정된 배너 영역 유지 (문구 길이에 따라 레이아웃이 흔들리는 것 방지)
+    m_ui->feedbackLabel->setWordWrap(true);
+    m_ui->feedbackLabel->setAlignment(Qt::AlignCenter);
+    m_ui->feedbackLabel->setMinimumHeight(160);
+    m_ui->feedbackLabel->setMaximumHeight(160);
+    QSizePolicy policy = m_ui->feedbackLabel->sizePolicy();
+    policy.setVerticalPolicy(QSizePolicy::Fixed);
+    policy.setHorizontalPolicy(QSizePolicy::Expanding);
+    m_ui->feedbackLabel->setSizePolicy(policy);
 
     connect(m_ui->startButton, &QPushButton::clicked,
             this, &WorkoutPageWidget::startRequested);

@@ -120,6 +120,17 @@ def analyze_frame():
         # 프레임 분석
         result = analyzer.analyze_frame(frame)
 
+        # 분석 로그 출력
+        pose_name = result.get('current_pose', 'unknown')
+        is_correct = result.get('is_correct')
+        score = result.get('score', '-')
+        feedback = result.get('feedback', result.get('message', ''))
+        status = 'CORRECT' if is_correct else 'CHECK'
+        if result.get('status') == 'error':
+            status = 'ERROR'
+        print(f"[Analysis] mode={analyzer.current_mode} pose_index={pose_index} pose={pose_name} "
+              f"status={status} score={score} feedback={feedback}")
+
         # 타임스탬프 추가 (있는 경우)
         if 'timestamp' in data:
             result['timestamp'] = data['timestamp']

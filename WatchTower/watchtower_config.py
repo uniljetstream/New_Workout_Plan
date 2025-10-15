@@ -47,6 +47,10 @@ class WatchTowerConfig:
     TOPIC_QT_RESPONSE_STATUS = "qt/response/status"
     TOPIC_QT_RESPONSE_ANALYSIS = "qt/response/analysis"
     TOPIC_QT_RESPONSE_FRAME = "qt/response/frame"
+    TOPIC_QT_RESPONSE_JOYSTICK = "qt/response/joystick"
+    TOPIC_QT_RESPONSE_WATCH = "qt/response/watch"
+    TOPIC_QT_POSE_UPDATE = "qt/command/pose_index"
+    TOPIC_QT_REQUEST_ANALYSIS = "qt/command/request_analysis"
 
     # Command topics (WatchTower -> Devices)
     TOPIC_CMD_JOYSTICK = "watchtower/command/joystick"

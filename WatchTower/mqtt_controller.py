@@ -48,6 +48,11 @@ class MQTTController:
         self.on_watch_data_callback = None
         self.on_qt_select_mode_callback = None  # Qt에서 운동 모드 선택 시 호출
         self.on_qt_stop_callback = None         # Qt에서 정지 명령 시 호출
+        self.on_qt_pose_index_callback = None   # Qt에서 포즈 인덱스 업데이트 시 호출
+        self.on_qt_request_analysis_callback = None  # Qt에서 분석 요청 시 호출
+
+        # 최근 포즈 시퀀스 정보 (Qt 응답용)
+        self.last_pose_sequence = {}
 
     def connect(self):
         """
@@ -125,6 +130,8 @@ class MQTTController:
                 (self.config.TOPIC_QT_SELECT_MODE, self.config.MQTT_QOS),
                 (self.config.TOPIC_QT_START, self.config.MQTT_QOS),
                 (self.config.TOPIC_QT_STOP, self.config.MQTT_QOS),
+                (self.config.TOPIC_QT_POSE_UPDATE, self.config.MQTT_QOS),
+                (self.config.TOPIC_QT_REQUEST_ANALYSIS, self.config.MQTT_QOS),
                 (self.config.TOPIC_JOYSTICK_DATA, self.config.MQTT_QOS),
                 (self.config.TOPIC_WATCH_HEARTRATE, self.config.MQTT_QOS),
                 (self.config.TOPIC_JOYSTICK_STATUS, self.config.MQTT_QOS),
@@ -168,6 +175,14 @@ class MQTTController:
             # Qt 정지 명령
             elif topic == self.config.TOPIC_QT_STOP:
                 self._handle_qt_stop(payload)
+
+            # Qt 포즈 인덱스 업데이트
+            elif topic == self.config.TOPIC_QT_POSE_UPDATE:
+                self._handle_qt_pose_index(payload)
+
+            # Qt 분석 요청
+            elif topic == self.config.TOPIC_QT_REQUEST_ANALYSIS:
+                self._handle_qt_request_analysis(payload)
 
             # 조이스틱 센서 데이터
             elif topic == self.config.TOPIC_JOYSTICK_DATA:
@@ -224,6 +239,10 @@ class MQTTController:
 
         except json.JSONDecodeError:
             print(f"✗ 조이스틱 데이터 JSON 파싱 실패: {payload}")
+            return
+
+        # Qt에 전달
+        self.send_qt_joystick_data(data)
 
     def _handle_watch_data(self, payload):
         """
@@ -251,6 +270,10 @@ class MQTTController:
 
         except json.JSONDecodeError:
             print(f"✗ Watch 데이터 JSON 파싱 실패: {payload}")
+            return
+
+        # Qt에 전달
+        self.send_qt_watch_data(data)
 
     def _handle_joystick_status(self, payload):
         """조이스틱 상태 메시지 처리"""
@@ -277,6 +300,10 @@ class MQTTController:
 
         except json.JSONDecodeError:
             print(f"✗ 조이스틱 상태 JSON 파싱 실패: {payload}")
+            return
+
+        # Qt에 상태 전달
+        self.send_qt_joystick_data({'status': data.get('status', ''), 'mode': self.joystick_mode})
 
     def _handle_watch_status(self, payload):
         """Watch 상태 메시지 처리"""
@@ -293,6 +320,10 @@ class MQTTController:
 
         except json.JSONDecodeError:
             print(f"✗ Watch 상태 JSON 파싱 실패: {payload}")
+            return
+
+        # Qt에 상태 전달
+        self.send_qt_watch_data({'status': data.get('status', 'unknown')})
 
     def _handle_qt_select_mode(self, payload):
         """
@@ -343,6 +374,52 @@ class MQTTController:
             print(f"✗ Qt 정지 명령 JSON 파싱 실패: {payload}")
         except Exception as e:
             print(f"✗ Qt 정지 명령 처리 오류: {e}")
+
+    def _handle_qt_pose_index(self, payload):
+        """
+        Qt에서 온 포즈 인덱스 업데이트 메시지 처리
+
+        Expected JSON format:
+        {
+            "mode": "squat",
+            "pose_index": 0,
+            "timestamp": 1234567890
+        }
+        """
+        try:
+            data = json.loads(payload)
+            pose_index = data.get('pose_index')
+            mode = data.get('mode')
+
+            if pose_index is None:
+                print(f"✗ 포즈 인덱스 누락: {payload}")
+                return
+
+            print(f"✓ Qt 포즈 인덱스 수신: mode={mode}, pose_index={pose_index}")
+
+            if self.on_qt_pose_index_callback:
+                self.on_qt_pose_index_callback(mode, pose_index)
+
+        except json.JSONDecodeError:
+            print(f"✗ Qt 포즈 인덱스 JSON 파싱 실패: {payload}")
+        except Exception as e:
+            print(f"✗ Qt 포즈 인덱스 처리 오류: {e}")
+
+    def _handle_qt_request_analysis(self, payload):
+        """Qt에서 온 단일 분석 요청 처리"""
+        try:
+            data = json.loads(payload)
+            mode = data.get('mode')
+            pose_index = data.get('pose_index')
+            print(f"✓ Qt 분석 요청 수신: mode={mode}, pose_index={pose_index}")
+
+            if self.on_qt_request_analysis_callback:
+                self.on_qt_request_analysis_callback(mode, pose_index)
+
+        except json.JSONDecodeError:
+            print(f"✗ Qt 분석 요청 JSON 파싱 실패: {payload}")
+        except Exception as e:
+            print(f"✗ Qt 분석 요청 처리 오류: {e}")
 
     def send_start_command(self, mode):
         """
@@ -579,10 +656,14 @@ class MQTTController:
         try:
             response = {
                 'mode': mode,
-                'success': success,
+                'status': 'success' if success else 'error',
                 'message': message,
                 'timestamp': int(time.time() * 1000)
             }
+
+            # 포즈 정보가 있다면 포함 (AI 서버 응답 정보를 담아야 함)
+            if success and hasattr(self, 'last_pose_sequence'):
+                response.update(self.last_pose_sequence)
 
             result = self.client.publish(
                 self.config.TOPIC_QT_RESPONSE_MODE,
@@ -610,6 +691,7 @@ class MQTTController:
 
         try:
             response = {
+                'message': error_message,
                 'error': error_message,
                 'timestamp': int(time.time() * 1000)
             }
@@ -714,6 +796,50 @@ class MQTTController:
 
         except Exception as e:
             print(f"✗ Qt 상태 응답 전송 오류: {e}")
+
+    def send_qt_joystick_data(self, data):
+        """
+        Qt에 조이스틱 센서/에어마우스 데이터 전송
+        """
+        if not self.connected:
+            return
+
+        try:
+            payload = {
+                'source': 'joystick',
+                **data
+            }
+            result = self.client.publish(
+                self.config.TOPIC_QT_RESPONSE_JOYSTICK,
+                json.dumps(payload),
+                qos=0  # 센서 데이터는 QoS 0으로 유지
+            )
+            if result.rc != 0:
+                print("✗ Qt 조이스틱 데이터 전송 실패")
+        except Exception as e:
+            print(f"✗ Qt 조이스틱 데이터 전송 오류: {e}")
+
+    def send_qt_watch_data(self, data):
+        """
+        Qt에 워치 심박수 데이터 전송
+        """
+        if not self.connected:
+            return
+
+        try:
+            payload = {
+                'source': 'watch',
+                **data
+            }
+            result = self.client.publish(
+                self.config.TOPIC_QT_RESPONSE_WATCH,
+                json.dumps(payload),
+                qos=0
+            )
+            if result.rc != 0:
+                print("✗ Qt 워치 데이터 전송 실패")
+        except Exception as e:
+            print(f"✗ Qt 워치 데이터 전송 오류: {e}")
 
 
 def main():

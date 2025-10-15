@@ -8,6 +8,8 @@ namespace Ui {
 class ExerciseSelectionPage;
 }
 
+class QPushButton;
+
 /**
  * @brief 운동 선택 화면 래퍼
  *
@@ -29,6 +31,9 @@ signals:
 
 private:
     void connectSignals();
+    void populateExercises();
+    void clearExerciseButtons();
+    QPushButton *createExerciseButton(const QString &label, const QString &color);
 
     Ui::ExerciseSelectionPage *m_ui;
 };
