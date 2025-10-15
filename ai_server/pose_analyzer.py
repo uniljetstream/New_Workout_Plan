@@ -134,14 +134,14 @@ class PoseAnalyzer:
             'squat_down': self._analyze_squat_down,
             'pushup_up': self._analyze_pushup_up,
             'pushup_down': self._analyze_pushup_down,
-            'plank_knee': self._analyze_plank_knee,
-            'plank_hold': self._analyze_plank_hold,
+            'plank_knee': self._analyze_plank_knee, # 안됨.
+            'plank_hold': self._analyze_plank_hold, # 안됨.
             'lunge_center': self._analyze_lunge_center,
             'lunge_left': self._analyze_lunge_left_forward,
             'lunge_right': self._analyze_lunge_right_forward,
             # Kettlebell exercises
-            'swing_start': self._analyze_swing_start,
-            'swing_up': self._analyze_swing_up,
+            'swing_start': self._analyze_swing_start,  
+            'swing_up': self._analyze_swing_up,    
             'deadlift_down': self._analyze_deadlift_down,
             'deadlift_up': self._analyze_deadlift_up,
             # Barbell exercises (reuse row functions)
@@ -157,8 +157,8 @@ class PoseAnalyzer:
             'reverse_curl_down': self._analyze_curl_down,  # Use same function
             'reverse_curl_up': self._analyze_curl_up,      # Use same function
             # Other exercises
-            'bridge_down': self._analyze_bridge_down,
-            'bridge_up': self._analyze_bridge_up,
+            'bridge_down': self._analyze_bridge_down,   # 안됨
+            'bridge_up': self._analyze_bridge_up,   # 안됨
             'knee_start': self._analyze_knee_start,
             'knee_left': self._analyze_knee_left,
             'knee_right': self._analyze_knee_right,
@@ -931,8 +931,16 @@ class PoseAnalyzer:
 
                 score = (50 if left_ok else 0) + (50 if right_ok else 0)
                 feedback = []
-                if not left_ok: feedback.append(f"Adjust left knee")
-                if not right_ok: feedback.append(f"Adjust right knee")
+                if not left_ok:
+                    if left_knee_angle > front_max:
+                        feedback.append(f"Front left knee bend deeper ({left_knee_angle:.0f}deg; target {front_min:.0f}-{front_max:.0f}deg)")
+                    elif left_knee_angle < front_min:
+                        feedback.append(f"Front left knee straighten slightly ({left_knee_angle:.0f}deg; target {front_min:.0f}-{front_max:.0f}deg)")
+                if not right_ok:
+                    if right_knee_angle > back_max:
+                        feedback.append(f"Back right knee lower toward floor ({right_knee_angle:.0f}deg; target {back_min:.0f}-{back_max:.0f}deg)")
+                    elif right_knee_angle < back_min:
+                        feedback.append(f"Back right knee raise slightly ({right_knee_angle:.0f}deg; target {back_min:.0f}-{back_max:.0f}deg)")
                 is_correct = score == 100
                 message = "Perfect left lunge!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -974,8 +982,16 @@ class PoseAnalyzer:
 
                 score = (50 if right_ok else 0) + (50 if left_ok else 0)
                 feedback = []
-                if not right_ok: feedback.append(f"Adjust right knee")
-                if not left_ok: feedback.append(f"Adjust left knee")
+                if not right_ok:
+                    if right_knee_angle > front_max:
+                        feedback.append(f"Front right knee bend deeper ({right_knee_angle:.0f}deg; target {front_min:.0f}-{front_max:.0f}deg)")
+                    elif right_knee_angle < front_min:
+                        feedback.append(f"Front right knee straighten slightly ({right_knee_angle:.0f}deg; target {front_min:.0f}-{front_max:.0f}deg)")
+                if not left_ok:
+                    if left_knee_angle > back_max:
+                        feedback.append(f"Back left knee lower toward floor ({left_knee_angle:.0f}deg; target {back_min:.0f}-{back_max:.0f}deg)")
+                    elif left_knee_angle < back_min:
+                        feedback.append(f"Back left knee raise slightly ({left_knee_angle:.0f}deg; target {back_min:.0f}-{back_max:.0f}deg)")
                 is_correct = score == 100
                 message = "Perfect right lunge!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -1172,8 +1188,13 @@ class PoseAnalyzer:
 
                 score = 100 if lunge_ok else 0
                 feedback = []
-                if not left_bent: feedback.append(f"Bend left knee more")
-                if not right_straight: feedback.append(f"Straighten right leg")
+                if not left_bent:
+                    if left_knee_angle > max_angle:
+                        feedback.append(f"Left knee bend deeper ({left_knee_angle:.0f}deg; target {min_angle:.0f}-{max_angle:.0f}deg)")
+                    elif left_knee_angle < min_angle:
+                        feedback.append(f"Left knee straighten slightly ({left_knee_angle:.0f}deg; target {min_angle:.0f}-{max_angle:.0f}deg)")
+                if not right_straight:
+                    feedback.append(f"Right leg straighten fully ({right_knee_angle:.0f}deg; target > {straight_min:.0f}deg)")
                 is_correct = score == 100
                 message = "Perfect left lunge!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -1216,8 +1237,13 @@ class PoseAnalyzer:
 
                 score = 100 if lunge_ok else 0
                 feedback = []
-                if not right_bent: feedback.append(f"Bend right knee more")
-                if not left_straight: feedback.append(f"Straighten left leg")
+                if not right_bent:
+                    if right_knee_angle > max_angle:
+                        feedback.append(f"Right knee bend deeper ({right_knee_angle:.0f}deg; target {min_angle:.0f}-{max_angle:.0f}deg)")
+                    elif right_knee_angle < min_angle:
+                        feedback.append(f"Right knee straighten slightly ({right_knee_angle:.0f}deg; target {min_angle:.0f}-{max_angle:.0f}deg)")
+                if not left_straight:
+                    feedback.append(f"Left leg straighten fully ({left_knee_angle:.0f}deg; target > {straight_min:.0f}deg)")
                 is_correct = score == 100
                 message = "Perfect right lunge!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -1302,8 +1328,18 @@ class PoseAnalyzer:
 
                 score = sum([left_hip_ok, right_hip_ok, left_knee_ok, right_knee_ok]) * 25
                 feedback = []
-                if not left_hip_ok or not right_hip_ok: feedback.append(f"Lift hips higher")
-                if not left_knee_ok or not right_knee_ok: feedback.append(f"Adjust knee angle")
+                if not left_hip_ok or not right_hip_ok:
+                    feedback.append(f"Lift hips higher (left {left_hip_angle:.0f}deg / right {right_hip_angle:.0f}deg; target > {hip_min:.0f}deg)")
+                if not left_knee_ok:
+                    if left_knee_angle > knee_max:
+                        feedback.append(f"Left knee lower slightly ({left_knee_angle:.0f}deg; target {knee_min:.0f}-{knee_max:.0f}deg)")
+                    elif left_knee_angle < knee_min:
+                        feedback.append(f"Left knee push away ({left_knee_angle:.0f}deg; target {knee_min:.0f}-{knee_max:.0f}deg)")
+                if not right_knee_ok:
+                    if right_knee_angle > knee_max:
+                        feedback.append(f"Right knee lower slightly ({right_knee_angle:.0f}deg; target {knee_min:.0f}-{knee_max:.0f}deg)")
+                    elif right_knee_angle < knee_min:
+                        feedback.append(f"Right knee push away ({right_knee_angle:.0f}deg; target {knee_min:.0f}-{knee_max:.0f}deg)")
                 is_correct = score == 100
                 message = "Perfect bridge!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
