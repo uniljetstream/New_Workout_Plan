@@ -32,4 +32,15 @@ esp_err_t ui_init(void);
  */
 esp_err_t ui_start_task(void);
 
+/**
+ * WiFi 연결 상태 콜백 함수
+ *
+ * WiFi 연결 성공/실패 시 호출되는 콜백 함수입니다.
+ * 배경색을 변경하고 리셋 타이머를 설정합니다.
+ *
+ * @param connected 연결 상태 (true: 성공, false: 실패)
+ * @param message 상태 메시지
+ */
+void wifi_status_callback(bool connected, const char *message);
+
 #endif // UI_H
