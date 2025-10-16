@@ -45,6 +45,13 @@ esp_err_t watch_mqtt_client_publish_heart_rate(uint16_t bpm);
  */
 bool watch_mqtt_client_is_connected(void);
 
+/**
+ * 심박 측정이 활성화되었는지 여부
+ *
+ * @return true이면 측정 및 전송 중
+ */
+bool watch_mqtt_client_measurement_active(void);
+
 #ifdef __cplusplus
 }
 #endif

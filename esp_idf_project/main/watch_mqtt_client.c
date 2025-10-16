@@ -21,8 +21,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-// #include "esp_mqtt_client.h"
+#include "sensor.h"
+#include "cJSON.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
@@ -34,6 +36,8 @@ static esp_mqtt_client_handle_t s_client = NULL;
 static SemaphoreHandle_t s_publish_mutex = NULL;
 static bool s_client_started = false;
 static bool s_is_connected = false;
+static bool s_measurement_enabled = false;
+static char s_current_mode[32] = "";
 
 static esp_err_t ensure_publish_mutex(void)
 {
@@ -47,6 +51,198 @@ static esp_err_t ensure_publish_mutex(void)
         }
     }
     return ESP_OK;
+}
+
+static long long get_timestamp_ms(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (long long)tv.tv_sec * 1000LL + tv.tv_usec / 1000LL;
+}
+
+static esp_err_t mqtt_publish_locked(const char *topic, const char *payload, int len, int qos)
+{
+    if (!topic || !payload || len <= 0)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (!s_is_connected || !s_client)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (ensure_publish_mutex() != ESP_OK)
+    {
+        return ESP_FAIL;
+    }
+
+    if (xSemaphoreTake(s_publish_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
+    {
+        ESP_LOGW(TAG, "MQTT publish 뮤텍스 획득 실패");
+        return ESP_ERR_TIMEOUT;
+    }
+
+    int msg_id = esp_mqtt_client_publish(s_client, topic, payload, len, qos, 0);
+    xSemaphoreGive(s_publish_mutex);
+
+    if (msg_id < 0)
+    {
+        ESP_LOGE(TAG, "MQTT 발행 실패 (topic=%s, msg_id=%d)", topic, msg_id);
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+static esp_err_t publish_status(const char *status, const char *mode, const char *info)
+{
+    if (!status || status[0] == '\0')
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    long long timestamp_ms = get_timestamp_ms();
+    char payload[256];
+
+    int len = snprintf(payload, sizeof(payload),
+                       "{\"device_id\":\"%s\",\"status\":\"%s\",\"timestamp\":%lld",
+                       CONFIG_WORKOUT_MQTT_CLIENT_ID,
+                       status,
+                       timestamp_ms);
+
+    if (len < 0 || len >= (int)sizeof(payload))
+    {
+        ESP_LOGE(TAG, "워치 상태 페이로드 생성 실패(1)");
+        return ESP_FAIL;
+    }
+
+    if (mode && mode[0] != '\0')
+    {
+        int written = snprintf(payload + len, sizeof(payload) - len, ",\"mode\":\"%s\"", mode);
+        if (written < 0 || written >= (int)(sizeof(payload) - len))
+        {
+            ESP_LOGE(TAG, "워치 상태 페이로드 생성 실패(모드)");
+            return ESP_FAIL;
+        }
+        len += written;
+    }
+
+    if (info && info[0] != '\0')
+    {
+        int written = snprintf(payload + len, sizeof(payload) - len, ",\"info\":\"%s\"", info);
+        if (written < 0 || written >= (int)(sizeof(payload) - len))
+        {
+            ESP_LOGE(TAG, "워치 상태 페이로드 생성 실패(info)");
+            return ESP_FAIL;
+        }
+        len += written;
+    }
+
+    int closing = snprintf(payload + len, sizeof(payload) - len, "}");
+    if (closing < 0 || closing >= (int)(sizeof(payload) - len))
+    {
+        ESP_LOGE(TAG, "워치 상태 페이로드 생성 실패(닫기)");
+        return ESP_FAIL;
+    }
+    len += closing;
+
+    esp_err_t ret = mqtt_publish_locked(CONFIG_WORKOUT_MQTT_TOPIC_STATUS, payload, len, CONFIG_WORKOUT_MQTT_QOS);
+    if (ret == ESP_OK)
+    {
+        ESP_LOGI(TAG, "워치 상태 발행: %s", payload);
+    }
+    return ret;
+}
+
+static void handle_watch_command(const char *payload)
+{
+    if (!payload)
+    {
+        return;
+    }
+
+    ESP_LOGI(TAG, "Watch 명령 수신: %s", payload);
+    cJSON *root = cJSON_Parse(payload);
+    if (!root)
+    {
+        ESP_LOGW(TAG, "Watch 명령 JSON 파싱 실패");
+        publish_status("error", s_current_mode[0] ? s_current_mode : NULL, "invalid_json");
+        return;
+    }
+
+    const cJSON *command_item = cJSON_GetObjectItemCaseSensitive(root, "command");
+    const cJSON *mode_item = cJSON_GetObjectItemCaseSensitive(root, "mode");
+
+    const char *command = (cJSON_IsString(command_item) && command_item->valuestring) ? command_item->valuestring : NULL;
+    const char *mode = (cJSON_IsString(mode_item) && mode_item->valuestring && mode_item->valuestring[0]) ? mode_item->valuestring : NULL;
+
+    if (mode)
+    {
+        strncpy(s_current_mode, mode, sizeof(s_current_mode) - 1);
+        s_current_mode[sizeof(s_current_mode) - 1] = '\0';
+    }
+
+    if (!command)
+    {
+        ESP_LOGW(TAG, "Watch 명령에 command 필드가 없습니다");
+        publish_status("error", s_current_mode[0] ? s_current_mode : NULL, "missing_command");
+        cJSON_Delete(root);
+        return;
+    }
+
+    if (strcmp(command, "start") == 0)
+    {
+        if (!s_measurement_enabled)
+        {
+            esp_err_t sensor_ret = heart_rate_sensor_start();
+            if (sensor_ret == ESP_OK)
+            {
+                s_measurement_enabled = true;
+                publish_status("running", s_current_mode[0] ? s_current_mode : NULL, "start_command");
+            }
+            else
+            {
+                ESP_LOGE(TAG, "심박 센서 시작 실패: %s", esp_err_to_name(sensor_ret));
+                publish_status("error", s_current_mode[0] ? s_current_mode : NULL, "sensor_start_failed");
+            }
+        }
+        else
+        {
+            publish_status("running", s_current_mode[0] ? s_current_mode : NULL, "already_running");
+        }
+    }
+    else if (strcmp(command, "stop") == 0)
+    {
+        if (s_measurement_enabled)
+        {
+            heart_rate_sensor_stop();
+            s_measurement_enabled = false;
+        }
+        publish_status("stopped", s_current_mode[0] ? s_current_mode : NULL, "stop_command");
+        s_current_mode[0] = '\0';
+        publish_status("ready", NULL, "await_start");
+    }
+    else if (strcmp(command, "status") == 0)
+    {
+        if (s_measurement_enabled)
+        {
+            publish_status("running",
+                           s_current_mode[0] ? s_current_mode : NULL,
+                           "status_request");
+        }
+        else
+        {
+            publish_status("ready", NULL, "status_request");
+        }
+    }
+    else
+    {
+        ESP_LOGW(TAG, "알 수 없는 Watch 명령: %s", command);
+        publish_status("error", s_current_mode[0] ? s_current_mode : NULL, "unknown_command");
+    }
+
+    cJSON_Delete(root);
 }
 
 static void mqtt_log_last_error(esp_mqtt_event_handle_t event)
@@ -75,6 +271,24 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_CONNECTED:
         s_is_connected = true;
         ESP_LOGI(TAG, "MQTT 브로커 연결 완료");
+
+        if (s_client)
+        {
+            int msg_id = esp_mqtt_client_subscribe(s_client, CONFIG_WORKOUT_MQTT_TOPIC_COMMAND, CONFIG_WORKOUT_MQTT_QOS);
+            if (msg_id >= 0)
+            {
+                ESP_LOGI(TAG, "워치 명령 토픽 구독 성공: %s (msg_id=%d)", CONFIG_WORKOUT_MQTT_TOPIC_COMMAND, msg_id);
+            }
+            else
+            {
+                ESP_LOGE(TAG, "워치 명령 토픽 구독 실패: %d", msg_id);
+            }
+        }
+
+        const char *mode = (s_current_mode[0] != '\0') ? s_current_mode : NULL;
+        const char *info = s_measurement_enabled ? "mqtt_reconnected" : "mqtt_connected";
+        const char *status = s_measurement_enabled ? "running" : "ready";
+        publish_status(status, s_measurement_enabled ? mode : NULL, info);
         break;
     case MQTT_EVENT_DISCONNECTED:
         s_is_connected = false;
@@ -93,8 +307,25 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         }
         break;
     case MQTT_EVENT_DATA:
-        ESP_LOGI(TAG, "수신 토픽: %.*s", event->topic_len, event->topic);
-        ESP_LOGI(TAG, "수신 데이터: %.*s", event->data_len, event->data);
+        if (event->topic && event->topic_len == strlen(CONFIG_WORKOUT_MQTT_TOPIC_COMMAND) &&
+            strncmp(event->topic, CONFIG_WORKOUT_MQTT_TOPIC_COMMAND, event->topic_len) == 0)
+        {
+            char *payload = malloc(event->data_len + 1);
+            if (!payload)
+            {
+                ESP_LOGE(TAG, "워치 명령 페이로드 메모리 부족");
+                break;
+            }
+            memcpy(payload, event->data, event->data_len);
+            payload[event->data_len] = '\0';
+            handle_watch_command(payload);
+            free(payload);
+        }
+        else
+        {
+            ESP_LOGI(TAG, "수신 토픽: %.*s", event->topic_len, event->topic);
+            ESP_LOGI(TAG, "수신 데이터: %.*s", event->data_len, event->data);
+        }
         break;
     default:
         ESP_LOGD(TAG, "MQTT 이벤트: %" PRId32, event_id);
@@ -226,11 +457,19 @@ void watch_mqtt_client_deinit(void)
         vSemaphoreDelete(s_publish_mutex);
         s_publish_mutex = NULL;
     }
+
+    s_measurement_enabled = false;
+    s_current_mode[0] = '\0';
 }
 
 bool watch_mqtt_client_is_connected(void)
 {
     return s_is_connected;
+}
+
+bool watch_mqtt_client_measurement_active(void)
+{
+    return s_measurement_enabled;
 }
 
 esp_err_t watch_mqtt_client_publish_heart_rate(uint16_t bpm)
@@ -240,59 +479,63 @@ esp_err_t watch_mqtt_client_publish_heart_rate(uint16_t bpm)
         return ESP_OK;
     }
 
+    if (!s_measurement_enabled)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
     if (!s_is_connected || !s_client)
     {
         return ESP_ERR_INVALID_STATE;
     }
 
-    if (ensure_publish_mutex() != ESP_OK)
-    {
-        return ESP_FAIL;
-    }
-
-    if (xSemaphoreTake(s_publish_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
-    {
-        ESP_LOGW(TAG, "Publish 뮤텍스 획득 실패");
-        return ESP_ERR_TIMEOUT;
-    }
-
-    char payload[128];
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    long long timestamp_ms = (long long)tv.tv_sec * 1000LL + tv.tv_usec / 1000LL;
+    long long timestamp_ms = get_timestamp_ms();
+    char payload[160];
 
     int len = snprintf(payload, sizeof(payload),
-                       "{\"device_id\":\"%s\",\"metric\":\"heart_rate\",\"value\":%u,\"timestamp\":%lld}",
+                       "{\"device_id\":\"%s\",\"heart_rate\":%u,\"timestamp\":%lld",
                        CONFIG_WORKOUT_MQTT_CLIENT_ID,
                        bpm,
                        timestamp_ms);
 
-    esp_err_t result = ESP_FAIL;
-    if (len > 0 && len < sizeof(payload))
+    if (len < 0 || len >= (int)sizeof(payload))
     {
-        int msg_id = esp_mqtt_client_publish(s_client,
-                                             CONFIG_WORKOUT_MQTT_TOPIC_HEART_RATE,
-                                             payload,
-                                             len,
-                                             CONFIG_WORKOUT_MQTT_QOS,
-                                             0);
-        if (msg_id >= 0)
+        ESP_LOGE(TAG, "심박수 페이로드 생성 실패(1)");
+        return ESP_FAIL;
+    }
+
+    if (s_current_mode[0] != '\0')
+    {
+        int written = snprintf(payload + len, sizeof(payload) - len, ",\"mode\":\"%s\"", s_current_mode);
+        if (written < 0 || written >= (int)(sizeof(payload) - len))
         {
-            ESP_LOGI(TAG, "심박수 발행 성공: %s (msg_id=%d)", payload, msg_id);
-            result = ESP_OK;
+            ESP_LOGE(TAG, "심박수 페이로드 생성 실패(모드)");
+            return ESP_FAIL;
         }
-        else
-        {
-            ESP_LOGE(TAG, "심박수 발행 실패 (msg_id=%d)", msg_id);
-            result = ESP_FAIL;
-        }
+        len += written;
+    }
+
+    int closing = snprintf(payload + len, sizeof(payload) - len, "}");
+    if (closing < 0 || closing >= (int)(sizeof(payload) - len))
+    {
+        ESP_LOGE(TAG, "심박수 페이로드 생성 실패(닫기)");
+        return ESP_FAIL;
+    }
+    len += closing;
+
+    esp_err_t result = mqtt_publish_locked(CONFIG_WORKOUT_MQTT_TOPIC_HEART_RATE, payload, len, CONFIG_WORKOUT_MQTT_QOS);
+    if (result == ESP_OK)
+    {
+        ESP_LOGI(TAG, "심박수 발행 성공: %s", payload);
+    }
+    else if (result == ESP_ERR_INVALID_STATE)
+    {
+        ESP_LOGW(TAG, "심박수 발행 실패: MQTT 연결 상태 아님");
     }
     else
     {
-        ESP_LOGE(TAG, "페이로드 생성 실패");
+        ESP_LOGE(TAG, "심박수 발행 실패: %s", esp_err_to_name(result));
     }
-
-    xSemaphoreGive(s_publish_mutex);
     return result;
 }
 
@@ -308,6 +551,11 @@ void watch_mqtt_client_deinit(void)
 }
 
 bool watch_mqtt_client_is_connected(void)
+{
+    return false;
+}
+
+bool watch_mqtt_client_measurement_active(void)
 {
     return false;
 }
