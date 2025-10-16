@@ -5,6 +5,8 @@
 #include <QJsonArray>
 #include <QDebug>
 
+#include "exercise_catalog.h"
+
 Config::Config()
 {
     setDefaults();
@@ -36,14 +38,19 @@ void Config::setDefaults()
     m_topicQtCmdStart = "qt/command/start";
     m_topicQtCmdStop = "qt/command/stop";
     m_topicQtResponse = "qt/response/#";
+    m_topicQtPoseIndex = "qt/command/pose_index";
+    m_topicQtRequestAnalysis = "qt/command/request_analysis";
 
-    // Exercise Modes defaults
-    m_exerciseModes = QStringList() << "Squat" << "Pushup";
+    // Exercise Modes defaults (UI 표시용)
+    m_exerciseModes.clear();
+    for (const ExerciseOption &option : exerciseCatalog()) {
+        m_exerciseModes.append(option.displayName);
+    }
 
     // UI Settings defaults
     m_windowWidth = 900;
     m_windowHeight = 700;
-    m_autoConnect = false;
+    m_autoConnect = true;
     m_saveWindowPosition = true;
 
     // Logging Settings defaults
@@ -95,6 +102,8 @@ bool Config::loadFromFile(const QString &filePath)
         if (topics.contains("qt_cmd_start")) m_topicQtCmdStart = topics["qt_cmd_start"].toString();
         if (topics.contains("qt_cmd_stop")) m_topicQtCmdStop = topics["qt_cmd_stop"].toString();
         if (topics.contains("qt_response")) m_topicQtResponse = topics["qt_response"].toString();
+        if (topics.contains("qt_pose_index")) m_topicQtPoseIndex = topics["qt_pose_index"].toString();
+        if (topics.contains("qt_request_analysis")) m_topicQtRequestAnalysis = topics["qt_request_analysis"].toString();
     }
 
     // Load Exercise Modes
@@ -152,6 +161,8 @@ bool Config::saveToFile(const QString &filePath)
     topics["qt_cmd_start"] = m_topicQtCmdStart;
     topics["qt_cmd_stop"] = m_topicQtCmdStop;
     topics["qt_response"] = m_topicQtResponse;
+    topics["qt_pose_index"] = m_topicQtPoseIndex;
+    topics["qt_request_analysis"] = m_topicQtRequestAnalysis;
     json["mqtt_topics"] = topics;
 
     // Save Exercise Modes

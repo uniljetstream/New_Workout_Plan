@@ -1,46 +1,53 @@
 {
-  "mqtt_broker": {
-    "host": "10.10.16.111",
-    "port": 1883,
-    "client_id": "qt_workout_app",
-    "username": "",
-    "password": ""
-  },
-  "mqtt_topics": {
-    "joystick_data": "joystick/sensor/data",
-    "joystick_status": "joystick/status",
-    "watch_heartrate": "watch/sensor/heartrate",
-    "watch_status": "watch/status",
-    "watchtower_cmd_joystick": "watchtower/command/joystick",
-    "watchtower_cmd_watch": "watchtower/command/watch",
-    "qt_cmd_select": "qt/command/select_mode",
-    "qt_cmd_start": "qt/command/start",
-    "qt_cmd_stop": "qt/command/stop",
-    "qt_response": "qt/response/#"
-  },
-  "exercise_modes": [
-    "Squat",
-    "Pushup",
-    "Plank",
-    "Lunge",
-    "Jumping Jack",
-    "Mountain Climber",
-    "Burpee"
-  ],
-  "ui_settings": {
-    "window_width": 800,
-    "window_height": 600,
-    "auto_connect": false,
-    "save_window_position": true
-  },
-  "logging": {
-    "enabled": true,
-    "max_log_lines": 1000,
-    "timestamps": true
-  },
-  "airmouse": {
-    "default_sensitivity": 10,
-    "enable_smoothing": true,
-    "show_trail": true
-  }
+    "exercise_modes": [
+        "맨몸 루틴",
+        "케틀벨 루틴",
+        "바벨 루틴",
+        "스쿼트",
+        "푸시업",
+        "플랭크",
+        "런지",
+        "케틀벨 스윙",
+        "케틀벨 데드리프트",
+        "사이드 런지",
+        "브릿지",
+        "니 드라이브",
+        "바벨 로우",
+        "바벨 업라이트 로우",
+        "바벨 오버헤드 프레스",
+        "바벨 바이셉스 컬",
+        "바벨 리버스 컬"
+    ],
+    "logging": {
+        "enabled": true,
+        "max_log_lines": 1000,
+        "timestamps": true
+    },
+    "mqtt_broker": {
+        "client_id": "qt_workout_app",
+        "host": "10.10.16.111",
+        "password": "",
+        "port": 1883,
+        "username": ""
+    },
+    "mqtt_topics": {
+        "joystick_data": "joystick/sensor/data",
+        "joystick_status": "joystick/status",
+        "qt_cmd_select": "qt/command/select_mode",
+        "qt_cmd_start": "qt/command/start",
+        "qt_cmd_stop": "qt/command/stop",
+        "qt_response": "qt/response/#",
+        "qt_pose_index": "qt/command/pose_index",
+        "qt_request_analysis": "qt/command/request_analysis",
+        "watch_heartrate": "watch/sensor/heartrate",
+        "watch_status": "watch/status",
+        "watchtower_cmd_joystick": "watchtower/command/joystick",
+        "watchtower_cmd_watch": "watchtower/command/watch"
+    },
+    "ui_settings": {
+        "auto_connect": true,
+        "save_window_position": true,
+        "window_height": 600,
+        "window_width": 800
+    }
 }

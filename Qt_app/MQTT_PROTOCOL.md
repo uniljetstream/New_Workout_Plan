@@ -88,6 +88,8 @@ WatchTower: 카메라 스트리밍 및 AI 분석 중지
 | `qt/command/select_mode` | 운동 모드 선택 | 1 |
 | `qt/command/start` | 운동 시작 | 1 |
 | `qt/command/stop` | 운동 중지 | 1 |
+| `qt/command/pose_index` | 현재 포즈 인덱스 업데이트 | 1 |
+| `qt/command/request_analysis` | 단일 프레임 분석 요청 | 1 |
 
 ### WatchTower → Qt (Responses)
 
@@ -360,3 +362,16 @@ mosquitto_pub -h localhost -t 'qt/command/stop' \
 - **프로토콜 버전:** 1.0
 - **마지막 업데이트:** 2025-10-13
 - **호환 WatchTower 버전:** main branch
+### 4. 단일 분석 요청 (qt/command/request_analysis)
+
+**Qt → WatchTower**
+
+```json
+{
+  "mode": "squat",
+  "pose_index": 0,
+  "timestamp": 1699999999
+}
+```
+
+Qt는 pose_index 메시지 전송 후 이 요청을 발행하여 WatchTower가 해당 포즈에 대한 단일 프레임 분석을 수행하도록 트리거합니다.

@@ -8,18 +8,15 @@
 #include <QDateTime>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QString>
 #include "config.h"
-#include "videoframewidget.h"
 #include "airmouse_manager.h"
 
-QT_BEGIN_NAMESPACE
-namespace Ui {
-    class MainMenuPage;
-    class ExerciseSelectionPage;
-    class SettingsPage;
-    class WorkoutPage;
-}
-QT_END_NAMESPACE
+class MainMenuPageWidget;
+class ExerciseSelectionPageWidget;
+class SettingsPageWidget;
+class WorkoutPageWidget;
+class VideoFrameWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -38,38 +35,30 @@ public:
     };
 
 private slots:
-    // Main Menu Page slots
-    void on_exerciseSelectButton_clicked();
-    void on_settingsButton_clicked();
+    // Main Menu Page handlers
+    void handleExerciseSelectRequested();
+    void handleSettingsRequested();
 
-    // Exercise Selection Page slots
-    void on_squatButton_clicked();
-    void on_pushupButton_clicked();
-    void on_plankButton_clicked();
-    void on_lungeButton_clicked();
-    void on_jumpingJackButton_clicked();
-    void on_mountainClimberButton_clicked();
-    void on_burpeeButton_clicked();
-    void on_customButton_clicked();
-    void on_scrollUpButton_clicked();
-    void on_scrollDownButton_clicked();
-    void on_exerciseSelection_backButton_clicked();
+    // Exercise Selection Page handlers
+    void handleExerciseSelected(const QString &exerciseName);
+    void handleFeatureUnavailable(const QString &message);
+    void handleExerciseSelectionBack();
 
-    // Settings Page slots
-    void on_settings_connectButton_clicked();
-    void on_settings_disconnectButton_clicked();
-    void on_settings_calibrateButton_clicked();
-    void on_settings_testAirMouseButton_clicked();
-    void on_settings_saveButton_clicked();
-    void on_settings_backButton_clicked();
-    void on_sensitivitySlider_valueChanged(int value);
-    void on_smoothingCheckBox_toggled(bool checked);
-    void on_trailCheckBox_toggled(bool checked);
+    // Settings Page handlers
+    void handleConnectRequested();
+    void handleDisconnectRequested();
+    void handleCalibrateRequested();
+    void handleAirMouseToggleRequested();
+    void handleSaveRequested();
+    void handleSettingsBackRequested();
+    void handleSensitivityChanged(double value);
+    void handleSmoothingChanged(bool checked);
+    void handleTrailChanged(bool checked);
 
-    // Workout Page slots
-    void on_workout_startButton_clicked();
-    void on_workout_stopButton_clicked();
-    void on_workout_backButton_clicked();
+    // Workout Page handlers
+    void handleWorkoutStartRequested();
+    void handleWorkoutStopRequested();
+    void handleWorkoutBackRequested();
 
     // MQTT client slots
     void onMqttConnected();
@@ -80,23 +69,22 @@ private slots:
 
     // Timer slot
     void onWorkoutTimerTimeout();
+    void onPoseAnalysisTimeout();
 
 private:
     // UI
     QStackedWidget *m_stackedWidget;
-    QWidget *m_mainMenuPage;
-    QWidget *m_exerciseSelectionPage;
-    QWidget *m_settingsPage;
-    QWidget *m_workoutPage;
-
-    Ui::MainMenuPage *ui_mainMenu;
-    Ui::ExerciseSelectionPage *ui_exerciseSelection;
-    Ui::SettingsPage *ui_settings;
-    Ui::WorkoutPage *ui_workout;
+    MainMenuPageWidget *m_mainMenuPage;
+    ExerciseSelectionPageWidget *m_exerciseSelectionPage;
+    SettingsPageWidget *m_settingsPage;
+    WorkoutPageWidget *m_workoutPage;
 
     // MQTT
     QMqttClient *m_client;
     Config &m_config;
+    QTimer *m_mqttReconnectTimer;
+    bool m_shouldAutoReconnect;
+    bool m_userRequestedDisconnect;
 
     // AirMouse
     VideoFrameWidget *m_videoWidget;    // Displays WatchTower video stream
@@ -106,6 +94,7 @@ private:
     QString m_currentExercise;
     QString m_currentMode;  // English mode name for MQTT
     QTimer *m_workoutTimer;
+    QTimer *m_poseAnalysisTimer;
     int m_workoutSeconds;
     bool m_isWorkoutRunning;
 
@@ -114,6 +103,12 @@ private:
     int m_totalPoses;            // Total number of poses in current mode
     QJsonArray m_poses;          // Array of pose objects from AI server
     int m_repCount;              // Repetition count
+    int m_poseSuccessCounter;    // 연속 성공 프레임 카운터
+    QString m_lastAnalyzedPoseName;
+    bool m_manualFeedbackActive;
+    int m_poseAnalysisTargetIndex;
+    bool m_poseAnalysisPending;
+    QString m_lastServerFeedback;
 
     // Helper methods
     void setupPages();
@@ -135,6 +130,12 @@ private:
     void updateWorkoutTimer();
     void sendAirMouseModeCommand();
     void sendSensorModeCommand();
+    void sendPoseIndex(int poseIndex);
+    void updateAirMouseStatusIndicator(bool enabled);
+    void attemptMqttReconnect();
+    void scheduleMqttReconnect();
+    void schedulePoseAnalysis(int poseIndex, int delayMs = 1000);
+    void requestPoseAnalysis(int poseIndex);
 
     // MQTT protocol helpers
     QString convertExerciseNameToMode(const QString &exerciseName);
@@ -145,6 +146,14 @@ private:
     void updatePoseDisplay();
     void nextPose();
     bool isLastPose() const;
+    void handleSquatPoseSuccess();
+    void resetPoseSuccessState();
+    QString currentPoseName() const;
+    void setFeedbackBanner(const QString &message, bool success);
+    QString squatInstructionText(int poseIndex) const;
+    void updateFeedbackLabel(const QString &baseMessage, const QString &styleSheet = QString(), bool includeServerFeedback = true);
+    QString composeFeedbackMessage(const QString &baseMessage, bool includeServerFeedback) const;
+    QString translateFeedbackText(const QString &feedback) const;
 };
 
 #endif // MAINWINDOW_H

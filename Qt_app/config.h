@@ -39,6 +39,8 @@ public:
     QString topicQtCmdStart() const { return m_topicQtCmdStart; }
     QString topicQtCmdStop() const { return m_topicQtCmdStop; }
     QString topicQtResponse() const { return m_topicQtResponse; }
+    QString topicQtPoseIndex() const { return m_topicQtPoseIndex; }
+    QString topicQtRequestAnalysis() const { return m_topicQtRequestAnalysis; }
 
     void setTopicJoystickData(const QString &topic) { m_topicJoystickData = topic; }
     void setTopicJoystickStatus(const QString &topic) { m_topicJoystickStatus = topic; }
@@ -50,6 +52,8 @@ public:
     void setTopicQtCmdStart(const QString &topic) { m_topicQtCmdStart = topic; }
     void setTopicQtCmdStop(const QString &topic) { m_topicQtCmdStop = topic; }
     void setTopicQtResponse(const QString &topic) { m_topicQtResponse = topic; }
+    void setTopicQtPoseIndex(const QString &topic) { m_topicQtPoseIndex = topic; }
+    void setTopicQtRequestAnalysis(const QString &topic) { m_topicQtRequestAnalysis = topic; }
 
     // Exercise Modes
     QStringList exerciseModes() const { return m_exerciseModes; }
@@ -101,6 +105,8 @@ private:
     QString m_topicQtCmdStart;
     QString m_topicQtCmdStop;
     QString m_topicQtResponse;
+    QString m_topicQtPoseIndex;
+    QString m_topicQtRequestAnalysis;
 
     // Exercise Modes
     QStringList m_exerciseModes;

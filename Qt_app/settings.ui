@@ -269,6 +269,46 @@
          </widget>
         </item>
         <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_airmouseStatus">
+          <item>
+           <widget class="QLabel" name="airmouseStatusLabel">
+            <property name="text">
+             <string>에어마우스 상태:</string>
+            </property>
+            <property name="font">
+             <font>
+              <weight>50</weight>
+              <bold>false</bold>
+             </font>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="airmouseStatusValueLabel">
+            <property name="text">
+             <string>비활성화</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">color: #f44336; font-weight: bold;</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_airmouseStatus">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item>
          <layout class="QHBoxLayout" name="horizontalLayout_calibrate">
           <item>
            <widget class="QPushButton" name="calibrateButton">

@@ -15,7 +15,12 @@ SOURCES += \
     config.cpp \
     airmouse_manager.cpp \
     cursor_overlay.cpp \
-    videoframewidget.cpp
+    videoframewidget.cpp \
+    main_menu_page_widget.cpp \
+    exercise_selection_page_widget.cpp \
+    settings_page_widget.cpp \
+    workout_page_widget.cpp \
+    exercise_catalog.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -23,7 +28,12 @@ HEADERS += \
     config.h \
     airmouse_manager.h \
     cursor_overlay.h \
-    videoframewidget.h
+    videoframewidget.h \
+    main_menu_page_widget.h \
+    exercise_selection_page_widget.h \
+    settings_page_widget.h \
+    workout_page_widget.h \
+    exercise_catalog.h
 
 FORMS += \
     main.ui \
