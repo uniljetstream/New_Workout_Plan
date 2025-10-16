@@ -147,6 +147,12 @@ esp_err_t mpu6050_init_sensor(void)
 {
     esp_err_t ret;
 
+    // 이미 초기화되었는지 확인
+    if (bus_handle != NULL) {
+        ESP_LOGW(TAG_SENSOR, "I2C 버스가 이미 초기화됨, 재사용");
+        return ESP_OK;
+    }
+
     // I2C 버스 초기화
     i2c_master_bus_config_t bus_config = {
         .i2c_port = I2C_MASTER_NUM,
@@ -164,16 +170,21 @@ esp_err_t mpu6050_init_sensor(void)
     ESP_LOGI(TAG_SENSOR, "I2C 버스 초기화 완료: SDA=%d, SCL=%d",
              I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO);
 
-    // MPU6050 디바이스 추가
-    i2c_device_config_t dev_config = {
-        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = MPU6050_SENSOR_ADDR,
-        .scl_speed_hz = I2C_MASTER_FREQ_HZ,
-    };
-    ret = i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG_SENSOR, "MPU6050 디바이스 추가 실패");
-        return ret;
+    // MPU6050 디바이스 추가 (이미 추가되었는지 확인)
+    if (dev_handle == NULL) {
+        i2c_device_config_t dev_config = {
+            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+            .device_address = MPU6050_SENSOR_ADDR,
+            .scl_speed_hz = I2C_MASTER_FREQ_HZ,
+        };
+        ret = i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG_SENSOR, "MPU6050 디바이스 추가 실패");
+            return ret;
+        }
+        ESP_LOGI(TAG_SENSOR, "MPU6050 디바이스 추가 완료");
+    } else {
+        ESP_LOGW(TAG_SENSOR, "MPU6050 디바이스가 이미 추가됨, 재사용");
     }
 
     // WHO_AM_I 레지스터 확인

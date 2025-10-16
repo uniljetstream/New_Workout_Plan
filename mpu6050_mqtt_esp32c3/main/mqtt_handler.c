@@ -4,6 +4,7 @@
 #include "sensor_task.h"
 #include "config.h"
 #include "airmouse.h"
+#include "vibration_motor.h"  // 진동모터 헤더 추가
 
 #include <stdio.h>
 #include <string.h>
@@ -106,6 +107,48 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
             } else {
                 mqtt_publish_status("calibration_failed");
             }
+        }
+        // 진동모터 제어 명령들
+        else if (strstr(event->data, "\"command\":\"vibrate\"") != NULL) {
+            ESP_LOGI(TAG_MQTT, "Received VIBRATE command from WatchTower");
+            
+            // JSON에서 intensity와 duration 파싱
+            uint8_t intensity = 50;  // 기본값
+            uint32_t duration_ms = 1000;  // 기본값 1초
+            
+            // 간단한 JSON 파싱 (실제로는 cJSON 라이브러리 사용 권장)
+            char *intensity_str = strstr(event->data, "\"intensity\":");
+            if (intensity_str) {
+                intensity = atoi(intensity_str + 12);
+                if (intensity > 100) intensity = 100;
+            }
+            
+            char *duration_str = strstr(event->data, "\"duration\":");
+            if (duration_str) {
+                duration_ms = atoi(duration_str + 11);
+            }
+            
+            ESP_LOGI(TAG_MQTT, "Vibration: intensity=%d%%, duration=%dms", intensity, duration_ms);
+            vibration_motor_start(intensity, duration_ms);
+        }
+        else if (strstr(event->data, "\"command\":\"vibrate_stop\"") != NULL) {
+            ESP_LOGI(TAG_MQTT, "Received VIBRATE_STOP command from WatchTower");
+            vibration_motor_stop();
+        }
+        else if (strstr(event->data, "\"command\":\"vibrate_pattern\"") != NULL) {
+            ESP_LOGI(TAG_MQTT, "Received VIBRATE_PATTERN command from WatchTower");
+            
+            // 간단한 패턴 실행 (실제로는 더 복잡한 패턴 파싱 필요)
+            uint8_t pattern[] = {30, 0, 50, 0, 70, 0};  // 기본 패턴
+            uint32_t interval_ms = 200;  // 기본 간격
+            
+            char *interval_str = strstr(event->data, "\"interval\":");
+            if (interval_str) {
+                interval_ms = atoi(interval_str + 11);
+            }
+            
+            ESP_LOGI(TAG_MQTT, "Vibration pattern: interval=%dms", interval_ms);
+            vibration_motor_run_pattern(pattern, sizeof(pattern), interval_ms);
         }
         // 이전 호환성을 위한 주기 변경 명령
         else if (strncmp(event->data, "INTERVAL:", 9) == 0) {
@@ -244,10 +287,16 @@ void mqtt_publish_airmouse_data(const mouse_data_t *mouse_data, bool button_pres
 {
     if (!mqtt_connected || mqtt_client == NULL) {
         ESP_LOGW(TAG_MQTT, "MQTT not connected, skipping airmouse publish");
-
-        // 연결 재시도
-        ESP_LOGI(TAG_MQTT, "Attempting to reconnect MQTT...");
-        esp_mqtt_client_reconnect(mqtt_client);
+        
+        // 재연결 시도 (너무 자주 시도하지 않도록 제한)
+        static uint32_t last_reconnect_attempt = 0;
+        uint32_t current_time = esp_timer_get_time() / 1000;
+        
+        if (current_time - last_reconnect_attempt > 5000) {  // 5초마다 재연결 시도
+            ESP_LOGI(TAG_MQTT, "Attempting to reconnect MQTT...");
+            esp_mqtt_client_reconnect(mqtt_client);
+            last_reconnect_attempt = current_time;
+        }
         return;
     }
 

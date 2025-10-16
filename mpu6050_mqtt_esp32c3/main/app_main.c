@@ -16,6 +16,7 @@
 #include "sensor_task.h"
 #include "airmouse.h"
 #include "button_handler.h"  // 버튼 핸들러 추가
+#include "vibration_motor.h"  // 진동모터 핸들러 추가
 
 /**
  * @brief 메인 함수 - ESP32 부팅 시 자동 실행
@@ -55,6 +56,14 @@ void app_main(void)
         return;
     }
 
+    // 진동모터 초기화 - 비활성화됨
+    /*
+    if (!vibration_motor_init()) {
+        ESP_LOGE(TAG_MAIN, "Vibration motor initialization failed");
+        return;
+    }
+    */
+
     // MQTT 시작
     mqtt_init_and_start();
 
@@ -68,5 +77,8 @@ void app_main(void)
     ESP_LOGI(TAG_MAIN, "  - airmouse_mode: Switch to airmouse mode");
     ESP_LOGI(TAG_MAIN, "  - sensor_mode: Switch to sensor mode");
     ESP_LOGI(TAG_MAIN, "  - calibrate: Calibrate airmouse");
+    ESP_LOGI(TAG_MAIN, "  - vibrate: Start vibration (with intensity/duration)");
+    ESP_LOGI(TAG_MAIN, "  - vibrate_stop: Stop vibration");
+    ESP_LOGI(TAG_MAIN, "  - vibrate_pattern: Run vibration pattern");
     ESP_LOGI(TAG_MAIN, "Waiting for commands from WatchTower...");
 }

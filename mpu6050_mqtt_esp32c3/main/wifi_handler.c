@@ -29,8 +29,12 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)   //wifi 연결이 끊겼으면
     {
+        wifi_event_sta_disconnected_t* disconnected = (wifi_event_sta_disconnected_t*) event_data;
+        ESP_LOGW(TAG_WIFI, "Wi-Fi disconnected. Reason: %d", disconnected->reason);
+        
         if (s_retry_num < WIFI_MAX_RETRY)   
         {                       // 재시도 횟수가 남았으면
+            vTaskDelay(pdMS_TO_TICKS(2000));  // 2초 대기 후 재연결
             esp_wifi_connect(); // 다시 연결 시도
             s_retry_num++;      // 카운터 증가
             ESP_LOGI(TAG_WIFI, "Retry to connect to AP (attempt %d/%d)", s_retry_num,
@@ -39,13 +43,16 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         else    //재시도 횟수가 초과 일시
         {
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);  //이벤트 그룹비트에서 실패 붙이기
-            ESP_LOGE(TAG_WIFI, "Failed to connect to Wi-Fi");
+            ESP_LOGE(TAG_WIFI, "Failed to connect to Wi-Fi after %d attempts", WIFI_MAX_RETRY);
+            ESP_LOGE(TAG_WIFI, "Please check SSID: %s and password", WIFI_SSID);
+            ESP_LOGE(TAG_WIFI, "Last disconnect reason: %d", disconnected->reason);
         }
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) //공유기로부터 ip주소를 받으면(==wifi 연결이 완료되면)
     {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data; //ip 정보 가져오기
         ESP_LOGI(TAG_WIFI, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+        ESP_LOGI(TAG_WIFI, "IP assignment completed successfully");
         s_retry_num = 0;    //재시도 카운터 리셋
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT); //이벤트 루프에 성공비트로 표
     }
@@ -109,6 +116,10 @@ bool wifi_init_and_connect(void)
     ESP_ERROR_CHECK(esp_wifi_start());  //wifi 시작. WIFI_EVENT_STA_START  이벤트가 발생되서 wifi_event_handler 가 자동 호출됨.
 
     ESP_LOGI(TAG_WIFI, "Connecting to Wi-Fi SSID: %s", WIFI_SSID);
+    ESP_LOGI(TAG_WIFI, "Wi-Fi Password: %s", WIFI_PASSWORD);
+    ESP_LOGI(TAG_WIFI, "Max retry count: %d", WIFI_MAX_RETRY);
+    ESP_LOGI(TAG_WIFI, "Wi-Fi mode: Station mode");
+    ESP_LOGI(TAG_WIFI, "Wi-Fi scan enabled: %s", CONFIG_ESP32_WIFI_ENABLE_WPA3_SAE ? "WPA3" : "WPA2");
 
     //wifi 연결을 시도함. wifi_event_handler가 WIFI_CONNECTED_BIT, WIFI_FAIL_BIT를 설정할 때까지 대기.
     /*
@@ -120,11 +131,16 @@ bool wifi_init_and_connect(void)
     portMAX_DELAY);                      // 무한정 대기
     */
     EventBits_t bits =
-        xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+        xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, pdMS_TO_TICKS(120000));
 
     if (bits & WIFI_CONNECTED_BIT)  //연결 성공 비트가 설정 되면
     {
         ESP_LOGI(TAG_WIFI, "Wi-Fi connected successfully");
+        
+        // IP 할당까지 추가 대기 (최대 10초)
+        ESP_LOGI(TAG_WIFI, "Waiting for IP assignment...");
+        vTaskDelay(pdMS_TO_TICKS(10000));
+        
         return true;    //성공반환
     }
     else if (bits & WIFI_FAIL_BIT)  //실패 비트가 설정되었으면
