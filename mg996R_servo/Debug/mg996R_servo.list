@@ -1270,7 +1270,7 @@ static void MX_DMA_Init(void)
  8000b24:	687b      	ldr	r3, [r7, #4]
 
   /* DMA interrupt init */
-  /* DMA1_Stream5_IRQn interrupt configuration (USART2_RX) */
+  /* DMA1_Stream5_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
  8000b26:	2200      	movs	r2, #0
  8000b28:	2100      	movs	r1, #0
@@ -1279,7 +1279,7 @@ static void MX_DMA_Init(void)
   HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
  8000b30:	2010      	movs	r0, #16
  8000b32:	f000 fbe0 	bl	80012f6 <HAL_NVIC_EnableIRQ>
-  /* DMA1_Stream6_IRQn interrupt configuration (USART2_TX) */
+  /* DMA1_Stream6_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
  8000b36:	2200      	movs	r2, #0
  8000b38:	2100      	movs	r1, #0
@@ -1846,9 +1846,9 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_NVIC_EnableIRQ(USART2_IRQn);
  8000e7a:	2026      	movs	r0, #38	@ 0x26
  8000e7c:	f000 fa3b 	bl	80012f6 <HAL_NVIC_EnableIRQ>
-    /* USER CODE BEGIN USART2_MspInit 1 */
 
     /* USER CODE END USART2_MspInit 1 */
+
   }
 
 }
@@ -2027,77 +2027,77 @@ void SysTick_Handler(void)
  8000f00:	bd80      	pop	{r7, pc}
 	...
 
-08000f04 <USART2_IRQHandler>:
+08000f04 <DMA1_Stream5_IRQHandler>:
+
+/**
+  * @brief This function handles DMA1 stream5 global interrupt.
+  */
+void DMA1_Stream5_IRQHandler(void)
+{
+ 8000f04:	b580      	push	{r7, lr}
+ 8000f06:	af00      	add	r7, sp, #0
+  /* USER CODE BEGIN DMA1_Stream5_IRQn 0 */
+
+  /* USER CODE END DMA1_Stream5_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart2_rx);
+ 8000f08:	4802      	ldr	r0, [pc, #8]	@ (8000f14 <DMA1_Stream5_IRQHandler+0x10>)
+ 8000f0a:	f000 fba7 	bl	800165c <HAL_DMA_IRQHandler>
+  /* USER CODE BEGIN DMA1_Stream5_IRQn 1 */
+
+  /* USER CODE END DMA1_Stream5_IRQn 1 */
+}
+ 8000f0e:	bf00      	nop
+ 8000f10:	bd80      	pop	{r7, pc}
+ 8000f12:	bf00      	nop
+ 8000f14:	20000108 	.word	0x20000108
+
+08000f18 <DMA1_Stream6_IRQHandler>:
+
+/**
+  * @brief This function handles DMA1 stream6 global interrupt.
+  */
+void DMA1_Stream6_IRQHandler(void)
+{
+ 8000f18:	b580      	push	{r7, lr}
+ 8000f1a:	af00      	add	r7, sp, #0
+  /* USER CODE BEGIN DMA1_Stream6_IRQn 0 */
+
+  /* USER CODE END DMA1_Stream6_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart2_tx);
+ 8000f1c:	4802      	ldr	r0, [pc, #8]	@ (8000f28 <DMA1_Stream6_IRQHandler+0x10>)
+ 8000f1e:	f000 fb9d 	bl	800165c <HAL_DMA_IRQHandler>
+  /* USER CODE BEGIN DMA1_Stream6_IRQn 1 */
+
+  /* USER CODE END DMA1_Stream6_IRQn 1 */
+}
+ 8000f22:	bf00      	nop
+ 8000f24:	bd80      	pop	{r7, pc}
+ 8000f26:	bf00      	nop
+ 8000f28:	20000168 	.word	0x20000168
+
+08000f2c <USART2_IRQHandler>:
 
 /**
   * @brief This function handles USART2 global interrupt.
   */
 void USART2_IRQHandler(void)
 {
- 8000f04:	b580      	push	{r7, lr}
- 8000f06:	af00      	add	r7, sp, #0
+ 8000f2c:	b580      	push	{r7, lr}
+ 8000f2e:	af00      	add	r7, sp, #0
   /* USER CODE BEGIN USART2_IRQn 0 */
 
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
- 8000f08:	4802      	ldr	r0, [pc, #8]	@ (8000f14 <USART2_IRQHandler+0x10>)
- 8000f0a:	f002 fb13 	bl	8003534 <HAL_UART_IRQHandler>
+ 8000f30:	4802      	ldr	r0, [pc, #8]	@ (8000f3c <USART2_IRQHandler+0x10>)
+ 8000f32:	f002 faff 	bl	8003534 <HAL_UART_IRQHandler>
   /* USER CODE BEGIN USART2_IRQn 1 */
 
   /* USER CODE END USART2_IRQn 1 */
 }
- 8000f0e:	bf00      	nop
- 8000f10:	bd80      	pop	{r7, pc}
- 8000f12:	bf00      	nop
- 8000f14:	200000c0 	.word	0x200000c0
-
-08000f18 <DMA1_Stream5_IRQHandler>:
-
-/**
-  * @brief This function handles DMA1 stream5 global interrupt (USART2_RX).
-  */
-void DMA1_Stream5_IRQHandler(void)
-{
- 8000f18:	b580      	push	{r7, lr}
- 8000f1a:	af00      	add	r7, sp, #0
-  /* USER CODE BEGIN DMA1_Stream5_IRQn 0 */
-
-  /* USER CODE END DMA1_Stream5_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart2_rx);
- 8000f1c:	4802      	ldr	r0, [pc, #8]	@ (8000f28 <DMA1_Stream5_IRQHandler+0x10>)
- 8000f1e:	f000 fb9d 	bl	800165c <HAL_DMA_IRQHandler>
-  /* USER CODE BEGIN DMA1_Stream5_IRQn 1 */
-
-  /* USER CODE END DMA1_Stream5_IRQn 1 */
-}
- 8000f22:	bf00      	nop
- 8000f24:	bd80      	pop	{r7, pc}
- 8000f26:	bf00      	nop
- 8000f28:	20000108 	.word	0x20000108
-
-08000f2c <DMA1_Stream6_IRQHandler>:
-
-/**
-  * @brief This function handles DMA1 stream6 global interrupt (USART2_TX).
-  */
-void DMA1_Stream6_IRQHandler(void)
-{
- 8000f2c:	b580      	push	{r7, lr}
- 8000f2e:	af00      	add	r7, sp, #0
-  /* USER CODE BEGIN DMA1_Stream6_IRQn 0 */
-
-  /* USER CODE END DMA1_Stream6_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart2_tx);
- 8000f30:	4802      	ldr	r0, [pc, #8]	@ (8000f3c <DMA1_Stream6_IRQHandler+0x10>)
- 8000f32:	f000 fb93 	bl	800165c <HAL_DMA_IRQHandler>
-  /* USER CODE BEGIN DMA1_Stream6_IRQn 1 */
-
-  /* USER CODE END DMA1_Stream6_IRQn 1 */
-}
  8000f36:	bf00      	nop
  8000f38:	bd80      	pop	{r7, pc}
  8000f3a:	bf00      	nop
- 8000f3c:	20000168 	.word	0x20000168
+ 8000f3c:	200000c0 	.word	0x200000c0
 
 08000f40 <_sbrk>:
  *
