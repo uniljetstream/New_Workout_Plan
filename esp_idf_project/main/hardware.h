@@ -13,16 +13,16 @@
 
 // 하드웨어 핀 정의
 #define LCD_DIN     23  // SPI MOSI
-#define LCD_CLK     18  // SPI Clock
-#define LCD_CS      5   // Chip Select
-#define LCD_DC      25  // Data/Command
-#define LCD_RST     4   // Reset
-#define LCD_BL      26  // Backlight
+#define LCD_CLK     19  // SPI Clock
+#define LCD_CS      21   // Chip Select
+#define LCD_DC      2  // Data/Command
+#define LCD_RST     1   // Reset
+#define LCD_BL      0  // Backlight
 #define LCD_WIDTH   240
 #define LCD_HEIGHT  280
 
-#define TP_SDA      21  // I2C Data
-#define TP_SCL      22  // I2C Clock
+#define TP_SDA      22  // I2C Data
+#define TP_SCL      23  // I2C Clock
 #define TP_RST      16  // Touch Reset
 #define TP_IRQ      17  // Touch Interrupt
 
