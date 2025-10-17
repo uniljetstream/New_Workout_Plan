@@ -91,6 +91,23 @@
            </widget>
           </item>
           <item>
+           <widget class="QLabel" name="routineInfoLabel">
+            <property name="text">
+             <string></string>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>14</pointsize>
+              <weight>50</weight>
+              <bold>false</bold>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">color: #2196F3;</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QLabel" name="feedbackLabel">
             <property name="text">
              <string>피드백: 대기 중...</string>
@@ -171,6 +188,32 @@
           </font>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_control">
+          <item>
+           <widget class="QPushButton" name="skipButton">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>50</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>이 운동 스킵</string>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>14</pointsize>
+              <weight>50</weight>
+              <bold>false</bold>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: #FF9800; color: white; border-radius: 5px;</string>
+            </property>
+            <property name="visible">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
           <item>
            <widget class="QPushButton" name="startButton">
             <property name="minimumSize">

@@ -29,6 +29,8 @@ WorkoutPageWidget::WorkoutPageWidget(QWidget *parent)
             this, &WorkoutPageWidget::stopRequested);
     connect(m_ui->backButton, &QPushButton::clicked,
             this, &WorkoutPageWidget::backRequested);
+    connect(m_ui->skipButton, &QPushButton::clicked,
+            this, &WorkoutPageWidget::skipRequested);
 }
 
 WorkoutPageWidget::~WorkoutPageWidget()
@@ -49,6 +51,8 @@ void WorkoutPageWidget::prepareForExercise(const QString &exerciseName)
     resetHeartRate();
     resetRepCount();
     setTimerText(QStringLiteral("00:00"));
+    clearRoutineInfo();
+    setSkipButtonVisible(false);
 }
 
 void WorkoutPageWidget::setExerciseProgress(const QString &exerciseName, int poseIndex, int totalPoses)
@@ -113,4 +117,22 @@ void WorkoutPageWidget::resetRepCount()
 void WorkoutPageWidget::setTimerText(const QString &text)
 {
     m_ui->timerLabel->setText(text);
+}
+
+void WorkoutPageWidget::setRoutineInfo(const QString &currentExercise, int remainingReps)
+{
+    m_ui->routineInfoLabel->setText(
+        tr("[루틴] %1 (남은 횟수: %2회)")
+            .arg(currentExercise)
+            .arg(remainingReps));
+}
+
+void WorkoutPageWidget::clearRoutineInfo()
+{
+    m_ui->routineInfoLabel->setText(QString());
+}
+
+void WorkoutPageWidget::setSkipButtonVisible(bool visible)
+{
+    m_ui->skipButton->setVisible(visible);
 }

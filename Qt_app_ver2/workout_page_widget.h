@@ -44,10 +44,16 @@ public:
 
     void setTimerText(const QString &text);
 
+    // 루틴 모드 관련 메서드
+    void setRoutineInfo(const QString &currentExercise, int remainingReps);
+    void clearRoutineInfo();
+    void setSkipButtonVisible(bool visible);
+
 signals:
     void startRequested();
     void stopRequested();
     void backRequested();
+    void skipRequested();  // 새로 추가: 스킵 버튼 시그널
 
 private:
     Ui::WorkoutPage *m_ui;

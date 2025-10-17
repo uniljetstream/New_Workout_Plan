@@ -10,7 +10,7 @@ class WatchTowerConfig:
     # ============================================
     # AI 서버 설정 (수정 필요!)
     # ============================================
-    AI_SERVER_HOST = '192.168.1.100'  # AI 서버 IP 주소
+    AI_SERVER_HOST = '10.10.16.57'  # AI 서버 IP 주소
     AI_SERVER_PORT = 5000              # AI 서버 포트
     REQUEST_TIMEOUT = 5                # HTTP 요청 타임아웃 (초)
 

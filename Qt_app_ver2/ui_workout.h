@@ -36,6 +36,7 @@ public:
     QGroupBox *statusGroupBox;
     QVBoxLayout *verticalLayout_status;
     QLabel *scoreLabel;
+    QLabel *routineInfoLabel;
     QLabel *feedbackLabel;
     QFrame *line;
     QLabel *heartRateLabel;
@@ -43,6 +44,7 @@ public:
     QSpacerItem *verticalSpacer_status;
     QGroupBox *controlGroupBox;
     QVBoxLayout *verticalLayout_control;
+    QPushButton *skipButton;
     QPushButton *startButton;
     QPushButton *stopButton;
     QPushButton *backButton;
@@ -103,14 +105,25 @@ public:
 
         verticalLayout_status->addWidget(scoreLabel);
 
+        routineInfoLabel = new QLabel(statusGroupBox);
+        routineInfoLabel->setObjectName(QString::fromUtf8("routineInfoLabel"));
+        QFont font3;
+        font3.setPointSize(14);
+        font3.setBold(false);
+        font3.setWeight(50);
+        routineInfoLabel->setFont(font3);
+        routineInfoLabel->setStyleSheet(QString::fromUtf8("color: #2196F3;"));
+
+        verticalLayout_status->addWidget(routineInfoLabel);
+
         feedbackLabel = new QLabel(statusGroupBox);
         feedbackLabel->setObjectName(QString::fromUtf8("feedbackLabel"));
         feedbackLabel->setWordWrap(true);
-        QFont font3;
-        font3.setPointSize(12);
-        font3.setBold(false);
-        font3.setWeight(50);
-        feedbackLabel->setFont(font3);
+        QFont font4;
+        font4.setPointSize(12);
+        font4.setBold(false);
+        font4.setWeight(50);
+        feedbackLabel->setFont(font4);
 
         verticalLayout_status->addWidget(feedbackLabel);
 
@@ -123,17 +136,13 @@ public:
 
         heartRateLabel = new QLabel(statusGroupBox);
         heartRateLabel->setObjectName(QString::fromUtf8("heartRateLabel"));
-        QFont font4;
-        font4.setPointSize(14);
-        font4.setBold(false);
-        font4.setWeight(50);
-        heartRateLabel->setFont(font4);
+        heartRateLabel->setFont(font3);
 
         verticalLayout_status->addWidget(heartRateLabel);
 
         repCountLabel = new QLabel(statusGroupBox);
         repCountLabel->setObjectName(QString::fromUtf8("repCountLabel"));
-        repCountLabel->setFont(font4);
+        repCountLabel->setFont(font3);
 
         verticalLayout_status->addWidget(repCountLabel);
 
@@ -149,10 +158,19 @@ public:
         controlGroupBox->setFont(font1);
         verticalLayout_control = new QVBoxLayout(controlGroupBox);
         verticalLayout_control->setObjectName(QString::fromUtf8("verticalLayout_control"));
+        skipButton = new QPushButton(controlGroupBox);
+        skipButton->setObjectName(QString::fromUtf8("skipButton"));
+        skipButton->setMinimumSize(QSize(0, 50));
+        skipButton->setFont(font3);
+        skipButton->setStyleSheet(QString::fromUtf8("background-color: #FF9800; color: white; border-radius: 5px;"));
+        skipButton->setVisible(false);
+
+        verticalLayout_control->addWidget(skipButton);
+
         startButton = new QPushButton(controlGroupBox);
         startButton->setObjectName(QString::fromUtf8("startButton"));
         startButton->setMinimumSize(QSize(0, 50));
-        startButton->setFont(font4);
+        startButton->setFont(font3);
         startButton->setStyleSheet(QString::fromUtf8("background-color: #4CAF50; color: white; border-radius: 5px;"));
 
         verticalLayout_control->addWidget(startButton);
@@ -160,7 +178,7 @@ public:
         stopButton = new QPushButton(controlGroupBox);
         stopButton->setObjectName(QString::fromUtf8("stopButton"));
         stopButton->setMinimumSize(QSize(0, 50));
-        stopButton->setFont(font4);
+        stopButton->setFont(font3);
         stopButton->setStyleSheet(QString::fromUtf8("background-color: #f44336; color: white; border-radius: 5px;"));
 
         verticalLayout_control->addWidget(stopButton);
@@ -168,7 +186,7 @@ public:
         backButton = new QPushButton(controlGroupBox);
         backButton->setObjectName(QString::fromUtf8("backButton"));
         backButton->setMinimumSize(QSize(0, 50));
-        backButton->setFont(font4);
+        backButton->setFont(font3);
         backButton->setStyleSheet(QString::fromUtf8("background-color: #808080; color: white; border-radius: 5px;"));
 
         verticalLayout_control->addWidget(backButton);
@@ -206,10 +224,12 @@ public:
         timerLabel->setText(QCoreApplication::translate("WorkoutPage", "00:00", nullptr));
         statusGroupBox->setTitle(QCoreApplication::translate("WorkoutPage", "\354\203\201\355\203\234 \354\240\225\353\263\264", nullptr));
         scoreLabel->setText(QCoreApplication::translate("WorkoutPage", "\354\240\220\354\210\230: --", nullptr));
+        routineInfoLabel->setText(QString());
         feedbackLabel->setText(QCoreApplication::translate("WorkoutPage", "\355\224\274\353\223\234\353\260\261: \353\214\200\352\270\260 \354\244\221...", nullptr));
         heartRateLabel->setText(QCoreApplication::translate("WorkoutPage", "\354\213\254\353\260\225\354\210\230: -- BPM", nullptr));
         repCountLabel->setText(QCoreApplication::translate("WorkoutPage", "\353\260\230\353\263\265 \355\232\237\354\210\230: 0", nullptr));
         controlGroupBox->setTitle(QCoreApplication::translate("WorkoutPage", "\354\240\234\354\226\264", nullptr));
+        skipButton->setText(QCoreApplication::translate("WorkoutPage", "\354\235\264 \354\232\264\353\217\231 \354\212\244\355\202\265", nullptr));
         startButton->setText(QCoreApplication::translate("WorkoutPage", "\354\213\234\354\236\221", nullptr));
         stopButton->setText(QCoreApplication::translate("WorkoutPage", "\354\244\221\354\247\200", nullptr));
         backButton->setText(QCoreApplication::translate("WorkoutPage", "\353\222\244\353\241\234 \352\260\200\352\270\260", nullptr));

@@ -50,12 +50,11 @@ public:
 
         titleLabel = new QLabel(MainMenuPage);
         titleLabel->setObjectName(QString::fromUtf8("titleLabel"));
-        titleLabel->setAlignment(Qt::AlignCenter);
         QFont font;
         font.setPointSize(32);
         font.setBold(true);
-        font.setWeight(75);
         titleLabel->setFont(font);
+        titleLabel->setAlignment(Qt::AlignCenter);
 
         verticalLayout_main->addWidget(titleLabel);
 
@@ -77,7 +76,6 @@ public:
         QFont font1;
         font1.setPointSize(18);
         font1.setBold(true);
-        font1.setWeight(75);
         exerciseSelectButton->setFont(font1);
         exerciseSelectButton->setStyleSheet(QString::fromUtf8("background-color: #4CAF50; color: white; border-radius: 10px;"));
 
@@ -124,7 +122,7 @@ public:
     void retranslateUi(QWidget *MainMenuPage)
     {
         MainMenuPage->setWindowTitle(QCoreApplication::translate("MainMenuPage", "Home Workout System", nullptr));
-        titleLabel->setText(QCoreApplication::translate("MainMenuPage", "\355\231\210 \355\212\270\353\240\210\354\235\264\353\213\235 \354\213\234\354\212\244\355\205\234", nullptr));
+        titleLabel->setText(QCoreApplication::translate("MainMenuPage", "New Workout Plan", nullptr));
         exerciseSelectButton->setText(QCoreApplication::translate("MainMenuPage", "\354\232\264\353\217\231 \354\204\240\355\203\235", nullptr));
         settingsButton->setText(QCoreApplication::translate("MainMenuPage", "\354\204\244\354\240\225", nullptr));
         statusLabel->setText(QCoreApplication::translate("MainMenuPage", "\354\203\201\355\203\234: \354\244\200\353\271\204", nullptr));

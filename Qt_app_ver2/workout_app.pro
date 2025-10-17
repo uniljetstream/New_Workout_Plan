@@ -20,6 +20,7 @@ SOURCES += \
     exercise_selection_page_widget.cpp \
     settings_page_widget.cpp \
     workout_page_widget.cpp \
+    result_page_widget.cpp \
     exercise_catalog.cpp
 
 HEADERS += \
@@ -33,13 +34,15 @@ HEADERS += \
     exercise_selection_page_widget.h \
     settings_page_widget.h \
     workout_page_widget.h \
+    result_page_widget.h \
     exercise_catalog.h
 
 FORMS += \
     main.ui \
     exercise_selection.ui \
     settings.ui \
-    workout.ui
+    workout.ui \
+    result.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

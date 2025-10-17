@@ -25,7 +25,7 @@
     },
     "mqtt_broker": {
         "client_id": "qt_workout_app",
-        "host": "10.10.16.111",
+        "host": "localhost",
         "password": "",
         "port": 1883,
         "username": ""

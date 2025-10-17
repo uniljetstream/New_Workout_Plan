@@ -16,6 +16,7 @@ class MainMenuPageWidget;
 class ExerciseSelectionPageWidget;
 class SettingsPageWidget;
 class WorkoutPageWidget;
+class ResultPageWidget;
 class VideoFrameWidget;
 
 class MainWindow : public QMainWindow
@@ -31,7 +32,8 @@ public:
         PAGE_MAIN_MENU = 0,
         PAGE_EXERCISE_SELECTION = 1,
         PAGE_SETTINGS = 2,
-        PAGE_WORKOUT = 3
+        PAGE_WORKOUT = 3,
+        PAGE_RESULT = 4
     };
 
 private slots:
@@ -59,6 +61,11 @@ private slots:
     void handleWorkoutStartRequested();
     void handleWorkoutStopRequested();
     void handleWorkoutBackRequested();
+    void handleWorkoutSkipRequested();  // 새로 추가
+
+    // Result Page handlers
+    void handleResultRetryRequested();
+    void handleResultBackRequested();
 
     // MQTT client slots
     void onMqttConnected();
@@ -78,6 +85,7 @@ private:
     ExerciseSelectionPageWidget *m_exerciseSelectionPage;
     SettingsPageWidget *m_settingsPage;
     WorkoutPageWidget *m_workoutPage;
+    ResultPageWidget *m_resultPage;  // 새로 추가
 
     // MQTT
     QMqttClient *m_client;
@@ -87,28 +95,37 @@ private:
     bool m_userRequestedDisconnect;
 
     // AirMouse
-    VideoFrameWidget *m_videoWidget;    // Displays WatchTower video stream
-    AirMouseManager *m_airMouseManager;  // Global airmouse controller
+    VideoFrameWidget *m_videoWidget;
+    AirMouseManager *m_airMouseManager;
 
     // Workout state
     QString m_currentExercise;
-    QString m_currentMode;  // English mode name for MQTT
+    QString m_currentMode;
     QTimer *m_workoutTimer;
     QTimer *m_poseAnalysisTimer;
     int m_workoutSeconds;
     bool m_isWorkoutRunning;
 
     // Pose sequence state
-    int m_currentPoseIndex;      // Current pose index (0-based)
-    int m_totalPoses;            // Total number of poses in current mode
-    QJsonArray m_poses;          // Array of pose objects from AI server
-    int m_repCount;              // Repetition count
-    int m_poseSuccessCounter;    // 연속 성공 프레임 카운터
+    int m_currentPoseIndex;
+    int m_totalPoses;
+    QJsonArray m_poses;
+    int m_repCount;
+    int m_poseSuccessCounter;
     QString m_lastAnalyzedPoseName;
     bool m_manualFeedbackActive;
     int m_poseAnalysisTargetIndex;
     bool m_poseAnalysisPending;
     QString m_lastServerFeedback;
+
+    // 루틴 모드 관련 변수 (새로 추가)
+    bool m_isRoutineMode;                    // 루틴 모드 여부
+    QStringList m_routineExercises;          // 루틴에 포함된 운동 목록 (mode 문자열)
+    int m_currentRoutineIndex;               // 현재 루틴 내 운동 인덱스
+    int m_routineExerciseRepCount;          // 현재 루틴 운동의 반복 횟수
+    QVector<int> m_routineScores;           // 각 운동별 점수 저장
+    int m_routineTotalScore;                // 루틴 총 점수
+    static const int REPS_PER_ROUTINE_EXERCISE = 5;  // 루틴 운동당 반복 횟수
 
     // Helper methods
     void setupPages();
@@ -154,6 +171,15 @@ private:
     void updateFeedbackLabel(const QString &baseMessage, const QString &styleSheet = QString(), bool includeServerFeedback = true);
     QString composeFeedbackMessage(const QString &baseMessage, bool includeServerFeedback) const;
     QString translateFeedbackText(const QString &feedback) const;
+
+    // 루틴 모드 헬퍼 메서드 (새로 추가)
+    bool isRoutineMode(const QString &mode) const;
+    void initializeRoutineMode(const QString &routineMode);
+    void startNextRoutineExercise();
+    void completeRoutineExercise();
+    void finishRoutine();
+    void updateRoutineInfo();
+    QString getRoutineExerciseDisplayName(const QString &mode) const;
 };
 
 #endif // MAINWINDOW_H
