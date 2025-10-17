@@ -108,6 +108,26 @@
            </widget>
           </item>
           <item>
+           <widget class="QLabel" name="currentPoseLabel">
+            <property name="text">
+             <string>현재 자세: 대기 중...</string>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>13</pointsize>
+              <weight>50</weight>
+              <bold>false</bold>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">color: #FF9800; font-weight: bold;</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QLabel" name="feedbackLabel">
             <property name="text">
              <string>피드백: 대기 중...</string>

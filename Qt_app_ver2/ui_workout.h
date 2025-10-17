@@ -37,6 +37,7 @@ public:
     QVBoxLayout *verticalLayout_status;
     QLabel *scoreLabel;
     QLabel *routineInfoLabel;
+    QLabel *currentPoseLabel;
     QLabel *feedbackLabel;
     QFrame *line;
     QLabel *heartRateLabel;
@@ -116,14 +117,26 @@ public:
 
         verticalLayout_status->addWidget(routineInfoLabel);
 
+        currentPoseLabel = new QLabel(statusGroupBox);
+        currentPoseLabel->setObjectName(QString::fromUtf8("currentPoseLabel"));
+        QFont font4;
+        font4.setPointSize(13);
+        font4.setBold(false);
+        font4.setWeight(50);
+        currentPoseLabel->setFont(font4);
+        currentPoseLabel->setStyleSheet(QString::fromUtf8("color: #FF9800; font-weight: bold;"));
+        currentPoseLabel->setWordWrap(true);
+
+        verticalLayout_status->addWidget(currentPoseLabel);
+
         feedbackLabel = new QLabel(statusGroupBox);
         feedbackLabel->setObjectName(QString::fromUtf8("feedbackLabel"));
         feedbackLabel->setWordWrap(true);
-        QFont font4;
-        font4.setPointSize(12);
-        font4.setBold(false);
-        font4.setWeight(50);
-        feedbackLabel->setFont(font4);
+        QFont font5;
+        font5.setPointSize(12);
+        font5.setBold(false);
+        font5.setWeight(50);
+        feedbackLabel->setFont(font5);
 
         verticalLayout_status->addWidget(feedbackLabel);
 
@@ -225,6 +238,7 @@ public:
         statusGroupBox->setTitle(QCoreApplication::translate("WorkoutPage", "\354\203\201\355\203\234 \354\240\225\353\263\264", nullptr));
         scoreLabel->setText(QCoreApplication::translate("WorkoutPage", "\354\240\220\354\210\230: --", nullptr));
         routineInfoLabel->setText(QString());
+        currentPoseLabel->setText(QCoreApplication::translate("WorkoutPage", "\355\230\204\354\236\254 \354\236\220\354\204\270: \353\214\200\352\270\260 \354\244\221...", nullptr));
         feedbackLabel->setText(QCoreApplication::translate("WorkoutPage", "\355\224\274\353\223\234\353\260\261: \353\214\200\352\270\260 \354\244\221...", nullptr));
         heartRateLabel->setText(QCoreApplication::translate("WorkoutPage", "\354\213\254\353\260\225\354\210\230: -- BPM", nullptr));
         repCountLabel->setText(QCoreApplication::translate("WorkoutPage", "\353\260\230\353\263\265 \355\232\237\354\210\230: 0", nullptr));

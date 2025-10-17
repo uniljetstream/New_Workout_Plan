@@ -29,6 +29,7 @@ public:
     void prepareForExercise(const QString &exerciseName);
     void setExerciseProgress(const QString &exerciseName, int poseIndex, int totalPoses);
 
+    void setCurrentPose(const QString &poseName);  // 새로 추가
     void setFeedbackMessage(const QString &message, const QString &styleSheet = QString());
     void setFeedbackStyle(const QString &styleSheet);
     QString feedbackText() const;
@@ -53,7 +54,7 @@ signals:
     void startRequested();
     void stopRequested();
     void backRequested();
-    void skipRequested();  // 새로 추가: 스킵 버튼 시그널
+    void skipRequested();
 
 private:
     Ui::WorkoutPage *m_ui;

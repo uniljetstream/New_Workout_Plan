@@ -27,7 +27,6 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    // Page enums
     enum Page {
         PAGE_MAIN_MENU = 0,
         PAGE_EXERCISE_SELECTION = 1,
@@ -61,7 +60,7 @@ private slots:
     void handleWorkoutStartRequested();
     void handleWorkoutStopRequested();
     void handleWorkoutBackRequested();
-    void handleWorkoutSkipRequested();  // 새로 추가
+    void handleWorkoutSkipRequested();
 
     // Result Page handlers
     void handleResultRetryRequested();
@@ -74,9 +73,10 @@ private slots:
     void onMqttStateChanged(QMqttClient::ClientState state);
     void onMqttError(QMqttClient::ClientError error);
 
-    // Timer slot
+    // Timer slots
     void onWorkoutTimerTimeout();
     void onPoseAnalysisTimeout();
+    void onPoseTransitionTimeout();
 
 private:
     // UI
@@ -85,7 +85,7 @@ private:
     ExerciseSelectionPageWidget *m_exerciseSelectionPage;
     SettingsPageWidget *m_settingsPage;
     WorkoutPageWidget *m_workoutPage;
-    ResultPageWidget *m_resultPage;  // 새로 추가
+    ResultPageWidget *m_resultPage;
 
     // MQTT
     QMqttClient *m_client;
@@ -103,6 +103,7 @@ private:
     QString m_currentMode;
     QTimer *m_workoutTimer;
     QTimer *m_poseAnalysisTimer;
+    QTimer *m_poseTransitionTimer;
     int m_workoutSeconds;
     bool m_isWorkoutRunning;
 
@@ -118,14 +119,20 @@ private:
     bool m_poseAnalysisPending;
     QString m_lastServerFeedback;
 
-    // 루틴 모드 관련 변수 (새로 추가)
-    bool m_isRoutineMode;                    // 루틴 모드 여부
-    QStringList m_routineExercises;          // 루틴에 포함된 운동 목록 (mode 문자열)
-    int m_currentRoutineIndex;               // 현재 루틴 내 운동 인덱스
-    int m_routineExerciseRepCount;          // 현재 루틴 운동의 반복 횟수
-    QVector<int> m_routineScores;           // 각 운동별 점수 저장
-    int m_routineTotalScore;                // 루틴 총 점수
-    static const int REPS_PER_ROUTINE_EXERCISE = 5;  // 루틴 운동당 반복 횟수
+    // Pose transition system (Grace Period)
+    bool m_waitingForNextPose;
+    int m_targetPoseIndex;
+    int m_transitionRemainingSeconds;
+    static const int POSE_TRANSITION_GRACE_PERIOD = 20;
+
+    // Routine mode
+    bool m_isRoutineMode;
+    QStringList m_routineExercises;
+    int m_currentRoutineIndex;
+    int m_routineExerciseRepCount;
+    QVector<int> m_routineScores;
+    int m_routineTotalScore;
+    static const int REPS_PER_ROUTINE_EXERCISE = 5;
 
     // Helper methods
     void setupPages();
@@ -172,7 +179,13 @@ private:
     QString composeFeedbackMessage(const QString &baseMessage, bool includeServerFeedback) const;
     QString translateFeedbackText(const QString &feedback) const;
 
-    // 루틴 모드 헬퍼 메서드 (새로 추가)
+    // Pose transition helpers (Grace Period)
+    void startPoseTransition(int targetIndex);
+    void cancelPoseTransition();
+    void completePoseTransition();
+    void updateTransitionDisplay();
+
+    // Routine mode helpers
     bool isRoutineMode(const QString &mode) const;
     void initializeRoutineMode(const QString &routineMode);
     void startNextRoutineExercise();
