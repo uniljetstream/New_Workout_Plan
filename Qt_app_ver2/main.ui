@@ -29,18 +29,17 @@
    </item>
    <item>
     <widget class="QLabel" name="titleLabel">
-     <property name="text">
-      <string>홈 트레이닝 시스템</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
      <property name="font">
       <font>
        <pointsize>32</pointsize>
-       <weight>75</weight>
        <bold>true</bold>
       </font>
+     </property>
+     <property name="text">
+      <string>New Workout Plan</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
      </property>
     </widget>
    </item>
@@ -82,18 +81,17 @@
            <height>80</height>
           </size>
          </property>
-         <property name="text">
-          <string>운동 선택</string>
-         </property>
          <property name="font">
           <font>
            <pointsize>18</pointsize>
-           <weight>75</weight>
            <bold>true</bold>
           </font>
          </property>
          <property name="styleSheet">
           <string notr="true">background-color: #4CAF50; color: white; border-radius: 10px;</string>
+         </property>
+         <property name="text">
+          <string>운동 선택</string>
          </property>
         </widget>
        </item>
@@ -118,18 +116,17 @@
            <height>80</height>
           </size>
          </property>
-         <property name="text">
-          <string>설정</string>
-         </property>
          <property name="font">
           <font>
            <pointsize>18</pointsize>
-           <weight>75</weight>
            <bold>true</bold>
           </font>
          </property>
          <property name="styleSheet">
           <string notr="true">background-color: #2196F3; color: white; border-radius: 10px;</string>
+         </property>
+         <property name="text">
+          <string>설정</string>
          </property>
         </widget>
        </item>

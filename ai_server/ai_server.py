@@ -117,19 +117,22 @@ def analyze_frame():
                 'message': f'Frame decoding error: {str(e)}'
             }), 400
 
+        # YOLO 추론으로 키포인트 추출
+        results = analyzer.model(frame, verbose=False)
+        
         # 프레임 분석
         result = analyzer.analyze_frame(frame)
 
-        # 분석 로그 출력
-        pose_name = result.get('current_pose', 'unknown')
-        is_correct = result.get('is_correct')
-        score = result.get('score', '-')
-        feedback = result.get('feedback', result.get('message', ''))
-        status = 'CORRECT' if is_correct else 'CHECK'
-        if result.get('status') == 'error':
-            status = 'ERROR'
-        print(f"[Analysis] mode={analyzer.current_mode} pose_index={pose_index} pose={pose_name} "
-              f"status={status} score={score} feedback={feedback}")
+        # 키포인트 정보 추가 (시각화용)
+        if results[0].keypoints is not None and len(results[0].keypoints) > 0:
+            keypoints = results[0].keypoints[0]
+            xy = keypoints.xy.cpu().numpy()[0].tolist()  # (17, 2)
+            conf = keypoints.conf.cpu().numpy()[0].tolist()  # (17,)
+            
+            result['keypoints'] = {
+                'xy': xy,
+                'conf': conf
+            }
 
         # 타임스탬프 추가 (있는 경우)
         if 'timestamp' in data:
