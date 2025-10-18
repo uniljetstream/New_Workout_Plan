@@ -253,7 +253,6 @@ Qt 앱의 UI는 한글 운동 이름을 사용하지만, MQTT 통신에서는 �
 | 한글 이름 | 영어 모드명 | WatchTower 지원 |
 |-----------|-------------|-----------------|
 | 스쿼트 | `squat` | ✅ Yes |
-| 푸쉬업 | `pushup` | ✅ Yes |
 | 플랭크 | `plank` | ⚠️ To be added |
 | 런지 | `lunge` | ⚠️ To be added |
 | 점핑잭 | `jumping_jack` | ⚠️ To be added |
@@ -267,7 +266,6 @@ QString MainWindow::convertExerciseNameToMode(const QString &exerciseName)
 {
     static QMap<QString, QString> exerciseMap = {
         {"스쿼트", "squat"},
-        {"푸쉬업", "pushup"},
         {"플랭크", "plank"},
         {"런지", "lunge"},
         {"점핑잭", "jumping_jack"},
@@ -292,7 +290,6 @@ QString MainWindow::convertExerciseNameToMode(const QString &exerciseName)
 ```python
 SUPPORTED_MODES = [
     'squat',
-    'pushup',
     'plank',        # 추가
     'lunge',        # 추가
     'jumping_jack', # 추가
@@ -310,7 +307,6 @@ AI 서버에서 새로운 운동의 자세 분석 로직을 구현해야 합니�
 ```python
 SUPPORTED_MODES = [
     'squat',
-    'pushup',
     'plank',
     # ... 등등
 ]

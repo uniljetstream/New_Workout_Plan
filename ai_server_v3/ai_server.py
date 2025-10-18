@@ -23,7 +23,7 @@ def select_mode():
 
     Request:
         {
-            "mode": "squat"  # 'squat', 'pushup' 등
+            "mode": "squat"  # 예: 'squat', 'lunge' 등
         }
 
     Response:

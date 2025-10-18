@@ -27,9 +27,8 @@ class AIServerConfig:
         'bodyweight_routine',   # 맨몸 운동 루틴
         'kettlebell_routine',   # 케틀벨 운동 루틴
         'barbell_routine',      # 바벨 운동 루틴
-        # 맨몸 운동 (3개)
+        # 맨몸 운동 (2개)
         'squat',                # 스쿼트
-        'pushup',               # 푸시업
         'lunge',                # 런지
         # 케틀벨 운동 (2개)
         'kettlebell_swing',     # 케틀벨 스윙
@@ -51,15 +50,12 @@ class AIServerConfig:
         # ============================================
         'bodyweight_routine': [
             # Squat
-            {'name': 'squat_stand', 'description': '[1/3] 스쿼트 - 준비 자세'},
-            {'name': 'squat_down',  'description': '[1/3] 스쿼트 - 앉은 자세'},
-            # Pushup
-            {'name': 'pushup_up',   'description': '[2/3] 푸시업 - 팔 펴기'},
-            {'name': 'pushup_down', 'description': '[2/3] 푸시업 - 팔 굽히기'},
+            {'name': 'squat_stand', 'description': '[1/2] 스쿼트 - 준비 자세'},
+            {'name': 'squat_down',  'description': '[1/2] 스쿼트 - 앉은 자세'},
             # Lunge
-            {'name': 'lunge_center','description': '[3/3] 런지 - 준비'},
-            {'name': 'lunge_left',  'description': '[3/3] 런지 - 왼쪽'},
-            {'name': 'lunge_right', 'description': '[3/3] 런지 - 오른쪽'},
+            {'name': 'lunge_center','description': '[2/2] 런지 - 준비'},
+            {'name': 'lunge_left',  'description': '[2/2] 런지 - 왼쪽'},
+            {'name': 'lunge_right', 'description': '[2/2] 런지 - 오른쪽'},
         ],
         'kettlebell_routine': [
             # Kettlebell Swing
@@ -73,14 +69,11 @@ class AIServerConfig:
             # Barbell Row
             {'name': 'barbell_row_start', 'description': '[1/5] 바벨 로우 - 시작'},
             {'name': 'barbell_row_pull',  'description': '[1/5] 바벨 로우 - 당기기'},
-            {'name': 'barbell_row_hold',  'description': '[1/5] 바벨 로우 - 홀드'},
             # Barbell Upright Row
             {'name': 'barbell_upright_start', 'description': '[2/5] 업라이트 로우 - 시작'},
-            {'name': 'barbell_upright_mid',   'description': '[2/5] 업라이트 로우 - 중간'},
-            {'name': 'barbell_upright_top',   'description': '[2/5] 업라이트 로우 - 최상단'},
+            {'name': 'barbell_upright_mid',   'description': '[2/5] 업라이트 로우 - 당기기'},
             # Barbell Overhead Press
             {'name': 'overhead_start', 'description': '[3/5] 오버헤드 프레스 - 시작'},
-            {'name': 'overhead_mid',   'description': '[3/5] 오버헤드 프레스 - 중간'},
             {'name': 'overhead_top',   'description': '[3/5] 오버헤드 프레스 - 완료'},
             # Barbell Biceps Curl
             {'name': 'curl_down', 'description': '[4/5] 바이셉스 컬 - 시작'},
@@ -103,18 +96,6 @@ class AIServerConfig:
                 'name': 'squat_down',
                 'description': '스쿼트 자세 (무릎 90도)',
                 'duration': 2.0
-            }
-        ],
-        'pushup': [
-            {
-                'name': 'pushup_up',
-                'description': '푸시업 준비 자세 (팔 펴기)',
-                'duration': 1.0
-            },
-            {
-                'name': 'pushup_down',
-                'description': '푸시업 자세 (팔 굽히기)',
-                'duration': 1.0
             }
         ],
         'lunge': [
@@ -177,11 +158,6 @@ class AIServerConfig:
                 'description': '바벨 로우 당기기 (팔꿈치 뒤로)',
                 'duration': 1.5
             },
-            {
-                'name': 'barbell_row_hold',
-                'description': '바벨 로우 홀드 (상단 유지)',
-                'duration': 1.0
-            }
         ],
         'barbell_upright_row': [
             {
@@ -191,24 +167,14 @@ class AIServerConfig:
             },
             {
                 'name': 'barbell_upright_mid',
-                'description': '바벨 업라이트 로우 중간 (가슴 높이)',
+                'description': '바벨 업라이트 로우 당기기 (가슴 높이)',
                 'duration': 1.0
             },
-            {
-                'name': 'barbell_upright_top',
-                'description': '바벨 업라이트 로우 최상단 (턱 높이)',
-                'duration': 1.5
-            }
         ],
         'barbell_overhead_press': [
             {
                 'name': 'overhead_start',
                 'description': '오버헤드 프레스 시작 (어깨 높이)',
-                'duration': 1.0
-            },
-            {
-                'name': 'overhead_mid',
-                'description': '오버헤드 프레스 중간',
                 'duration': 1.0
             },
             {
@@ -251,41 +217,40 @@ class AIServerConfig:
     SQUAT_DOWN_KNEE_ANGLE_MAX = 100       # 앉은 자세: 무릎 최대 각도
 
     # ============================================
-    # Pushup 판정 기준 (완화)
-    # ============================================
-    PUSHUP_UP_ELBOW_ANGLE_MIN = 135       # 팔 펴기: 팔꿈치 최소 각도
-    PUSHUP_DOWN_ELBOW_ANGLE_MIN = 20      # 팔 굽히기: 팔꿈치 최소 각도
-    PUSHUP_DOWN_ELBOW_ANGLE_MAX = 120     # 팔 굽히기: 팔꿈치 최대 각도
-
-    # ============================================
     # Kettlebell Swing 판정 기준
     # ============================================
     SWING_START_ELBOW_ANGLE_MIN = 150     # 시작 자세: 팔꿈치 각도
+    SWING_START_HIP_ANGLE_MIN = 60        # 시작 자세: 엉덩이 굽힘 최소
+    SWING_START_HIP_ANGLE_MAX = 140       # 시작 자세: 엉덩이 굽힘 최대
     SWING_UP_ELBOW_ANGLE_MIN = 150        # 스윙업: 팔꿈치 각도
-    SWING_UP_SHOULDER_HEIGHT_MIN = 0.6    # 스윙업: 손목 높이 비율
+    SWING_UP_HIP_ANGLE_MIN = 150          # 스윙업: 엉덩이 각도 (거의 펴짐)
 
     # ============================================
     # Kettlebell Deadlift 판정 기준
     # ============================================
+    DEADLIFT_DOWN_HIP_ANGLE_MIN = 40      # 시작: 엉덩이 각도 최소
+    DEADLIFT_DOWN_HIP_ANGLE_MAX = 100     # 시작: 엉덩이 각도 최대
     DEADLIFT_DOWN_KNEE_ANGLE_MIN = 100    # 시작: 무릎 각도 최소
     DEADLIFT_DOWN_KNEE_ANGLE_MAX = 150    # 시작: 무릎 각도 최대
+    DEADLIFT_UP_HIP_ANGLE_MIN = 150       # 완료: 엉덩이 각도
     DEADLIFT_UP_KNEE_ANGLE_MIN = 150      # 완료: 무릎 각도
 
     # ============================================
     # Barbell Row 판정 기준
     # ============================================
     ROW_START_ELBOW_ANGLE_MIN = 120       # 시작: 팔꿈치 각도 (팔 펴짐)
-    ROW_PULL_ELBOW_ANGLE_MIN = 40         # 당기기: 팔꿈치 최소
-    ROW_PULL_ELBOW_ANGLE_MAX = 120        # 당기기: 팔꿈치 최대
     ROW_START_HIP_ANGLE_MIN = 60          # 시작: 엉덩이 굽힘
     ROW_START_HIP_ANGLE_MAX = 140         # 시작: 엉덩이 굽힘 최대
+
+    ROW_PULL_ELBOW_ANGLE_MIN = 40         # 당기기: 팔꿈치 최소
+    ROW_PULL_ELBOW_ANGLE_MAX = 120        # 당기기: 팔꿈치 최대
 
     # ============================================
     # Upright Row 판정 기준
     # ============================================
     UPRIGHT_START_ELBOW_ANGLE_MIN = 150   # 시작: 팔 펴짐
-    UPRIGHT_TOP_ELBOW_ANGLE_MIN = 30      # 최상단: 팔꿈치 각도
-    UPRIGHT_TOP_ELBOW_ANGLE_MAX = 120     # 최상단: 팔꿈치 각도
+    UPRIGHT_MID_ELBOW_ANGLE_MIN = 40      # 당기기: 팔꿈치 각도 최소
+    UPRIGHT_MID_ELBOW_ANGLE_MAX = 120     # 당기기: 팔꿈치 각도 최대
 
     # ============================================
     # Barbell Overhead Press 판정 기준
@@ -298,8 +263,8 @@ class AIServerConfig:
     # Barbell Curl 판정 기준 - Biceps & Reverse 공통
     # ============================================
     CURL_DOWN_ELBOW_ANGLE_MIN = 160       # 시작: 팔꿈치 각도 (팔 펴짐)
-    CURL_UP_ELBOW_ANGLE_MIN = 40          # 완료: 팔꿈치 각도
-    CURL_UP_ELBOW_ANGLE_MAX = 70          # 완료: 팔꿈치 각도
+    CURL_UP_ELBOW_ANGLE_MIN = 0          # 완료: 팔꿈치 각도
+    CURL_UP_ELBOW_ANGLE_MAX = 50          # 완료: 팔꿈치 각도
 
     # ============================================
     # Forward Lunge 판정 기준 (측면)
@@ -314,6 +279,9 @@ class AIServerConfig:
     LUNGE_RIGHT_FRONT_KNEE_MAX = 140      # 오른쪽 런지: 앞 무릎 최대
     LUNGE_RIGHT_BACK_KNEE_MIN = 30        # 오른쪽 런지: 뒤 무릎 최소
     LUNGE_RIGHT_BACK_KNEE_MAX = 140       # 오른쪽 런지: 뒤 무릎 최대
+    LUNGE_DOWN_KNEE_ANGLE_MIN = 30        # 사이드 런지: 굽힌 무릎 최소
+    LUNGE_DOWN_KNEE_ANGLE_MAX = 140       # 사이드 런지: 굽힌 무릎 최대
+    LUNGE_DOWN_STRAIGHT_KNEE_MIN = 150    # 사이드 런지: 펴야 하는 무릎 각도
 
     # ============================================
     # 디버그 설정

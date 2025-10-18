@@ -8,9 +8,8 @@ const QVector<ExerciseOption> &exerciseCatalog()
                                                     {QStringLiteral("케틀벨 운동 루틴"),      QStringLiteral("kettlebell_routine")},
                                                     {QStringLiteral("바벨 운동 루틴"),        QStringLiteral("barbell_routine")},
 
-                                                    // [개별 맨몸 운동 - 3개]
+                                                    // [개별 맨몸 운동 - 2개]
                                                     {QStringLiteral("스쿼트"),                 QStringLiteral("squat")},
-                                                    {QStringLiteral("푸시업"),                 QStringLiteral("pushup")},
                                                     {QStringLiteral("런지"),                   QStringLiteral("lunge")},
 
                                                     // [개별 케틀벨 운동 - 2개]

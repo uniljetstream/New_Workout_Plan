@@ -37,7 +37,6 @@ public:
     QWidget *scrollAreaWidgetContents;
     QVBoxLayout *verticalLayout_exercises;
     QPushButton *squatButton;
-    QPushButton *pushupButton;
     QPushButton *plankButton;
     QPushButton *lungeButton;
     QPushButton *jumpingJackButton;
@@ -134,14 +133,6 @@ public:
         squatButton->setStyleSheet(QString::fromUtf8("background-color: #4ECDC4; color: white; border-radius: 10px; text-align: left; padding-left: 30px;"));
 
         verticalLayout_exercises->addWidget(squatButton);
-
-        pushupButton = new QPushButton(scrollAreaWidgetContents);
-        pushupButton->setObjectName(QString::fromUtf8("pushupButton"));
-        pushupButton->setMinimumSize(QSize(0, 80));
-        pushupButton->setFont(font2);
-        pushupButton->setStyleSheet(QString::fromUtf8("background-color: #95E1D3; color: white; border-radius: 10px; text-align: left; padding-left: 30px;"));
-
-        verticalLayout_exercises->addWidget(pushupButton);
 
         plankButton = new QPushButton(scrollAreaWidgetContents);
         plankButton->setObjectName(QString::fromUtf8("plankButton"));
@@ -266,7 +257,6 @@ public:
         titleLabel->setText(QCoreApplication::translate("ExerciseSelectionPage", "\354\232\264\353\217\231 \354\204\240\355\203\235", nullptr));
         scrollUpButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "\342\226\262", nullptr));
         squatButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "\354\212\244\354\277\274\355\212\270", nullptr));
-        pushupButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "\355\221\270\354\211\254\354\227\205", nullptr));
         plankButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "\355\224\214\353\236\255\355\201\254", nullptr));
         lungeButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "\353\237\260\354\247\200", nullptr));
         jumpingJackButton->setText(QCoreApplication::translate("ExerciseSelectionPage", "\354\240\220\355\225\221\354\236\255", nullptr));

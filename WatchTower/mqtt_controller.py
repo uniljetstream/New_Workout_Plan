@@ -426,7 +426,7 @@ class MQTTController:
         조이스틱과 Watch에 시작 명령 전송
 
         Args:
-            mode: 운동 모드 (squat, pushup, etc.)
+            mode: 운동 모드 (squat, lunge, etc.)
 
         Returns:
             bool: 전송 성공 여부

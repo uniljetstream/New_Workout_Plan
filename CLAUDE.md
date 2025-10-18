@@ -59,12 +59,12 @@ This is a **home workout training system** integrating multiple embedded devices
 
 The AI server supports 17 exercises organized into 3 routines + 14 individual exercises:
 
-**Routines**:
-- `bodyweight_routine`: squat, pushup, plank, lunge (4 poses)
+-**Routines**:
+- `bodyweight_routine`: squat, lunge (2 poses)
 - `kettlebell_routine`: kettlebell_swing, kettlebell_deadlift, side_lunge, bridge, knee_drive (5 poses)
 - `barbell_routine`: barbell_row, barbell_upright_row, barbell_overhead_press, barbell_biceps_curl, barbell_reverse_curl (5 poses)
 
-**Individual Exercises**: squat, pushup, plank, lunge, kettlebell_swing, kettlebell_deadlift, side_lunge, bridge, knee_drive, barbell_row, barbell_upright_row, barbell_overhead_press, barbell_biceps_curl, barbell_reverse_curl
+**Individual Exercises**: squat, lunge, kettlebell_swing, kettlebell_deadlift, side_lunge, bridge, knee_drive, barbell_row, barbell_upright_row, barbell_overhead_press, barbell_biceps_curl, barbell_reverse_curl
 
 Each exercise has multiple pose checkpoints (e.g., squat has "stand" and "down"). Qt cycles through poses using `pose_index`.
 
@@ -303,7 +303,6 @@ curl http://192.168.1.100:5000/api/status
 ```cpp
 QMap<QString, QString> exerciseMap = {
     {"스쿼트", "squat"},
-    {"푸쉬업", "pushup"},
     {"플랭크", "plank"},
     // ... etc
 };

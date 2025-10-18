@@ -28,7 +28,7 @@ class PoseAnalyzer:
         운동 모드 설정
 
         Args:
-            mode: 운동 모드 ('squat', 'pushup', etc.)
+            mode: 운동 모드 ('squat', 'lunge', etc.)
 
         Returns:
             bool: 설정 성공 여부
@@ -132,8 +132,6 @@ class PoseAnalyzer:
             # 맨몸 운동
             'squat_stand': self._analyze_squat_stand,
             'squat_down': self._analyze_squat_down,
-            'pushup_up': self._analyze_pushup_up,
-            'pushup_down': self._analyze_pushup_down,
             'plank_knee': self._analyze_plank_knee,
             'plank_hold': self._analyze_plank_hold,
             'lunge_center': self._analyze_lunge_center,
@@ -147,12 +145,9 @@ class PoseAnalyzer:
             # 바벨 운동 (row 함수 재사용)
             'barbell_row_start': self._analyze_row_start,
             'barbell_row_pull': self._analyze_row_pull,
-            'barbell_row_hold': self._analyze_row_hold,
             'barbell_upright_start': self._analyze_upright_start,
             'barbell_upright_mid': self._analyze_upright_mid,
-            'barbell_upright_top': self._analyze_upright_top,
             'overhead_start': self._analyze_overhead_start,
-            'overhead_mid': self._analyze_overhead_mid,
             'overhead_top': self._analyze_overhead_top,
             'curl_down': self._analyze_curl_down,
             'curl_up': self._analyze_curl_up,
@@ -276,83 +271,6 @@ class PoseAnalyzer:
             result['tracking'] = {'center_x': float((x1 + x2) / 2), 'center_y': float((y1 + y2) / 2), 'bbox': bbox}
         return result
 
-    def _analyze_pushup_up(self, xy, conf, bbox=None):
-        """푸시업 준비 자세 (팔 펴기) 분석"""
-        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
-        left_shoulder = xy[5] if conf[5] > threshold else None
-        right_shoulder = xy[6] if conf[6] > threshold else None
-        left_elbow = xy[7] if conf[7] > threshold else None
-        right_elbow = xy[8] if conf[8] > threshold else None
-        left_wrist = xy[9] if conf[9] > threshold else None
-        right_wrist = xy[10] if conf[10] > threshold else None
-
-        arm_points = [left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist]
-
-        if any(p is None for p in arm_points):
-            result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '상체가 전체적으로 보이도록 카메라 앞에 위치해주세요'}
-        else:
-            left_elbow_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
-            right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
-
-            if None in [left_elbow_angle, right_elbow_angle]:
-                result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '각도 계산 실패'}
-            else:
-                min_angle = AIServerConfig.PUSHUP_UP_ELBOW_ANGLE_MIN
-                left_arm_ok = left_elbow_angle > min_angle
-                right_arm_ok = right_elbow_angle > min_angle
-                score = (50 if left_arm_ok else 0) + (50 if right_arm_ok else 0)
-                feedback = []
-                if not left_arm_ok: feedback.append(f"왼팔 더 펴기 ({left_elbow_angle:.0f}°)")
-                if not right_arm_ok: feedback.append(f"오른팔 더 펴기 ({right_elbow_angle:.0f}°)")
-                is_correct = score == 100
-                message = "준비 자세 완료!" if is_correct else ", ".join(feedback)
-                result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
-
-        if bbox:
-            x1, y1, x2, y2 = bbox
-            result['tracking'] = {'center_x': float((x1 + x2) / 2), 'center_y': float((y1 + y2) / 2), 'bbox': bbox}
-        return result
-
-    def _analyze_pushup_down(self, xy, conf, bbox=None):
-        """푸시업 자세 (팔 굽히기) 분석"""
-        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
-        left_shoulder = xy[5] if conf[5] > threshold else None
-        right_shoulder = xy[6] if conf[6] > threshold else None
-        left_elbow = xy[7] if conf[7] > threshold else None
-        right_elbow = xy[8] if conf[8] > threshold else None
-        left_wrist = xy[9] if conf[9] > threshold else None
-        right_wrist = xy[10] if conf[10] > threshold else None
-
-        arm_points = [left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist]
-
-        if any(p is None for p in arm_points):
-            result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '상체가 전체적으로 보이도록 카메라 앞에 위치해주세요'}
-        else:
-            left_elbow_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
-            right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
-
-            if None in [left_elbow_angle, right_elbow_angle]:
-                result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '각도 계산 실패'}
-            else:
-                min_angle = AIServerConfig.PUSHUP_DOWN_ELBOW_ANGLE_MIN
-                max_angle = AIServerConfig.PUSHUP_DOWN_ELBOW_ANGLE_MAX
-                left_arm_ok = min_angle <= left_elbow_angle <= max_angle
-                right_arm_ok = min_angle <= right_elbow_angle <= max_angle
-                score = (50 if left_arm_ok else 0) + (50 if right_arm_ok else 0)
-                feedback = []
-                if not left_arm_ok:
-                    feedback.append(f"왼팔 {'너무 깊이 굽힘' if left_elbow_angle < min_angle else '더 굽히기'} ({left_elbow_angle:.0f}°)")
-                if not right_arm_ok:
-                    feedback.append(f"오른팔 {'너무 깊이 굽힘' if right_elbow_angle < min_angle else '더 굽히기'} ({right_elbow_angle:.0f}°)")
-                is_correct = score == 100
-                message = "완벽한 푸시업 자세!" if is_correct else ", ".join(feedback)
-                result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
-
-        if bbox:
-            x1, y1, x2, y2 = bbox
-            result['tracking'] = {'center_x': float((x1 + x2) / 2), 'center_y': float((y1 + y2) / 2), 'bbox': bbox}
-        return result
-
     def _analyze_swing_start(self, xy, conf, bbox=None):
         """케틀벨 스윙 시작 자세"""
         threshold = AIServerConfig.CONFIDENCE_THRESHOLD
@@ -391,9 +309,16 @@ class PoseAnalyzer:
 
                 score = sum([left_arm_ok, right_arm_ok, left_hip_ok, right_hip_ok]) * 25
                 feedback = []
-                if not left_arm_ok: feedback.append(f"왼팔 펴기")
-                if not right_arm_ok: feedback.append(f"오른팔 펴기")
-                if not left_hip_ok or not right_hip_ok: feedback.append(f"엉덩이 자세 조정")
+                if not left_arm_ok:
+                    feedback.append(f"왼팔을 더 펴기 (현재: {left_elbow_angle:.0f}도, 목표: >{elbow_min}도)")
+                if not right_arm_ok:
+                    feedback.append(f"오른팔을 더 펴기 (현재: {right_elbow_angle:.0f}도, 목표: >{elbow_min}도)")
+                if not left_hip_ok or not right_hip_ok:
+                    avg_hip = (left_hip_angle + right_hip_angle) / 2
+                    if avg_hip < hip_min:
+                        feedback.append(f"엉덩이를 더 뒤로 빼기 (현재: {avg_hip:.0f}도, 목표: {hip_min}-{hip_max}도)")
+                    else:
+                        feedback.append(f"엉덩이를 덜 숙이기 (현재: {avg_hip:.0f}도, 목표: {hip_min}-{hip_max}도)")
                 is_correct = score == 100
                 message = "시작 자세 완료!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -426,29 +351,26 @@ class PoseAnalyzer:
             right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
             left_hip_angle = self._calculate_angle(left_shoulder, left_hip, left_knee)
             right_hip_angle = self._calculate_angle(right_shoulder, right_hip, right_knee)
-            
-            avg_shoulder_y = (left_shoulder[1] + right_shoulder[1]) / 2
-            avg_wrist_y = (left_wrist[1] + right_wrist[1]) / 2
-            wrist_height_ratio = avg_shoulder_y / (avg_wrist_y + 1e-6)
 
             if None in [left_elbow_angle, right_elbow_angle, left_hip_angle, right_hip_angle]:
                 result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '각도 계산 실패'}
             else:
                 elbow_min = AIServerConfig.SWING_UP_ELBOW_ANGLE_MIN
                 hip_min = AIServerConfig.SWING_UP_HIP_ANGLE_MIN
-                height_min = AIServerConfig.SWING_UP_SHOULDER_HEIGHT_MIN
-
                 left_arm_ok = left_elbow_angle > elbow_min
                 right_arm_ok = right_elbow_angle > elbow_min
                 left_hip_ok = left_hip_angle > hip_min
                 right_hip_ok = right_hip_angle > hip_min
-                height_ok = wrist_height_ratio > height_min
 
-                score = sum([left_arm_ok, right_arm_ok, left_hip_ok, right_hip_ok, height_ok]) * 20
+                score = sum([left_arm_ok, right_arm_ok, left_hip_ok, right_hip_ok]) * 25
                 feedback = []
-                if not left_arm_ok or not right_arm_ok: feedback.append(f"팔 펴기")
-                if not left_hip_ok or not right_hip_ok: feedback.append(f"엉덩이 펴기")
-                if not height_ok: feedback.append(f"케틀벨 더 높이 올리기")
+                if not left_arm_ok:
+                    feedback.append(f"왼팔을 더 펴기 (현재: {left_elbow_angle:.0f}도, 목표: >{elbow_min}도)")
+                if not right_arm_ok:
+                    feedback.append(f"오른팔을 더 펴기 (현재: {right_elbow_angle:.0f}도, 목표: >{elbow_min}도)")
+                if not left_hip_ok or not right_hip_ok:
+                    avg_hip = (left_hip_angle + right_hip_angle) / 2
+                    feedback.append(f"엉덩이를 더 펴기 (현재: {avg_hip:.0f}도, 목표: >{hip_min}도)")
                 is_correct = score == 100
                 message = "완벽한 스윙 자세!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -495,8 +417,18 @@ class PoseAnalyzer:
 
                 score = sum([left_hip_ok, right_hip_ok, left_knee_ok, right_knee_ok]) * 25
                 feedback = []
-                if not left_hip_ok or not right_hip_ok: feedback.append(f"엉덩이 자세 조정")
-                if not left_knee_ok or not right_knee_ok: feedback.append(f"무릎 자세 조정")
+                if not left_hip_ok or not right_hip_ok:
+                    avg_hip = (left_hip_angle + right_hip_angle) / 2
+                    if avg_hip < hip_min:
+                        feedback.append(f"엉덩이를 더 뒤로 빼기 (현재: {avg_hip:.0f}도, 목표: {hip_min}-{hip_max}도)")
+                    else:
+                        feedback.append(f"엉덩이를 덜 숙이기 (현재: {avg_hip:.0f}도, 목표: {hip_min}-{hip_max}도)")
+                if not left_knee_ok or not right_knee_ok:
+                    avg_knee = (left_knee_angle + right_knee_angle) / 2
+                    if avg_knee < knee_min:
+                        feedback.append(f"무릎을 더 굽히기 (현재: {avg_knee:.0f}도, 목표: {knee_min}-{knee_max}도)")
+                    else:
+                        feedback.append(f"무릎을 덜 굽히기 (현재: {avg_knee:.0f}도, 목표: {knee_min}-{knee_max}도)")
                 is_correct = score == 100
                 message = "시작 자세 완료!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -541,8 +473,12 @@ class PoseAnalyzer:
 
                 score = sum([left_hip_ok, right_hip_ok, left_knee_ok, right_knee_ok]) * 25
                 feedback = []
-                if not left_hip_ok or not right_hip_ok: feedback.append(f"엉덩이 펴기")
-                if not left_knee_ok or not right_knee_ok: feedback.append(f"다리 펴기")
+                if not left_hip_ok or not right_hip_ok:
+                    avg_hip = (left_hip_angle + right_hip_angle) / 2
+                    feedback.append(f"엉덩이를 더 펴기 (현재: {avg_hip:.0f}도, 목표: >{hip_min}도)")
+                if not left_knee_ok or not right_knee_ok:
+                    avg_knee = (left_knee_angle + right_knee_angle) / 2
+                    feedback.append(f"다리를 더 펴기 (현재: {avg_knee:.0f}도, 목표: >{knee_min}도)")
                 is_correct = score == 100
                 message = "완벽한 데드리프트 자세!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -570,10 +506,14 @@ class PoseAnalyzer:
 
         if any(p is None for p in points):
             missing_parts = []
-            if not (left_shoulder and right_shoulder): missing_parts.append("어깨")
-            if not (left_elbow and right_elbow and left_wrist and right_wrist): missing_parts.append("팔")
-            if not (left_hip and right_hip): missing_parts.append("엉덩이")
-            if not (left_knee and right_knee): missing_parts.append("무릎")
+            if left_shoulder is None or right_shoulder is None:
+                missing_parts.append("어깨")
+            if any(part is None for part in [left_elbow, right_elbow, left_wrist, right_wrist]):
+                missing_parts.append("팔")
+            if left_hip is None or right_hip is None:
+                missing_parts.append("엉덩이")
+            if left_knee is None or right_knee is None:
+                missing_parts.append("무릎")
             message = f"{', '.join(missing_parts) if missing_parts else '신체'}를 카메라에 보이도록 위치 조정 (측면)" if missing_parts else "측면으로 카메라 앞에 서주세요"
             result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': message}
         else:
@@ -628,8 +568,10 @@ class PoseAnalyzer:
 
         if any(p is None for p in arm_points):
             missing_parts = []
-            if not (left_shoulder and right_shoulder): missing_parts.append("어깨")
-            if not (left_elbow and right_elbow and left_wrist and right_wrist): missing_parts.append("팔")
+            if left_shoulder is None or right_shoulder is None:
+                missing_parts.append("어깨")
+            if any(part is None for part in [left_elbow, right_elbow, left_wrist, right_wrist]):
+                missing_parts.append("팔")
             message = f"{', '.join(missing_parts) if missing_parts else '상체'}를 카메라에 보이도록 위치 조정 (측면)"
             result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': message}
         else:
@@ -666,58 +608,6 @@ class PoseAnalyzer:
             result['tracking'] = {'center_x': float((x1 + x2) / 2), 'center_y': float((y1 + y2) / 2), 'bbox': bbox}
         return result
 
-    def _analyze_row_hold(self, xy, conf, bbox=None):
-        """바벨/케틀벨 로우 홀드"""
-        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
-        left_shoulder = xy[5] if conf[5] > threshold else None
-        right_shoulder = xy[6] if conf[6] > threshold else None
-        left_elbow = xy[7] if conf[7] > threshold else None
-        right_elbow = xy[8] if conf[8] > threshold else None
-        left_wrist = xy[9] if conf[9] > threshold else None
-        right_wrist = xy[10] if conf[10] > threshold else None
-
-        arm_points = [left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist]
-
-        if any(p is None for p in arm_points):
-            missing_parts = []
-            if not (left_shoulder and right_shoulder): missing_parts.append("어깨")
-            if not (left_elbow and right_elbow and left_wrist and right_wrist): missing_parts.append("팔")
-            message = f"{', '.join(missing_parts) if missing_parts else '상체'}를 카메라에 보이도록 위치 조정 (측면)"
-            result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': message}
-        else:
-            left_elbow_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
-            right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
-
-            if None in [left_elbow_angle, right_elbow_angle]:
-                result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '측면 각도로 위치 조정'}
-            else:
-                min_angle = AIServerConfig.ROW_HOLD_ELBOW_ANGLE_MIN
-                max_angle = AIServerConfig.ROW_HOLD_ELBOW_ANGLE_MAX
-
-                left_arm_ok = min_angle <= left_elbow_angle <= max_angle
-                right_arm_ok = min_angle <= right_elbow_angle <= max_angle
-
-                score = (50 if left_arm_ok else 0) + (50 if right_arm_ok else 0)
-                feedback = []
-                if not left_arm_ok:
-                    if left_elbow_angle < min_angle:
-                        feedback.append(f"홀드 자세, 조금 더 당기기 (현재: {left_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
-                    else:
-                        feedback.append(f"홀드 자세, 조금 풀기 (현재: {left_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
-                if not right_arm_ok:
-                    if right_elbow_angle < min_angle:
-                        feedback.append(f"홀드 자세, 조금 더 당기기 (현재: {right_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
-                    else:
-                        feedback.append(f"홀드 자세, 조금 풀기 (현재: {right_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
-                is_correct = score == 100
-                message = "완벽한 홀드 자세!" if is_correct else ", ".join(feedback)
-                result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
-
-        if bbox:
-            x1, y1, x2, y2 = bbox
-            result['tracking'] = {'center_x': float((x1 + x2) / 2), 'center_y': float((y1 + y2) / 2), 'bbox': bbox}
-        return result
-
     def _analyze_upright_start(self, xy, conf, bbox=None):
         """업라이트 로우 시작"""
         threshold = AIServerConfig.CONFIDENCE_THRESHOLD
@@ -745,7 +635,10 @@ class PoseAnalyzer:
 
                 score = (50 if left_arm_ok else 0) + (50 if right_arm_ok else 0)
                 feedback = []
-                if not left_arm_ok or not right_arm_ok: feedback.append(f"팔 펴고 시작")
+                if not left_arm_ok:
+                    feedback.append(f"왼쪽 팔꿈치를 더 펴기 (현재: {left_elbow_angle:.0f}도, 목표: >{elbow_min}도)")
+                if not right_arm_ok:
+                    feedback.append(f"오른쪽 팔꿈치를 더 펴기 (현재: {right_elbow_angle:.0f}도, 목표: >{elbow_min}도)")
                 is_correct = score == 100
                 message = "시작 자세 완료!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -756,7 +649,7 @@ class PoseAnalyzer:
         return result
 
     def _analyze_upright_mid(self, xy, conf, bbox=None):
-        """업라이트 로우 중간"""
+        """업라이트 로우 당기기"""
         threshold = AIServerConfig.CONFIDENCE_THRESHOLD
         left_shoulder = xy[5] if conf[5] > threshold else None
         right_shoulder = xy[6] if conf[6] > threshold else None
@@ -772,75 +665,30 @@ class PoseAnalyzer:
         else:
             left_elbow_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
             right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
-
-            avg_shoulder_y = (left_shoulder[1] + right_shoulder[1]) / 2
-            avg_wrist_y = (left_wrist[1] + right_wrist[1]) / 2
-            wrist_height_ratio = (avg_shoulder_y - avg_wrist_y) / (avg_shoulder_y + 1e-6)
 
             if None in [left_elbow_angle, right_elbow_angle]:
                 result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '각도 계산 실패'}
             else:
                 min_angle = AIServerConfig.UPRIGHT_MID_ELBOW_ANGLE_MIN
                 max_angle = AIServerConfig.UPRIGHT_MID_ELBOW_ANGLE_MAX
-                height_min = AIServerConfig.UPRIGHT_MID_WRIST_HEIGHT_MIN
-                height_max = AIServerConfig.UPRIGHT_MID_WRIST_HEIGHT_MAX
 
                 left_arm_ok = min_angle <= left_elbow_angle <= max_angle
                 right_arm_ok = min_angle <= right_elbow_angle <= max_angle
-                height_ok = height_min <= wrist_height_ratio <= height_max
 
-                score = (33 if left_arm_ok else 0) + (33 if right_arm_ok else 0) + (34 if height_ok else 0)
+                score = (50 if left_arm_ok else 0) + (50 if right_arm_ok else 0)
                 feedback = []
-                if not left_arm_ok or not right_arm_ok: feedback.append(f"팔꿈치 조정")
-                if not height_ok: feedback.append(f"높이 조정")
-                is_correct = score >= 95
-                message = "중간 자세 완료!" if is_correct else ", ".join(feedback)
-                result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
-
-        if bbox:
-            x1, y1, x2, y2 = bbox
-            result['tracking'] = {'center_x': float((x1 + x2) / 2), 'center_y': float((y1 + y2) / 2), 'bbox': bbox}
-        return result
-
-    def _analyze_upright_top(self, xy, conf, bbox=None):
-        """업라이트 로우 최상단"""
-        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
-        left_shoulder = xy[5] if conf[5] > threshold else None
-        right_shoulder = xy[6] if conf[6] > threshold else None
-        left_elbow = xy[7] if conf[7] > threshold else None
-        right_elbow = xy[8] if conf[8] > threshold else None
-        left_wrist = xy[9] if conf[9] > threshold else None
-        right_wrist = xy[10] if conf[10] > threshold else None
-
-        arm_points = [left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist]
-
-        if any(p is None for p in arm_points):
-            result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '상체가 보이도록 위치해주세요'}
-        else:
-            left_elbow_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
-            right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
-
-            avg_shoulder_y = (left_shoulder[1] + right_shoulder[1]) / 2
-            avg_wrist_y = (left_wrist[1] + right_wrist[1]) / 2
-            wrist_height_ratio = (avg_shoulder_y - avg_wrist_y) / (avg_shoulder_y + 1e-6)
-
-            if None in [left_elbow_angle, right_elbow_angle]:
-                result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '각도 계산 실패'}
-            else:
-                min_angle = AIServerConfig.UPRIGHT_TOP_ELBOW_ANGLE_MIN
-                max_angle = AIServerConfig.UPRIGHT_TOP_ELBOW_ANGLE_MAX
-                height_min = AIServerConfig.UPRIGHT_TOP_WRIST_HEIGHT_MIN
-
-                left_arm_ok = min_angle <= left_elbow_angle <= max_angle
-                right_arm_ok = min_angle <= right_elbow_angle <= max_angle
-                height_ok = wrist_height_ratio > height_min
-
-                score = (33 if left_arm_ok else 0) + (33 if right_arm_ok else 0) + (34 if height_ok else 0)
-                feedback = []
-                if not left_arm_ok or not right_arm_ok: feedback.append(f"팔꿈치 각도 조정")
-                if not height_ok: feedback.append(f"더 높이 올리기")
-                is_correct = score >= 95
-                message = "완벽한 업라이트 로우!" if is_correct else ", ".join(feedback)
+                if not left_arm_ok:
+                    if left_elbow_angle < min_angle:
+                        feedback.append(f"왼쪽 팔꿈치를 더 굽히기 (현재: {left_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                    else:
+                        feedback.append(f"왼쪽 팔꿈치를 덜 굽히기 (현재: {left_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                if not right_arm_ok:
+                    if right_elbow_angle < min_angle:
+                        feedback.append(f"오른쪽 팔꿈치를 더 굽히기 (현재: {right_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                    else:
+                        feedback.append(f"오른쪽 팔꿈치를 덜 굽히기 (현재: {right_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                is_correct = score == 100
+                message = "업라이트 로우 완료!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
 
         if bbox:
@@ -876,7 +724,10 @@ class PoseAnalyzer:
 
                 score = (50 if left_knee_ok else 0) + (50 if right_knee_ok else 0)
                 feedback = []
-                if not left_knee_ok or not right_knee_ok: feedback.append(f"다리 펴고 서기")
+                if not left_knee_ok:
+                    feedback.append(f"왼쪽 무릎을 더 펴기 (현재: {left_knee_angle:.0f}도, 목표: >{knee_min}도)")
+                if not right_knee_ok:
+                    feedback.append(f"오른쪽 무릎을 더 펴기 (현재: {right_knee_angle:.0f}도, 목표: >{knee_min}도)")
                 is_correct = score == 100
                 message = "준비 자세 완료!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -1025,8 +876,16 @@ class PoseAnalyzer:
 
                 score = (50 if left_ok else 0) + (50 if right_ok else 0)
                 feedback = []
-                if not left_ok: feedback.append(f"왼쪽 무릎 조정")
-                if not right_ok: feedback.append(f"오른쪽 무릎 조정")
+                if not left_ok:
+                    if left_knee_angle < front_min:
+                        feedback.append(f"왼쪽 앞다리를 더 굽히기 (현재: {left_knee_angle:.0f}도, 목표: {front_min}-{front_max}도)")
+                    else:
+                        feedback.append(f"왼쪽 앞다리를 덜 굽히기 (현재: {left_knee_angle:.0f}도, 목표: {front_min}-{front_max}도)")
+                if not right_ok:
+                    if right_knee_angle < back_min:
+                        feedback.append(f"오른쪽 뒷다리를 더 굽히기 (현재: {right_knee_angle:.0f}도, 목표: {back_min}-{back_max}도)")
+                    else:
+                        feedback.append(f"오른쪽 뒷다리를 덜 굽히기 (현재: {right_knee_angle:.0f}도, 목표: {back_min}-{back_max}도)")
                 is_correct = score == 100
                 message = "완벽한 왼쪽 런지!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -1068,8 +927,16 @@ class PoseAnalyzer:
 
                 score = (50 if right_ok else 0) + (50 if left_ok else 0)
                 feedback = []
-                if not right_ok: feedback.append(f"오른쪽 무릎 조정")
-                if not left_ok: feedback.append(f"왼쪽 무릎 조정")
+                if not right_ok:
+                    if right_knee_angle < front_min:
+                        feedback.append(f"오른쪽 앞다리를 더 굽히기 (현재: {right_knee_angle:.0f}도, 목표: {front_min}-{front_max}도)")
+                    else:
+                        feedback.append(f"오른쪽 앞다리를 덜 굽히기 (현재: {right_knee_angle:.0f}도, 목표: {front_min}-{front_max}도)")
+                if not left_ok:
+                    if left_knee_angle < back_min:
+                        feedback.append(f"왼쪽 뒷다리를 더 굽히기 (현재: {left_knee_angle:.0f}도, 목표: {back_min}-{back_max}도)")
+                    else:
+                        feedback.append(f"왼쪽 뒷다리를 덜 굽히기 (현재: {left_knee_angle:.0f}도, 목표: {back_min}-{back_max}도)")
                 is_correct = score == 100
                 message = "완벽한 오른쪽 런지!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -1108,48 +975,18 @@ class PoseAnalyzer:
 
                 score = (50 if left_ok else 0) + (50 if right_ok else 0)
                 feedback = []
-                if not left_ok or not right_ok: feedback.append(f"어깨 높이로 바벨 위치")
+                if not left_ok:
+                    if left_elbow_angle < min_angle:
+                        feedback.append(f"왼쪽 팔꿈치를 더 굽혀 어깨 높이 맞추기 (현재: {left_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                    else:
+                        feedback.append(f"왼쪽 팔꿈치를 덜 굽혀 어깨 높이 맞추기 (현재: {left_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                if not right_ok:
+                    if right_elbow_angle < min_angle:
+                        feedback.append(f"오른쪽 팔꿈치를 더 굽혀 어깨 높이 맞추기 (현재: {right_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                    else:
+                        feedback.append(f"오른쪽 팔꿈치를 덜 굽혀 어깨 높이 맞추기 (현재: {right_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
                 is_correct = score == 100
                 message = "시작 자세 완료!" if is_correct else ", ".join(feedback)
-                result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
-
-        if bbox:
-            x1, y1, x2, y2 = bbox
-            result['tracking'] = {'center_x': float((x1 + x2) / 2), 'center_y': float((y1 + y2) / 2), 'bbox': bbox}
-        return result
-
-    def _analyze_overhead_mid(self, xy, conf, bbox=None):
-        """오버헤드 프레스 중간"""
-        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
-        left_shoulder = xy[5] if conf[5] > threshold else None
-        right_shoulder = xy[6] if conf[6] > threshold else None
-        left_elbow = xy[7] if conf[7] > threshold else None
-        right_elbow = xy[8] if conf[8] > threshold else None
-        left_wrist = xy[9] if conf[9] > threshold else None
-        right_wrist = xy[10] if conf[10] > threshold else None
-
-        arm_points = [left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist]
-
-        if any(p is None for p in arm_points):
-            result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '상체가 보이도록 위치해주세요'}
-        else:
-            left_elbow_angle = self._calculate_angle(left_shoulder, left_elbow, left_wrist)
-            right_elbow_angle = self._calculate_angle(right_shoulder, right_elbow, right_wrist)
-
-            if None in [left_elbow_angle, right_elbow_angle]:
-                result = {'status': 'success', 'is_correct': False, 'score': 0, 'feedback': '각도 계산 실패'}
-            else:
-                min_angle = AIServerConfig.OVERHEAD_MID_ELBOW_ANGLE_MIN
-                max_angle = AIServerConfig.OVERHEAD_MID_ELBOW_ANGLE_MAX
-
-                left_ok = min_angle <= left_elbow_angle <= max_angle
-                right_ok = min_angle <= right_elbow_angle <= max_angle
-
-                score = (50 if left_ok else 0) + (50 if right_ok else 0)
-                feedback = []
-                if not left_ok or not right_ok: feedback.append(f"바벨 올리는 중")
-                is_correct = score == 100
-                message = "중간 단계 완료!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
 
         if bbox:
@@ -1185,7 +1022,10 @@ class PoseAnalyzer:
 
                 score = (50 if left_ok else 0) + (50 if right_ok else 0)
                 feedback = []
-                if not left_ok or not right_ok: feedback.append(f"팔 완전히 펴기")
+                if not left_ok:
+                    feedback.append(f"왼쪽 팔을 더 펴기 (현재: {left_elbow_angle:.0f}도, 목표: >{elbow_min}도)")
+                if not right_ok:
+                    feedback.append(f"오른쪽 팔을 더 펴기 (현재: {right_elbow_angle:.0f}도, 목표: >{elbow_min}도)")
                 is_correct = score == 100
                 message = "완벽한 오버헤드 프레스!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -1223,7 +1063,10 @@ class PoseAnalyzer:
 
                 score = (50 if left_ok else 0) + (50 if right_ok else 0)
                 feedback = []
-                if not left_ok or not right_ok: feedback.append(f"팔 펴고 시작")
+                if not left_ok:
+                    feedback.append(f"왼쪽 팔을 더 펴기 (현재: {left_elbow_angle:.0f}도, 목표: >{elbow_min}도)")
+                if not right_ok:
+                    feedback.append(f"오른쪽 팔을 더 펴기 (현재: {right_elbow_angle:.0f}도, 목표: >{elbow_min}도)")
                 is_correct = score == 100
                 message = "시작 자세 완료!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -1262,7 +1105,16 @@ class PoseAnalyzer:
 
                 score = (50 if left_ok else 0) + (50 if right_ok else 0)
                 feedback = []
-                if not left_ok or not right_ok: feedback.append(f"팔꿈치 굽히기")
+                if not left_ok:
+                    if left_elbow_angle < min_angle:
+                        feedback.append(f"왼쪽 팔꿈치를 더 굽히기 (현재: {left_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                    else:
+                        feedback.append(f"왼쪽 팔꿈치를 덜 굽히기 (현재: {left_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                if not right_ok:
+                    if right_elbow_angle < min_angle:
+                        feedback.append(f"오른쪽 팔꿈치를 더 굽히기 (현재: {right_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                    else:
+                        feedback.append(f"오른쪽 팔꿈치를 덜 굽히기 (현재: {right_elbow_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
                 is_correct = score == 100
                 message = "완벽한 컬!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -1305,8 +1157,13 @@ class PoseAnalyzer:
 
                 score = 100 if lunge_ok else 0
                 feedback = []
-                if not left_bent: feedback.append(f"왼쪽 무릎 더 굽히기")
-                if not right_straight: feedback.append(f"오른쪽 다리 펴기")
+                if not left_bent:
+                    if left_knee_angle < min_angle:
+                        feedback.append(f"왼쪽 무릎을 더 굽히기 (현재: {left_knee_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                    else:
+                        feedback.append(f"왼쪽 무릎을 덜 굽히기 (현재: {left_knee_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                if not right_straight:
+                    feedback.append(f"오른쪽 다리를 더 펴기 (현재: {right_knee_angle:.0f}도, 목표: >{straight_min}도)")
                 is_correct = score == 100
                 message = "완벽한 왼쪽 런지!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}
@@ -1349,8 +1206,13 @@ class PoseAnalyzer:
 
                 score = 100 if lunge_ok else 0
                 feedback = []
-                if not right_bent: feedback.append(f"오른쪽 무릎 더 굽히기")
-                if not left_straight: feedback.append(f"왼쪽 다리 펴기")
+                if not right_bent:
+                    if right_knee_angle < min_angle:
+                        feedback.append(f"오른쪽 무릎을 더 굽히기 (현재: {right_knee_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                    else:
+                        feedback.append(f"오른쪽 무릎을 덜 굽히기 (현재: {right_knee_angle:.0f}도, 목표: {min_angle}-{max_angle}도)")
+                if not left_straight:
+                    feedback.append(f"왼쪽 다리를 더 펴기 (현재: {left_knee_angle:.0f}도, 목표: >{straight_min}도)")
                 is_correct = score == 100
                 message = "완벽한 오른쪽 런지!" if is_correct else ", ".join(feedback)
                 result = {'status': 'success', 'is_correct': is_correct, 'score': score, 'feedback': message}

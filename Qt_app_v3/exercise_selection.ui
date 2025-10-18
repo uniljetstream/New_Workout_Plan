@@ -166,29 +166,6 @@ QScrollBar::handle:vertical:hover { background: #555; }</string>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="pushupButton">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>80</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>푸쉬업</string>
-           </property>
-           <property name="font">
-            <font>
-             <pointsize>18</pointsize>
-             <weight>75</weight>
-             <bold>true</bold>
-            </font>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">background-color: #95E1D3; color: white; border-radius: 10px; text-align: left; padding-left: 30px;</string>
-           </property>
-          </widget>
-         </item>
-         <item>
           <widget class="QPushButton" name="plankButton">
            <property name="minimumSize">
             <size>

@@ -1420,7 +1420,11 @@ void MainWindow::setFeedbackBanner(const QString &message, bool success)
                               ? QStringLiteral("font-size: 32px; font-weight: bold; color: #2ecc71;")
                               : QStringLiteral("font-size: 32px; font-weight: bold; color: #e74c3c;");
 
-    const QString finalMsg = success ? tr("좋은 자세입니다!") : message;
+    QString finalMsg = message.trimmed();
+    if (finalMsg.isEmpty() && success)
+    {
+        finalMsg = tr("좋은 자세입니다!");
+    }
 
     updateFeedbackLabel(finalMsg, style, true);
     m_manualFeedbackActive = true;
@@ -1518,8 +1522,8 @@ void MainWindow::initializeRoutineMode(const QString &routineMode)
 
     if (routineMode == "bodyweight_routine")
     {
-        m_routineExercises << "squat" << "pushup" << "lunge";
-        m_routineScores = QVector<int>(3, 0);
+        m_routineExercises << "squat" << "lunge";
+        m_routineScores = QVector<int>(2, 0);
     }
     else if (routineMode == "kettlebell_routine")
     {

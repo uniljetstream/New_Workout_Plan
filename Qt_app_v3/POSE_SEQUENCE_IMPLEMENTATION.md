@@ -29,7 +29,6 @@ T-Pose 삭제 및 9개 운동 종목 정의:
 ```cpp
 static QMap<QString, QString> exerciseMap = {
     {"스쿼트", "squat"},                      // 구현됨
-    {"푸시업", "pushup"},                     // 구현됨
     {"플랭크", "plank"},                      // 미구현
     {"런지", "lunge"},                        // 미구현
     {"점핑잭", "jumping_jack"},               // 미구현
@@ -44,9 +43,8 @@ static QMap<QString, QString> exerciseMap = {
 
 **구현된 운동:**
 - `on_squatButton_clicked()` → 스쿼트 시작
-- `on_pushupButton_clicked()` → 푸시업 시작
 
-**미구현 운동 (7개):**
+**미구현 운동 (기타):**
 - 나머지 버튼들은 "곧 출시됩니다" 메시지 표시
 
 ### 4. 모드 선택 응답 파싱 (handleQtResponse)
@@ -128,6 +126,10 @@ ui_workout->feedbackLabel->setText("스쿼트 준비 자세 (선 자세)");
 ui_workout->repCountLabel->setText("반복 횟수: 3");
 ```
 
+### 7. 최신 포즈 구성 참고
+
+- 바벨 오버헤드 프레스는 AI 서버와 Qt 모두 2개 포즈(시작 `overhead_start`, 완료 `overhead_top`)만 사용하도록 단순화되었습니다. 서버에서 내려오는 포즈 배열이 즉시 UI에 반영되므로 별도 수동 설정 없이 Start → Top 순서를 반복합니다.
+
 ## 데이터 흐름
 
 ### 운동 시작 시퀀스
@@ -166,13 +168,6 @@ ui_workout->repCountLabel->setText("반복 횟수: 3");
    - 엉덩이-무릎-발목 각도 > 160°
 2. **squat_down**: 스쿼트 자세 (무릎 90도)
    - 무릎 각도 80°~100°
-
-### 푸시업 (pushup)
-1. **pushup_up**: 푸시업 준비 자세 (팔 펴기)
-   - 팔꿈치 각도 > 160°
-2. **pushup_down**: 푸시업 자세 (팔 굽히기)
-   - 팔꿈치 각도 70°~110°
-   - 몸통 정렬 < 20°
 
 ## 향후 작업
 
@@ -222,14 +217,6 @@ ui_workout->repCountLabel->setText("반복 횟수: 3");
 6. 무릎 90도 자세 유지 → `is_correct: true` → 반복 완료
 7. UI 확인: "반복 횟수: 1" / 다시 1번 포즈로 리셋
 
-### 푸시업 3회 반복 시나리오
-1. "푸시업" 버튼 클릭
-2. "시작" 버튼 클릭
-3. 팔 펴기 → 팔 굽히기 → 반복 1회 완료
-4. 팔 펴기 → 팔 굽히기 → 반복 2회 완료
-5. 팔 펴기 → 팔 굽히기 → 반복 3회 완료
-6. UI 확인: "반복 횟수: 3"
-
 ## 파일 수정 내역
 
 ### mainwindow.h
@@ -242,7 +229,7 @@ ui_workout->repCountLabel->setText("반복 횟수: 3");
 ### mainwindow.cpp
 - 생성자에서 포즈 변수 초기화
 - `convertExerciseNameToMode()`: T-Pose 삭제, 9개 운동 매핑
-- 버튼 핸들러 수정 (스쿼트/푸시업만 구현)
+- 버튼 핸들러 수정 (스쿼트만 구현)
 - `handleQtResponse()`: 포즈 배열 파싱 추가
 - `updateWorkoutFeedback()`: 포즈 전환 로직 추가
 - 헬퍼 메서드 구현:
