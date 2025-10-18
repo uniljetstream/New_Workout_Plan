@@ -805,14 +805,14 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
                         if (m_isRoutineMode)
                         {
                             m_routineExerciseRepCount++;
-                            
+
                             if (m_currentRoutineIndex < m_routineScores.size())
                             {
                                 m_routineScores[m_currentRoutineIndex] = currentScore;
                             }
-                            
+
                             updateRoutineInfo();
-                            
+
                             if (m_routineExerciseRepCount >= REPS_PER_ROUTINE_EXERCISE)
                             {
                                 qDebug() << "Routine exercise completed! Moving to next...";
@@ -824,6 +824,7 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
 
                         m_currentPoseIndex = 0;
                         updatePoseDisplay();
+                        sendPoseIndex(m_currentPoseIndex);  // Send pose index to AI server via MQTT
                     }
                     else
                     {
@@ -1247,6 +1248,7 @@ void MainWindow::nextPose()
     {
         m_currentPoseIndex++;
         updatePoseDisplay();
+        sendPoseIndex(m_currentPoseIndex);  // Send pose index to AI server via MQTT
         qDebug() << "Moving to next pose:" << (m_currentPoseIndex + 1) << "/" << m_totalPoses;
     }
     else

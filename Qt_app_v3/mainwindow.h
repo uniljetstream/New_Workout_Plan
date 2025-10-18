@@ -164,10 +164,12 @@ private:
     void nextPose();
     bool isLastPose() const;
     void handleSquatPoseSuccess();
+    void handleLungePoseSuccess();
     void resetPoseSuccessState();
     QString currentPoseName() const;
     void setFeedbackBanner(const QString &message, bool success);
     QString squatInstructionText(int poseIndex) const;
+    QString lungeInstructionText(int poseIndex) const;
     void updateFeedbackLabel(const QString &baseMessage, const QString &styleSheet = QString(), bool includeServerFeedback = true);
     QString composeFeedbackMessage(const QString &baseMessage, bool includeServerFeedback) const;
     QString translateFeedbackText(const QString &feedback) const;

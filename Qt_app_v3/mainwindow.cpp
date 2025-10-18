@@ -785,14 +785,24 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
 
             if (m_poseSuccessCounter >= poseSuccessThreshold)
             {
+                // 성공 시 서버 피드백 표시 (모든 운동)
+                QString successMessage = tr("성공!");
+                if (!m_lastServerFeedback.isEmpty())
+                {
+                    successMessage = m_lastServerFeedback;
+                }
+                setFeedbackBanner(successMessage, true);
+
                 if (m_currentMode == "squat")
                 {
                     handleSquatPoseSuccess();
                 }
+                else if (m_currentMode == "lunge")
+                {
+                    handleLungePoseSuccess();
+                }
                 else
                 {
-                    setFeedbackBanner(tr("좋은 자세입니다!"), true);
-
                     if (isLastPose())
                     {
                         m_repCount++;
@@ -805,14 +815,14 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
                         if (m_isRoutineMode)
                         {
                             m_routineExerciseRepCount++;
-                            
+
                             if (m_currentRoutineIndex < m_routineScores.size())
                             {
                                 m_routineScores[m_currentRoutineIndex] = currentScore;
                             }
-                            
+
                             updateRoutineInfo();
-                            
+
                             if (m_routineExerciseRepCount >= REPS_PER_ROUTINE_EXERCISE)
                             {
                                 qDebug() << "Routine exercise completed! Moving to next...";
@@ -824,6 +834,7 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
 
                         m_currentPoseIndex = 0;
                         updatePoseDisplay();
+                        sendPoseIndex(m_currentPoseIndex);  // Send pose index to WatchTower via MQTT
                     }
                     else
                     {
@@ -842,14 +853,11 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
         {
             m_poseSuccessCounter = 0;
 
-            QString failureMessage;
-            if (m_currentMode == "squat")
+            // 실패 시 서버 피드백 표시 (모든 운동)
+            QString failureMessage = tr("실패! 다시 시도하세요.");
+            if (!m_lastServerFeedback.isEmpty())
             {
-                failureMessage = tr("실패! 다시 시도하세요.\n%1").arg(squatInstructionText(m_currentPoseIndex));
-            }
-            else
-            {
-                failureMessage = tr("실패! 다시 시도하세요.");
+                failureMessage = tr("실패!\n%1").arg(m_lastServerFeedback);
             }
 
             setFeedbackBanner(failureMessage, false);
@@ -1283,10 +1291,60 @@ void MainWindow::handleSquatPoseSuccess()
         {
             m_routineExerciseRepCount++;
             updateRoutineInfo();
-            
+
             if (m_routineExerciseRepCount >= REPS_PER_ROUTINE_EXERCISE)
             {
                 qDebug() << "Squat routine exercise completed!";
+                completeRoutineExercise();
+                return;
+            }
+        }
+
+        setFeedbackBanner(tr("좋은 자세입니다!"), true);
+
+        m_currentPoseIndex = 0;
+        updatePoseDisplay();
+        sendPoseIndex(m_currentPoseIndex);
+    }
+}
+
+void MainWindow::handleLungePoseSuccess()
+{
+    if (m_currentPoseIndex == 0)
+    {
+        // lunge_center -> lunge_left
+        setFeedbackBanner(tr("좋은 자세입니다!"), true);
+
+        m_currentPoseIndex = 1;
+        updatePoseDisplay();
+        sendPoseIndex(m_currentPoseIndex);
+    }
+    else if (m_currentPoseIndex == 1)
+    {
+        // lunge_left -> lunge_right
+        setFeedbackBanner(tr("좋은 자세입니다!"), true);
+
+        m_currentPoseIndex = 2;
+        updatePoseDisplay();
+        sendPoseIndex(m_currentPoseIndex);
+    }
+    else if (m_currentPoseIndex == 2)
+    {
+        // lunge_right -> 완료 (rep 증가)
+        m_repCount++;
+        if (m_workoutPage)
+        {
+            m_workoutPage->setRepCount(m_repCount);
+        }
+
+        if (m_isRoutineMode)
+        {
+            m_routineExerciseRepCount++;
+            updateRoutineInfo();
+
+            if (m_routineExerciseRepCount >= REPS_PER_ROUTINE_EXERCISE)
+            {
+                qDebug() << "Lunge routine exercise completed!";
                 completeRoutineExercise();
                 return;
             }
@@ -1330,6 +1388,23 @@ QString MainWindow::squatInstructionText(int poseIndex) const
     if (poseIndex == 1)
     {
         return tr("스쿼트 내려가기 자세를 유지하세요.");
+    }
+    return tr("자세를 유지하세요.");
+}
+
+QString MainWindow::lungeInstructionText(int poseIndex) const
+{
+    if (poseIndex == 0)
+    {
+        return tr("런지 준비 자세 - 바르게 서세요.");
+    }
+    if (poseIndex == 1)
+    {
+        return tr("왼쪽 다리로 런지 자세를 유지하세요.");
+    }
+    if (poseIndex == 2)
+    {
+        return tr("오른쪽 다리로 런지 자세를 유지하세요.");
     }
     return tr("자세를 유지하세요.");
 }

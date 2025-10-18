@@ -13,12 +13,9 @@ const QVector<ExerciseOption> &exerciseCatalog()
                                                     {QStringLiteral("푸시업"),                 QStringLiteral("pushup")},
                                                     {QStringLiteral("런지"),                   QStringLiteral("lunge")},
 
-                                                    // [개별 케틀벨 운동 - 5개]
+                                                    // [개별 케틀벨 운동 - 2개]
                                                     {QStringLiteral("케틀벨 스윙"),            QStringLiteral("kettlebell_swing")},
                                                     {QStringLiteral("케틀벨 데드리프트"),      QStringLiteral("kettlebell_deadlift")},
-                                                    {QStringLiteral("사이드 런지"),            QStringLiteral("side_lunge")},
-                                                    {QStringLiteral("브릿지"),                 QStringLiteral("bridge")},
-                                                    {QStringLiteral("니 드라이브"),            QStringLiteral("knee_drive")},
 
                                                     // [개별 바벨 운동 - 5개]
                                                     {QStringLiteral("바벨 로우"),              QStringLiteral("barbell_row")},
