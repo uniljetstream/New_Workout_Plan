@@ -34,6 +34,9 @@ class WatchTowerMain:
         self.pantilt_tracking_enabled = False
         self.first_analysis_received = False
         self.streaming_thread = None
+        self.analysis_request_pending = False
+        self.analysis_request_timestamp = 0.0
+        self.analysis_request_pose_index = None
 
     def start(self):
         """시스템 시작"""
@@ -62,6 +65,8 @@ class WatchTowerMain:
         self.mqtt.on_qt_stop_callback = self.handle_qt_stop
         self.mqtt.on_joystick_data_callback = self.handle_joystick_data
         self.mqtt.on_watch_data_callback = self.handle_watch_data
+        self.mqtt.on_qt_pose_index_callback = self.handle_qt_pose_index
+        self.mqtt.on_qt_request_analysis_callback = self.handle_qt_request_analysis
 
         # 조이스틱을 기본 에어마우스 모드로 설정
         print("\n[3] 조이스틱 에어마우스 모드 설정 (MQTT)")
@@ -94,16 +99,31 @@ class WatchTowerMain:
             # 실패 시 Qt에 에러 응답
             error_msg = result.get('error', 'Unknown error')
             print(f"✗ 모드 선택 실패: {error_msg}")
+            self.mqtt.last_pose_sequence = {}
             self.mqtt.send_qt_mode_selected(mode, success=False, message=error_msg)
             return
 
         print(f"✓ AI 서버 모드 선택 완료")
+
+        # Save pose sequence for Qt response
+        pose_payload = {
+            'poses': result.get('poses', []),
+            'total_poses': result.get('total_poses', len(result.get('poses', [])))
+        }
+        self.mqtt.last_pose_sequence = pose_payload
+
+        # 초기 포즈 인덱스 0으로 설정
+        self.http.set_pose_index(0)
+        self.analysis_request_pending = False
+        self.analysis_request_timestamp = 0.0
+        self.analysis_request_pose_index = None
 
         # Step 2: 조이스틱을 센서 모드로 전환 (MQTT)
         print(f"\n[Step 2] 조이스틱을 센서 모드로 전환 (MQTT)")
         if not self.mqtt.send_joystick_mode_command('sensor'):
             print(f"✗ 조이스틱 센서 모드 전환 실패")
             self.mqtt.send_qt_mode_selected(mode, success=False, message="조이스틱 모드 전환 실패")
+            self.mqtt.last_pose_sequence = {}
             return
 
         # Step 3: 조이스틱과 Watch에 시작 명령 전송 (MQTT)
@@ -113,6 +133,7 @@ class WatchTowerMain:
             # 센서 모드 전환이 성공했었다면 에어마우스로 복구 시도
             self.mqtt.send_joystick_mode_command('airmouse')
             self.mqtt.send_qt_mode_selected(mode, success=False, message="디바이스 연결 실패")
+            self.mqtt.last_pose_sequence = {}
             return
 
         print(f"✓ 디바이스 시작 명령 전송 완료")
@@ -123,6 +144,7 @@ class WatchTowerMain:
             print(f"✗ 카메라 스트리밍 시작 실패")
             self.mqtt.send_joystick_mode_command('airmouse')
             self.mqtt.send_qt_mode_selected(mode, success=False, message="카메라 초기화 실패")
+            self.mqtt.last_pose_sequence = {}
             return
 
         # Step 5: Qt에 성공 응답 전송
@@ -132,6 +154,37 @@ class WatchTowerMain:
         self.current_mode = mode
         print(f"\n✓ 운동 시작: {mode}")
         print(f"{'='*60}\n")
+
+    def handle_qt_pose_index(self, mode, pose_index):
+        """Qt에서 전달한 포즈 인덱스를 AI 서버에 반영"""
+        target_mode = mode or self.current_mode
+
+        if target_mode and self.current_mode and target_mode != self.current_mode:
+            print(f"⚠ 포즈 인덱스 모드 불일치: Qt={target_mode}, 현재={self.current_mode}")
+
+        if self.http.set_pose_index(pose_index):
+            print(f"✓ 포즈 인덱스 업데이트: {pose_index}")
+            self.analysis_request_pose_index = pose_index
+        else:
+            print(f"✗ 포즈 인덱스 설정 실패: {pose_index}")
+
+    def handle_qt_request_analysis(self, mode, pose_index):
+        """Qt에서 단일 분석을 요청했을 때 호출"""
+        if mode and self.current_mode and mode != self.current_mode:
+            print(f"⚠ 분석 요청 모드 불일치: Qt={mode}, 현재={self.current_mode}")
+
+        if pose_index is not None:
+            if self.http.set_pose_index(pose_index):
+                self.analysis_request_pose_index = pose_index
+            else:
+                print(f"✗ 분석 요청 중 포즈 인덱스 설정 실패: {pose_index}")
+                self.analysis_request_pose_index = self.http.current_pose_index
+        else:
+            self.analysis_request_pose_index = self.http.current_pose_index
+
+        self.analysis_request_pending = True
+        self.analysis_request_timestamp = time.time()
+        print("→ 단일 분석 요청 플래그 설정")
 
     def handle_qt_stop(self, timestamp):
         """
@@ -287,6 +340,11 @@ class WatchTowerMain:
         self.is_streaming = True
         self.pantilt_tracking_enabled = False
         self.first_analysis_received = False
+        self.analysis_request_pending = False
+        self.analysis_request_timestamp = 0.0
+        self.analysis_request_pose_index = None
+        self.analysis_request_pose_index = None
+        self.analysis_request_pending = False
 
         # 백그라운드 스레드로 스트리밍 루프 시작
         self.streaming_thread = threading.Thread(
@@ -330,8 +388,16 @@ class WatchTowerMain:
                 # Base64 변환 (Qt 스트리밍 및 AI 서버 전송에 사용)
                 frame_base64 = base64.b64encode(encoded_frame).decode('utf-8')
 
-                # AI 서버에 프레임 전송 및 분석 결과 수신
-                result = self.http.send_frame(frame_base64=frame_base64)
+                result = None
+                if self.analysis_request_pending:
+                    print("→ 단일 분석 실행")
+                    pose_index = self.analysis_request_pose_index
+                    result = self.http.send_frame(
+                        frame_base64=frame_base64,
+                        pose_index=pose_index
+                    )
+                    self.analysis_request_pending = False
+                    self.analysis_request_pose_index = None
 
                 # Qt 앱에 프레임 전송
                 metadata = {
@@ -407,6 +473,8 @@ class WatchTowerMain:
         self.is_streaming = False
         self.pantilt_tracking_enabled = False
         self.first_analysis_received = False
+        self.analysis_request_pending = False
+        self.analysis_request_timestamp = 0.0
 
         # 스레드 종료 대기
         if self.streaming_thread and self.streaming_thread.is_alive():

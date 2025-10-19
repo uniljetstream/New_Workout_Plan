@@ -49,7 +49,7 @@ class HTTPClient:
         운동 모드 선택
 
         Args:
-            mode: 운동 모드 ('squat', 'pushup', etc.)
+            mode: 운동 모드 ('squat', 'lunge', etc.)
 
         Returns:
             dict: 성공 시 {'success': True, 'message': '...'}, 실패 시 {'success': False, 'error': '...'}

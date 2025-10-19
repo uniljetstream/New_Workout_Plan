@@ -4,597 +4,496 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**New_Workout_Plan** is a home training system using camera and accelerometer/heart rate sensors. The system uses MQTT for device communication, YOLO Pose for exercise pose detection, and Flask for AI server API.
+This is a **home workout training system** integrating multiple embedded devices and AI-powered pose analysis. The system comprises:
 
-### System Architecture
+- **Qt Application** (Qt 5.12+ with C++17): Desktop UI for workout selection, real-time feedback, and air mouse control
+- **AI Server** (Flask + YOLOv11 Pose): Analyzes exercise form and provides real-time feedback
+- **WatchTower** (Python): Orchestration layer coordinating MQTT, HTTP, camera streaming, and pan-tilt tracking
+- **ESP32 Joystick** (ESP-IDF): MPU6050-based air mouse and sensor data publisher
+- **Smart Watch** (ESP32 + LVGL): ST7789 LCD touchscreen interface with WiFi connectivity
 
-The project consists of 4 main components:
+**Communication Architecture**: All components communicate via MQTT (Mosquitto broker on Jetson Nano), with AI analysis via HTTP/REST.
 
-1. **AI Server** - Flask server running YOLO v11 Pose model for exercise pose detection
-2. **WatchTower (Jetson Nano)** - MQTT Broker, camera streaming client, and main controller
-3. **Smart Watch (ESP32)** - Heart rate sensor and display, MQTT publisher
-4. **Joystick (ESP32)** - MPU6050 accelerometer sensor, MQTT publisher for motion tracking
+## System Architecture
 
-Communication flow:
-- **MQTT**: Smart Watch & Joystick → WatchTower (Broker)
-- **HTTP/REST**: WatchTower ↔ AI Server (images/videos + pose analysis results)
+### High-Level Data Flow
 
-### Current Branch Status
-
-Current development branch: `WatchTower-joystick` (main branch: `main`)
-
-Key branches:
-- `WatchTower-joystick` - Joystick with airmouse mode (current)
-- `WatchTower` - Main integrated system
-- `server` - AI server development
-- `jetson_mqtt` - MQTT testing
-
-## Development Environment
-
-### Python Environment
-
-Python 3.10.12 virtual environment is located at `venv/`. Activate before working on Python code:
-
-```bash
-source venv/bin/activate
+```
+┌─────────────┐      MQTT       ┌──────────────┐      MQTT      ┌────────────┐
+│  Qt App     │ ←──────────────→ │  WatchTower  │ ←────────────→ │  Joystick  │
+│ (Desktop UI)│                  │   (Jetson)   │                │  (ESP32)   │
+└─────────────┘                  └──────────────┘                └────────────┘
+                                        │
+                                        │ HTTP
+                                        ↓
+                                 ┌──────────────┐
+                                 │  AI Server   │
+                                 │ (Flask+YOLO) │
+                                 └──────────────┘
+                                        │
+                                        │ UART
+                                        ↓
+                                 ┌──────────────┐
+                                 │  Pan-Tilt    │
+                                 │   (STM32)    │
+                                 └──────────────┘
 ```
 
-Main Python dependencies:
-- **OpenCV** (`cv2`) - Camera capture and video processing
-- **ultralytics** - YOLO v11 Pose model
-- **Flask** - AI server REST API
-- **requests** - HTTP client for WatchTower
-- **paho-mqtt** - MQTT client/broker communication
-- **pyserial** - UART communication with STM32
-- **numpy** - Pose angle calculations
+### Communication Protocols
 
-Install all dependencies:
+**MQTT Topics** (Broker: Jetson Nano at 10.10.16.111:1883):
+- `qt/command/*` - Qt → WatchTower commands (select_mode, start, stop, pose_index, request_analysis)
+- `qt/response/*` - WatchTower → Qt responses (mode_selected, analysis, frame, error, status)
+- `watchtower/command/*` - WatchTower → Devices commands (joystick, watch)
+- `joystick/sensor/data` - Joystick → Qt (air mouse or sensor data)
+- `watch/sensor/heartrate` - Watch → Qt (heart rate data)
+
+**HTTP API** (AI Server at 192.168.1.100:5000):
+- `POST /api/mode/select` - Select exercise mode
+- `POST /api/stream/frame` - Analyze single frame
+- `POST /api/stream/stop` - Stop streaming analysis
+- `GET /api/status` - Server status
+- `GET /api/health` - Health check
+
+### Exercise Modes & Pose Sequences
+
+The AI server supports 17 exercises organized into 3 routines + 14 individual exercises:
+
+-**Routines**:
+- `bodyweight_routine`: squat, lunge (2 poses)
+- `kettlebell_routine`: kettlebell_swing, kettlebell_deadlift, side_lunge, bridge, knee_drive (5 poses)
+- `barbell_routine`: barbell_row, barbell_upright_row, barbell_overhead_press, barbell_biceps_curl, barbell_reverse_curl (5 poses)
+
+**Individual Exercises**: squat, lunge, kettlebell_swing, kettlebell_deadlift, side_lunge, bridge, knee_drive, barbell_row, barbell_upright_row, barbell_overhead_press, barbell_biceps_curl, barbell_reverse_curl
+
+Each exercise has multiple pose checkpoints (e.g., squat has "stand" and "down"). Qt cycles through poses using `pose_index`.
+
+## Build & Run Commands
+
+### Qt Application (Desktop UI)
+
+**Location**: `Qt_app_ver2/`
+
+**Requirements**: Qt 5.12+, Qt MQTT module, C++17 compiler
+
 ```bash
-pip install opencv-python ultralytics flask requests paho-mqtt pyserial numpy
+cd Qt_app_ver2
+
+# Build with qmake
+qmake workout_app.pro
+make
+
+# Run
+./workout_app
+
+# Or use Qt Creator
+# 1. Open workout_app.pro in Qt Creator
+# 2. Build and run (Ctrl+R)
 ```
 
-### ESP32 Components (ESP-IDF)
+**Configuration**: Edit `config.json` to set MQTT broker address, topics, and UI settings.
 
-ESP-IDF project: `mpu6050_mqtt/`
+### AI Server (Flask)
 
-Load ESP-IDF environment:
+**Location**: `ai_server_v1/`
+
+**Requirements**: Python 3.x, Flask, OpenCV, NumPy, YOLOv11 Pose model
+
 ```bash
-get_idf  # Alias for '. $HOME/esp/esp-idf/export.sh'
-```
+cd ai_server_v1
 
-Build and flash ESP32:
-```bash
-cd mpu6050_mqtt
-idf.py build
-idf.py -p /dev/ttyUSB0 flash monitor
-```
+# Install dependencies (first time)
+pip install flask opencv-python numpy ultralytics
 
-Configure ESP32 project:
-```bash
-cd mpu6050_mqtt
-idf.py menuconfig
-```
-
-## Code Structure
-
-### WatchTower Integrated System (`WatchTower/`)
-
-**Complete system integrating Qt UI, MQTT broker, HTTP client, camera, and pan-tilt control:**
-
-- `watchtower_main.py` - Main system orchestrator
-  - Integrates MQTT, HTTP, camera, and UART
-  - Handles Qt commands and device coordination
-  - Background streaming thread for camera
-- `mqtt_controller.py` - MQTT broker and device communication
-  - Subscribes to Qt commands, Joystick/Watch sensor data
-  - Publishes commands to devices and responses to Qt
-  - Handles WatchTower protocol (start/stop/mode selection)
-- `http_client.py` - AI server communication
-  - REST API client for pose analysis
-  - Frame transmission and result reception
-  - Manages pose sequences (stores poses list, current pose index)
-  - Methods: `send_frame(frame, pose_index)`, `set_pose_index(idx)`, `get_current_pose_info()`
-- `uart_controller.py` - STM32 serial communication for pan-tilt
-- `pantilt_tracker.py` - YOLO-based person tracking algorithm
-- `watchtower_config.py` - Centralized configuration
-
-**Run integrated WatchTower system:**
-```bash
-cd WatchTower
-python watchtower_main.py
-```
-
-This system waits for Qt commands via MQTT to start workout sessions.
-
-### MQTT Testing Tool (`WatchTower_test/`)
-
-**CLI tool for testing MQTT communication without Qt/AI server:**
-
-- `mqtt_test.py` - Main CLI interface for MQTT testing
-- `mqtt_controller.py` - Simplified MQTT controller
-- `mqtt_config.py` - MQTT-only configuration
-
-**Test MQTT communication:**
-```bash
-# Start MQTT broker first
-sudo systemctl start mosquitto
-
-# Run test tool
-cd WatchTower_test
-python mqtt_test.py
-
-# Commands in CLI:
-# 1 - Send start command to devices
-# 2 - Send stop command to devices
-# 3 - Show statistics
-# q - Quit
-```
-
-This tool is useful for:
-- Testing Joystick and Watch MQTT connectivity
-- Debugging sensor data format
-- Verifying command transmission
-- Monitoring real-time sensor data without full system
-
-See [WatchTower_test/README.md](WatchTower_test/README.md) for detailed usage.
-
-### AI Server (`ai_server/`)
-
-**Flask server for YOLO Pose analysis with multi-pose sequence support:**
-
-- `ai_server.py` - Flask REST API server
-- `pose_analyzer.py` - YOLO Pose analysis module (PoseAnalyzer class)
-  - Manages pose sequences within each exercise mode
-  - Supports multiple poses per exercise (e.g., squat has stand + down poses)
-- `ai_config.py` - Configuration (host, port, model path, pose sequences, thresholds)
-  - `MODE_POSES` defines pose sequences for each exercise mode
-  - Each pose has `name`, `description`, and `duration`
-
-**Legacy Streaming Code** (`streaming/`):
-- `streaming/watchtower/` - Old standalone client (deprecated, use `WatchTower/` instead)
-- `streaming/streaming/` - Old TCP streaming implementation (deprecated)
-
-### MQTT Device Code (`mpu6050_mqtt/`)
-
-ESP-IDF project for MPU6050 accelerometer with MQTT publisher:
-
-**Key files:**
-- `main/app_main.c` - Main entry point, initializes WiFi, MQTT, airmouse
-- `main/mqtt_handler.c` - MQTT event handling and WatchTower protocol
-- `main/sensor_task.c` - Sensor reading and data publishing
-- `main/airmouse.c` - Air mouse mode implementation
-- `main/config.h` - WiFi and MQTT broker configuration
-
-**Device supports two modes:**
-1. **SENSOR mode**: Publishes raw sensor data (accel_x/y/z, gyro_x/y/z)
-2. **AIRMOUSE mode**: Converts sensor data to mouse movements (mouse_x/y, scroll_delta)
-
-**WatchTower MQTT Commands** (received on `watchtower/command/joystick`):
-- `{"command":"start"}` - Start sensor publishing
-- `{"command":"stop"}` - Stop sensor publishing
-- `{"command":"airmouse_mode"}` - Switch to airmouse mode
-- `{"command":"sensor_mode"}` - Switch to sensor mode
-- `{"command":"calibrate"}` - Calibrate airmouse
-
-**Published Topics:**
-- `joystick/sensor/data` - Sensor or airmouse data (JSON)
-- `joystick/status` - Device status (ready/stopped/calibrated)
-
-**Configuration:**
-Edit `main/config.h` to set WiFi credentials and MQTT broker IP:
-```c
-#define WIFI_SSID "your-ssid"
-#define WIFI_PASS "your-password"
-#define MQTT_BROKER_URL "mqtt://192.168.1.100:1883"
-```
-
-### YOLO Pose Detection (`yolo_test/`)
-
-**`webcam_yolo.py`** - Standalone webcam test for YOLO v11 Pose:
-- Loads `yolo11s-pose.pt` model (YOLO v11 Pose small variant)
-- Detects 17 keypoints (COCO format): nose, eyes, ears, shoulders, elbows, wrists, hips, knees, ankles
-- Implements pose validation using angle calculations:
-  - `calculate_angle(p1, p2, p3)` - Calculates angle at p2 using 3 points
-- Test bed for developing new exercise pose detection logic
-
-### Utility Tools
-
-**`mqtt_monitor.py`** - Monitor all MQTT topics in real-time:
-```bash
-python mqtt_monitor.py
-```
-Subscribes to all topics (`#` wildcard) and displays incoming messages with timestamps.
-
-**`jeston_mqtt/`** - Simple MQTT sender/receiver for testing:
-- `sender.py` - Publish test messages
-- `receiver.py` - Subscribe and display messages
-- `start_mosquitto.sh` - Start MQTT broker script
-
-## Common Commands
-
-### Run AI Server
-
-Start AI server on PC or server:
-```bash
-cd ai_server
+# Run server
 python ai_server.py
+
+# Server runs at http://0.0.0.0:5000
 ```
 
-Default: `http://0.0.0.0:5000`
+**Model**: Uses `yolo11s-pose.pt` for pose detection (17 COCO keypoints).
 
-**Note**: AI server is now in `ai_server/` directory (moved from `streaming/ai_server/`)
+### WatchTower (Orchestration Layer)
 
-### Run WatchTower System
+**Location**: `WatchTower/`
 
-**Option 1: Full integrated system (waits for Qt)**
+**Requirements**: Python 3.x, paho-mqtt, requests, OpenCV, pyserial
+
 ```bash
 cd WatchTower
+
+# Install dependencies
+pip install paho-mqtt requests opencv-python pyserial
+
+# Configure settings
+# Edit watchtower_config.py to set:
+#   - AI_SERVER_HOST (AI server IP)
+#   - MQTT_BROKER_HOST (Jetson IP)
+#   - CAMERA_ID (USB camera device ID)
+#   - UART_PORT (Pan-tilt STM32 serial port)
+
+# Run WatchTower
 python watchtower_main.py
 ```
 
-**Option 2: Standalone streaming client (legacy)**
+**Responsibilities**:
+- Receive Qt commands via MQTT
+- Forward mode selection to AI server via HTTP
+- Stream camera frames to AI server
+- Publish analysis results back to Qt
+- Control pan-tilt tracking via UART
+- Relay commands to joystick/watch
+
+### ESP32 Joystick
+
+**Location**: `joysitck/` (note: typo in original directory name)
+
+**Framework**: ESP-IDF
+
 ```bash
-cd streaming/watchtower
-python watchtower_client.py
-```
+cd joysitck
 
-**Important**: Update AI server IP in config file:
-- `WatchTower/watchtower_config.py`
+# Configure WiFi and MQTT broker
+# Edit main/config.h:
+#   - WIFI_SSID, WIFI_PASSWORD
+#   - MQTT_BROKER_URL (Jetson IP)
 
-```python
-AI_SERVER_HOST = '192.168.1.100'  # Replace with actual AI server IP
-```
-
-### Test MQTT Communication
-
-**Start MQTT broker:**
-```bash
-sudo systemctl start mosquitto
-
-# Check status
-sudo systemctl status mosquitto
-
-# Check port
-sudo lsof -i :1883
-```
-
-**Run MQTT test tool:**
-```bash
-cd WatchTower_test
-python mqtt_test.py
-```
-
-**Monitor all MQTT traffic:**
-```bash
-python mqtt_monitor.py
-```
-
-### Run YOLO Test
-
-Test YOLO pose detection with webcam:
-```bash
-python yolo_test/webcam_yolo.py
-```
-
-### ESP-IDF Development
-
-Build and flash ESP32 joystick:
-```bash
-cd mpu6050_mqtt
-get_idf
+# Build
 idf.py build
-idf.py -p /dev/ttyUSB0 flash monitor
-```
 
-Configure WiFi/MQTT:
-```bash
-cd mpu6050_mqtt
-get_idf
-idf.py menuconfig
-# Navigate to: Component config -> ESP32 Configuration
-```
+# Flash and monitor
+idf.py flash monitor
 
-Clean build artifacts:
-```bash
-cd mpu6050_mqtt
+# Clean build
 idf.py fullclean
 ```
 
-Monitor serial output:
+**Modes**:
+- **Air Mouse Mode**: Publishes MPU6050 gyro data as mouse movements to `joystick/sensor/data`
+- **Sensor Mode**: Publishes raw sensor readings (triggered during workout)
+
+**Mode Switching**: WatchTower sends commands via `watchtower/command/joystick` with `{"command": "airmouse_mode"}` or `{"command": "sensor_mode"}`.
+
+### Smart Watch (ESP32 + LVGL)
+
+**Location**: `smart_watch/`
+
+**Framework**: ESP-IDF with LVGL v8.x
+
 ```bash
-idf.py -p /dev/ttyUSB0 monitor
+cd smart_watch
+
+# Build
+idf.py build
+
+# Flash and monitor
+idf.py flash monitor
+
+# Configure project
+idf.py menuconfig
+```
+
+**Hardware**: ST7789 LCD (240x280, SPI), CST816S touch (I2C), ESP32 (2MB flash)
+
+**Key Features**: WiFi connectivity, NTP time sync, touch UI, auto-reconnect with saved credentials in NVS.
+
+## Development Workflow
+
+### Starting a Workout Session
+
+1. **Start MQTT Broker** (Jetson):
+   ```bash
+   sudo systemctl start mosquitto
+   # Verify: sudo systemctl status mosquitto
+   ```
+
+2. **Start AI Server**:
+   ```bash
+   cd ai_server_v1
+   python ai_server.py
+   ```
+
+3. **Start WatchTower**:
+   ```bash
+   cd WatchTower
+   python watchtower_main.py
+   ```
+
+4. **Run Qt App**:
+   ```bash
+   cd Qt_app_ver2
+   ./workout_app
+   ```
+
+5. **Workflow**:
+   - Qt: Select exercise → WatchTower: Forward to AI server → AI: Initialize pose analyzer
+   - Qt: Click "Start" → WatchTower: Switch joystick to sensor mode, start camera streaming
+   - WatchTower: Continuously capture frames, send to AI server, publish results to Qt
+   - Qt: Display real-time feedback (score, feedback text, video feed)
+   - User: Perform exercise poses in sequence
+   - Qt: Send pose_index updates → WatchTower: Update AI server pose index → AI: Analyze next pose
+   - Qt: Click "Stop" → WatchTower: Stop camera, switch joystick to air mouse mode
+
+### Testing Individual Components
+
+**MQTT Message Monitoring**:
+```bash
+# Subscribe to all topics
+mosquitto_sub -h localhost -t '#' -v
+
+# Qt commands only
+mosquitto_sub -h localhost -t 'qt/command/#' -v
+
+# WatchTower responses
+mosquitto_sub -h localhost -t 'qt/response/#' -v
+
+# Joystick data
+mosquitto_sub -h localhost -t 'joystick/sensor/data' -v
+```
+
+**Manual MQTT Commands**:
+```bash
+# Select exercise mode
+mosquitto_pub -h localhost -t 'qt/command/select_mode' -m '{"mode":"squat","timestamp":1699999999}'
+
+# Start workout
+mosquitto_pub -h localhost -t 'qt/command/start' -m '{"command":"start","mode":"squat","timestamp":1699999999}'
+
+# Stop workout
+mosquitto_pub -h localhost -t 'qt/command/stop' -m '{"command":"stop","timestamp":1699999999}'
+
+# Switch joystick to air mouse mode
+mosquitto_pub -h localhost -t 'watchtower/command/joystick' -m '{"command":"airmouse_mode"}'
+```
+
+**AI Server Testing**:
+```bash
+# Check health
+curl http://192.168.1.100:5000/api/health
+
+# Select mode
+curl -X POST http://192.168.1.100:5000/api/mode/select \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"squat"}'
+
+# Check status
+curl http://192.168.1.100:5000/api/status
 ```
 
 ## Key Implementation Details
 
-### MQTT Protocol (WatchTower)
+### Qt Application Structure
 
-**Device → WatchTower Topics:**
-- `joystick/sensor/data` - Joystick sensor or airmouse data
-- `watch/sensor/heartrate` - Watch heart rate data
-- `joystick/status` - Joystick status messages
-- `watch/status` - Watch status messages
+**Page Widgets** (`Qt_app_ver2/`):
+- `main_menu_page_widget` - Main menu (start workout, settings)
+- `exercise_selection_page_widget` - Exercise catalog with categories (Bodyweight, Kettlebell, Barbell)
+- `workout_page_widget` - Real-time workout display (video feed, score, feedback, pose sequence)
+- `settings_page_widget` - MQTT connection, air mouse sensitivity, calibration
+- `result_page_widget` - Post-workout results
 
-**WatchTower → Device Topics:**
-- `watchtower/command/joystick` - Commands to joystick
-- `watchtower/command/watch` - Commands to watch
+**Key Classes**:
+- `MainWindow` - Page navigation orchestration, MQTT message routing
+- `AirMouseManager` - Processes joystick data → cursor movements with smoothing/sensitivity
+- `CursorCanvas` - Renders cursor overlay on workout video
+- `VideoFrameWidget` - Displays base64-encoded JPEG frames from WatchTower
+- `Config` - Manages config.json persistence (MQTT settings, UI preferences)
+- `ExerciseCatalog` - Exercise database with Korean names → English mode mapping
 
-**Qt ↔ WatchTower Topics:**
-- `qt/command/select_mode` - Qt selects workout mode
-- `qt/command/start` - Qt starts workout
-- `qt/command/stop` - Qt stops workout
-- `qt/response/mode_selected` - WatchTower confirms mode
-- `qt/response/analysis` - WatchTower sends AI analysis results
-- `qt/response/status` - WatchTower status updates
-
-**Message Formats:**
-
-Joystick sensor data:
-```json
-{
-  "accel_x": 0.52,
-  "accel_y": -0.31,
-  "accel_z": 9.78,
-  "gyro_x": 0.01,
-  "gyro_y": -0.02,
-  "gyro_z": 0.00,
-  "timestamp": 1234567890
-}
+**Exercise Name Mapping** (Korean UI → MQTT):
+```cpp
+QMap<QString, QString> exerciseMap = {
+    {"스쿼트", "squat"},
+    {"플랭크", "plank"},
+    // ... etc
+};
 ```
 
-Joystick airmouse data:
+### WatchTower Integration Patterns
+
+**Asynchronous Workflow**:
+1. Qt command received → MQTT callback triggers handler
+2. Handler sends HTTP request to AI server (synchronous, blocking)
+3. Handler publishes MQTT response back to Qt
+4. Camera streaming runs in background thread (`_streaming_loop`)
+5. Each frame: Capture → Encode JPEG → Base64 → HTTP POST to AI → Publish result to Qt
+
+**Pan-Tilt Tracking**:
+- Enabled after first successful pose analysis
+- Uses keypoint bounding box center as tracking target
+- Smooth trajectory with dead zone to avoid jitter
+- UART protocol: `PAN=<angle>;TILT=<angle>\n` to STM32
+
+### AI Server Pose Analysis
+
+**Keypoint Detection**: YOLOv11 Pose extracts 17 COCO keypoints (nose, eyes, ears, shoulders, elbows, wrists, hips, knees, ankles).
+
+**Pose Validation** (`ai_server_v1/pose_analyzer.py`):
+1. Check keypoint confidence (threshold: 0.5)
+2. Calculate joint angles using `_calculate_angle(p1, p2, p3)`
+3. Compare against thresholds in `ai_config.py` (e.g., squat knee angle 70-110°)
+4. Compute score (0-100) based on how many criteria are met
+5. Generate feedback message for incorrect posture
+
+**Camera Orientation**:
+- **Side view**: All exercises except knee_drive, side_lunge
+- **Front view**: knee_drive, side_lunge
+
+### ESP32 Joystick Air Mouse
+
+**Data Format** (published to `joystick/sensor/data`):
 ```json
 {
   "mode": "airmouse",
-  "mouse_x": 10.5,
-  "mouse_y": -5.2,
-  "scroll_delta": 1,
+  "mouse_x": 10.5,     // Gyro X delta
+  "mouse_y": -5.2,     // Gyro Y delta
+  "scroll_delta": 0,
+  "button_pressed": false,
   "timestamp": 1234567890
 }
 ```
 
-WatchTower commands:
-```json
-{
-  "command": "start",
-  "mode": "squat",
-  "timestamp": 1234567890
-}
+**Qt Processing**:
+- Apply sensitivity multiplier (configurable in settings)
+- Smooth with moving average (default 3 frames)
+- Clamp to screen bounds
+- Display cursor overlay on workout video or test canvas
+
+### Configuration Files
+
+**WatchTower** (`WatchTower/watchtower_config.py`):
+- AI_SERVER_HOST, AI_SERVER_PORT
+- MQTT_BROKER_HOST, MQTT_BROKER_PORT
+- CAMERA_ID, CAMERA_WIDTH, CAMERA_HEIGHT, STREAM_FPS
+- UART_PORT, UART_BAUDRATE (pan-tilt control)
+- SUPPORTED_MODES (must match AI server)
+
+**AI Server** (`ai_server_v1/ai_config.py`):
+- SUPPORTED_MODES (list of all exercises)
+- MODE_POSES (dict mapping mode → list of pose checkpoints)
+- Pose-specific thresholds (e.g., SQUAT_KNEE_ANGLE_DOWN_MIN)
+
+**Qt App** (`Qt_app_ver2/config.json`):
+- mqtt_broker (host, port, client_id)
+- mqtt_topics (all topic names)
+- ui_settings (window size, auto_connect)
+- exercise_modes (displayed in exercise selection)
+
+**ESP32 Joystick** (`joysitck/main/config.h`):
+- WIFI_SSID, WIFI_PASSWORD
+- MQTT_BROKER_URL (mqtt://<jetson-ip>:1883)
+- DEFAULT_PUBLISH_INTERVAL_MS
+
+## Troubleshooting
+
+### MQTT Connection Issues
+
+**Qt App cannot connect to broker**:
+- Verify Mosquitto is running: `sudo systemctl status mosquitto`
+- Check firewall: `sudo ufw allow 1883`
+- Verify broker IP in `config.json` matches Jetson IP
+- Test with `mosquitto_sub -h <broker-ip> -t '#' -v`
+
+**Joystick not publishing data**:
+- Check WiFi connection (same network as Jetson)
+- Verify MQTT_BROKER_URL in `joysitck/main/config.h`
+- Monitor serial output: `idf.py monitor`
+- Test broker connectivity: `mosquitto_pub -h <broker-ip> -t test -m hello`
+
+### AI Server Issues
+
+**"AI server connection failed"**:
+- Verify server is running: `curl http://<ai-server-ip>:5000/api/health`
+- Check AI_SERVER_HOST in `watchtower_config.py`
+- Ensure Flask app bound to `0.0.0.0` (not `127.0.0.1`)
+- Check firewall on AI server machine
+
+**Low pose detection accuracy**:
+- Ensure adequate lighting
+- Verify camera orientation (side vs front view)
+- Check exercise is in SUPPORTED_MODES
+- Review keypoint confidence in AI server logs
+- Adjust thresholds in `ai_config.py` if needed
+
+### Camera & Pan-Tilt Issues
+
+**"Camera initialization failed"**:
+- Check CAMERA_ID (usually 0 for /dev/video0)
+- Verify camera permissions: `ls -l /dev/video*`
+- Test with: `v4l2-ctl --list-devices`
+- Try different camera: `idf.py menuconfig` → change CAMERA_ID
+
+**Pan-tilt not tracking**:
+- Verify UART_PORT in `watchtower_config.py` (e.g., /dev/ttyUSB0)
+- Check UART permissions: `sudo usermod -a -G dialout $USER`
+- Test UART: `python WatchTower/pantilt_test.py`
+- Set PANTILT_VERBOSE=True for detailed logs
+
+### ESP32 Build Errors
+
+**ESP-IDF not found**:
+```bash
+# Source ESP-IDF environment
+. $HOME/esp/esp-idf/export.sh
+
+# Or add to ~/.bashrc:
+alias get_idf='. $HOME/esp/esp-idf/export.sh'
 ```
 
-### YOLO Pose Keypoint Indices
-
-When working with pose detection, keypoint indices (0-16):
-- 0: Nose
-- 1-2: Eyes (left, right)
-- 3-4: Ears (left, right)
-- 5-6: Shoulders (left, right)
-- 7-8: Elbows (left, right)
-- 9-10: Wrists (left, right)
-- 11-12: Hips (left, right)
-- 13-14: Knees (left, right)
-- 15-16: Ankles (left, right)
-
-Access keypoints with confidence filtering (threshold 0.5):
-```python
-keypoints = results[0].keypoints[0]
-xy = keypoints.xy.cpu().numpy()[0]  # (17, 2) coordinates
-conf = keypoints.conf.cpu().numpy()[0]  # (17,) confidence
-left_shoulder = xy[5] if conf[5] > 0.5 else None
+**Serial port permission denied**:
+```bash
+sudo usermod -a -G dialout $USER
+# Log out and back in for group change to take effect
 ```
 
-### HTTP REST API Protocol
+## Important Notes
 
-**AI Server Endpoints:**
-- `GET /api/health` - Health check
-- `GET /api/status` - Server status
-- `POST /api/mode/select` - Select workout mode (returns pose sequences)
-- `POST /api/stream/frame` - Send frame for analysis (with pose_index)
-- `POST /api/stream/stop` - Stop streaming session
+- **MQTT QoS**: Commands use QoS 1 (at least once), sensor data uses QoS 0 (at most once) for performance
+- **Air Mouse Mode Switching**: Joystick automatically switches to sensor mode during workout, reverts to air mouse on stop
+- **Pose Index Synchronization**: Qt sends `pose_index` updates before requesting analysis to ensure AI server validates correct pose
+- **Frame Encoding**: All video frames are JPEG-compressed then Base64-encoded for MQTT/HTTP transport
+- **WiFi Credentials**: Smart watch auto-saves WiFi credentials to NVS on successful connection, auto-reconnects on boot
+- **Thread Safety**: WatchTower camera streaming runs in background thread; MQTT callbacks execute in MQTT loop thread
+- **Exercise Names**: UI displays Korean names, but MQTT/HTTP use English mode identifiers (e.g., "스쿼트" → "squat")
 
-**Mode selection** (POST /api/mode/select):
-```json
-{
-  "mode": "squat"
-}
-```
+## Common Modifications
 
-Response includes pose sequences:
-```json
-{
-  "status": "success",
-  "mode": "squat",
-  "total_poses": 2,
-  "poses": [
-    {"name": "squat_stand", "description": "스쿼트 준비 자세 (선 자세)", "duration": 1.0},
-    {"name": "squat_down", "description": "스쿼트 자세 (무릎 90도)", "duration": 2.0}
-  ]
-}
-```
+### Adding a New Exercise
 
-**Frame transmission** (POST /api/stream/frame):
-```json
-{
-  "frame": "base64_encoded_jpeg_image",
-  "pose_index": 0,
-  "timestamp": 1234567890
-}
-```
+1. **AI Server** (`ai_server_v1/ai_config.py`):
+   - Add to `SUPPORTED_MODES` list
+   - Define pose sequence in `MODE_POSES` dict
+   - Add threshold constants (e.g., `NEW_EXERCISE_ANGLE_MIN`)
 
-**Analysis response** (no keypoints, includes pose info):
-```json
-{
-  "status": "success",
-  "is_correct": false,
-  "score": 75,
-  "feedback": "왼쪽 다리 펴기 (155°)",
-  "current_pose": "squat_stand",
-  "pose_description": "스쿼트 준비 자세 (선 자세)",
-  "tracking": {
-    "center_x": 320,
-    "center_y": 240,
-    "bbox": [100, 50, 540, 430]
-  }
-}
-```
+2. **AI Server** (`ai_server_v1/pose_analyzer.py`):
+   - Implement `_analyze_<exercise>_<pose>()` methods
+   - Add to `_analyze_pose()` dispatcher
 
-**Important**: `keypoints` field has been removed from responses. Internal angle calculations are hidden.
+3. **WatchTower** (`watchtower_config.py`):
+   - Add to `SUPPORTED_MODES`
 
-### Pan-Tilt Camera Control (UART Protocol)
+4. **Qt App** (`Qt_app_ver2/exercise_catalog.cpp`):
+   - Add to `exercisesData` with Korean name, English mode, category
+   - Update `exerciseMap` for name mapping
 
-WatchTower communicates with STM32 via UART to control MG996R servo motors.
+5. **Qt App** (`Qt_app_ver2/config.json`):
+   - Add to `exercise_modes` (optional, for quick access)
 
-**Command format**: `<CMD>:<VALUE>\n`
+### Changing MQTT Broker IP
 
-Supported commands (MG996R: -60~60° range, center at 0,0):
-- `PAN:0\n` - Set Pan angle to 0° (-60~60°, center)
-- `TILT:-30\n` - Set Tilt angle to -30° (-60~60°)
-- `PANTILT:0,0\n` - Set both Pan and Tilt simultaneously
-- `CENTER\n` - Return to center position (0,0)
-- `STOP\n` - Stop servo motors
+1. **Jetson**: Update Mosquitto config `/etc/mosquitto/mosquitto.conf` (or use default 0.0.0.0)
+2. **Qt App**: Edit `config.json` → `mqtt_broker.host`
+3. **WatchTower**: Edit `watchtower_config.py` → `MQTT_BROKER_HOST`
+4. **Joystick**: Edit `joysitck/main/config.h` → `MQTT_BROKER_URL`
+5. **Restart all components**
 
-**Tracking algorithm:**
-1. Extract bounding box from YOLO detection
-2. Calculate center point of detected person
-3. Compare with frame center, calculate error
-4. Apply proportional control to compute Pan/Tilt angles
-5. Apply smoothing filter (moving average over 3 frames)
-6. Send angle commands via UART to STM32
+### Adjusting Camera Stream FPS
 
-**Key modules:**
-- `uart_controller.py` - Serial communication (pySerial)
-- `pantilt_tracker.py` - Tracking algorithm with smoothing
+- **WatchTower** (`watchtower_config.py`): Change `STREAM_FPS` (default 10)
+- Lower FPS reduces network/CPU load but increases latency
+- Higher FPS improves responsiveness but may cause lag on slow networks
 
-### Configuration Management
+### Tuning Air Mouse Sensitivity
 
-Always use config files for server addresses and hardware settings:
-
-**AI Server:**
-- `ai_server/ai_config.py` - Host, port, model path, pose sequences, thresholds
-
-**WatchTower:**
-- `WatchTower/watchtower_config.py` - Full system config (MQTT, HTTP, Camera, UART)
-
-**MQTT Test:**
-- `WatchTower_test/mqtt_config.py` - MQTT broker settings and topics
-
-**ESP32:**
-- `mpu6050_mqtt/main/config.h` - WiFi credentials and MQTT broker URL
-
-When deploying to Jetson Nano:
-- Update `AI_SERVER_HOST` in `WatchTower/watchtower_config.py` to AI server IP
-- Update `UART_PORT` to actual STM32 port (`/dev/ttyUSB0` or `/dev/ttyACM0`)
-- Set UART permissions: `sudo usermod -a -G dialout $USER` (requires re-login)
-
-### Adding New Exercise Modes
-
-**Current supported modes**: `squat`, `pushup`
-
-Each mode supports **multiple poses** (pose sequences). For example:
-- `squat` has 2 poses: `squat_stand` (준비), `squat_down` (앉기)
-- `pushup` has 2 poses: `pushup_up` (팔 펴기), `pushup_down` (팔 굽히기)
-
-**To add a new exercise mode:**
-
-1. **Define pose sequence** in `ai_server/ai_config.py`:
-```python
-SUPPORTED_MODES = ['squat', 'pushup', 'new_exercise']
-
-MODE_POSES = {
-    'new_exercise': [
-        {
-            'name': 'new_exercise_pose1',
-            'description': '첫 번째 자세 설명',
-            'duration': 2.0
-        },
-        {
-            'name': 'new_exercise_pose2',
-            'description': '두 번째 자세 설명',
-            'duration': 3.0
-        }
-    ]
-}
-```
-
-2. **Add pose thresholds** in `ai_server/ai_config.py`:
-```python
-# New Exercise 판정 기준
-NEW_EXERCISE_ANGLE_MIN = 80
-NEW_EXERCISE_ANGLE_MAX = 100
-```
-
-3. **Implement pose analysis methods** in `ai_server/pose_analyzer.py`:
-```python
-def _analyze_new_exercise_pose1(self, xy, conf, bbox=None):
-    """첫 번째 자세 분석"""
-    threshold = AIServerConfig.CONFIDENCE_THRESHOLD
-
-    # Extract keypoints
-    left_shoulder = xy[5] if conf[5] > threshold else None
-    # ... extract other needed keypoints
-
-    # Calculate angles
-    angle = self._calculate_angle(p1, p2, p3)
-
-    # Validate pose
-    is_correct = angle_min <= angle <= angle_max
-    score = 100 if is_correct else 0
-
-    return {
-        'status': 'success',
-        'is_correct': is_correct,
-        'score': score,
-        'feedback': '피드백 메시지',
-        'tracking': {...}  # optional
-    }
-```
-
-4. **Connect poses** in `analyze_frame()` method:
-```python
-if pose_name == 'new_exercise_pose1':
-    result = self._analyze_new_exercise_pose1(xy, conf, bbox)
-elif pose_name == 'new_exercise_pose2':
-    result = self._analyze_new_exercise_pose2(xy, conf, bbox)
-```
-
-**Important notes:**
-- Each exercise mode can have multiple poses (pose sequences)
-- `pose_index` parameter controls which pose to analyze (0-based)
-- Do NOT return `keypoints` in analysis results (internal only)
-- Always include `current_pose` and `pose_description` in results
-- See [POSE_SEQUENCE_USAGE.md](POSE_SEQUENCE_USAGE.md) for detailed usage examples
-
-## Hardware Components
-
-- **Jetson Nano** - WatchTower main controller
-- **STM32F411R** - Servo motor control via UART
-- **ESP32** (x2) - Watch & Joystick devices
-- **MG996R servo motors** (x2) - Pan-tilt camera mount
-- **MPU6050** - Accelerometer/gyroscope (Joystick)
-- **Heart rate sensor** - Pulse measurement (Watch)
-- **USB Camera** - Exercise recording
-
-## Git Workflow
-
-**Key branches:**
-- `main` - Main stable branch
-- `WatchTower-joystick` - Current development (joystick with airmouse)
-- `WatchTower` - Integrated system development
-- `server` - AI server development
-- `jetson_mqtt` - MQTT testing branch
-
-**When merging branches with conflicts:**
-- ESP32 code conflicts: Keep airmouse functionality from `WatchTower-joystick`
-- Python code: Integrate new features while preserving existing functionality
-- Config files: Merge settings, prioritize hardware-specific configurations
-
-## Notes
-
-- The project uses Korean language for documentation and UI messages
-- Python virtual environment must be activated for all Python work
-- ESP-IDF environment must be loaded for ESP32 development
-- MQTT broker (mosquitto) must be running on WatchTower (Jetson Nano)
-- AI server and WatchTower can run on different machines (configure IPs)
-- UART permissions required for pan-tilt control on Jetson Nano
-
-See [ToDo.md](ToDo.md) for current development priorities and [README.md](README.md) for system architecture diagrams.
+- **Qt App**: Settings page → "Air Mouse Sensitivity" slider (saved to `config.json`)
+- **Joystick**: Adjust gyro scale factor in `joysitck/main/sensor_task.c`
+- **Qt Smoothing**: Modify `airmouse_manager.cpp` → smoothing window size

@@ -24,7 +24,7 @@ class WatchTowerConfig:
     # ============================================
     # MQTT 브로커 설정 (WatchTower가 브로커 역할)
     # ============================================
-    MQTT_BROKER_HOST = 'localhost'     # MQTT 브로커 주소 (Jetson에서 실행시 localhost)
+    MQTT_BROKER_HOST = 'localhost'  # MQTT 브로커 주소 (Jetson Nano의 IP)
     MQTT_BROKER_PORT = 1883            # MQTT 브로커 포트
     MQTT_KEEPALIVE = 60                # Keep-alive 시간 (초)
     MQTT_QOS = 1                       # QoS 레벨 (0, 1, 2)
@@ -47,6 +47,10 @@ class WatchTowerConfig:
     TOPIC_QT_RESPONSE_STATUS = "qt/response/status"
     TOPIC_QT_RESPONSE_ANALYSIS = "qt/response/analysis"
     TOPIC_QT_RESPONSE_FRAME = "qt/response/frame"
+    TOPIC_QT_RESPONSE_JOYSTICK = "qt/response/joystick"
+    TOPIC_QT_RESPONSE_WATCH = "qt/response/watch"
+    TOPIC_QT_POSE_UPDATE = "qt/command/pose_index"
+    TOPIC_QT_REQUEST_ANALYSIS = "qt/command/request_analysis"
 
     # Command topics (WatchTower -> Devices)
     TOPIC_CMD_JOYSTICK = "watchtower/command/joystick"
@@ -118,7 +122,7 @@ class WatchTowerConfig:
     # ============================================
     # 운동 모드 설정
     # ============================================
-    SUPPORTED_MODES = ['squat', 'pushup']  # 지원하는 운동 모드
+    SUPPORTED_MODES = ['squat', 'lunge']  # 지원하는 운동 모드
     DEFAULT_MODE = 'squat'            # 기본 운동 모드
 
     # ============================================
