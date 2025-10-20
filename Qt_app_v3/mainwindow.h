@@ -118,6 +118,13 @@ private:
     bool m_poseAnalysisPending;
     QString m_lastServerFeedback;
 
+    // 심박수 통계 추적 변수
+    QList<int> m_heartRateHistory;  // 운동 중 수집된 심박수 데이터
+    int m_minHeartRate;             // 최소 심박수
+    int m_maxHeartRate;             // 최대 심박수
+    int m_avgHeartRate;             // 평균 심박수
+
+
     // 루틴 모드 관련 변수 (새로 추가)
     bool m_isRoutineMode;                    // 루틴 모드 여부
     QStringList m_routineExercises;          // 루틴에 포함된 운동 목록 (mode 문자열)
@@ -125,6 +132,9 @@ private:
     int m_routineExerciseRepCount;          // 현재 루틴 운동의 반복 횟수
     QVector<int> m_routineScores;           // 각 운동별 점수 저장
     int m_routineTotalScore;                // 루틴 총 점수
+             // 루틴 총 점수
+    int m_currentExerciseAccumulatedScore;  // ⭐ 이 한 줄 추가
+
     static const int REPS_PER_ROUTINE_EXERCISE = 5;  // 루틴 운동당 반복 횟수
 
     // Helper methods
@@ -154,10 +164,26 @@ private:
     void schedulePoseAnalysis(int poseIndex, int delayMs = 1000);
     void requestPoseAnalysis(int poseIndex);
 
+        // 루틴 모드 헬퍼 메서드
+    bool isRoutineMode(const QString &mode) const;
+    void initializeRoutineMode(const QString &routineMode);
+    void startNextRoutineExercise();
+    void completeRoutineExercise();
+    void finishRoutine();
+    void updateRoutineInfo();
+    QString getRoutineExerciseDisplayName(const QString &mode) const;
+    int getMaxScoreForRoutine(const QString &routineName) const;  // ⭐ 추가
+    int calculateScoreGrade(int score, int maxScore) const;       // ⭐ 추가
+
     // MQTT protocol helpers
     QString convertExerciseNameToMode(const QString &exerciseName);
     void sendModeSelectCommand(const QString &mode);
     void handleQtResponse(const QString &responseType, const QJsonObject &data);
+
+    // 심박수 통계 관련
+    void resetHeartRateStats();
+    void updateHeartRateStats(int bpm);
+    void calculateHeartRateStats();
 
     // Pose sequence helpers
     void updatePoseDisplay();
@@ -175,13 +201,12 @@ private:
     QString translateFeedbackText(const QString &feedback) const;
 
     // 루틴 모드 헬퍼 메서드 (새로 추가)
-    bool isRoutineMode(const QString &mode) const;
-    void initializeRoutineMode(const QString &routineMode);
-    void startNextRoutineExercise();
-    void completeRoutineExercise();
-    void finishRoutine();
-    void updateRoutineInfo();
-    QString getRoutineExerciseDisplayName(const QString &mode) const;
+
+
+
+
+
+
 };
 
 #endif // MAINWINDOW_H

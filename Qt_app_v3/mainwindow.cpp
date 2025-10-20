@@ -27,7 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_workoutTimer(nullptr), m_workoutSeconds(0), m_isWorkoutRunning(false), m_currentPoseIndex(0), m_totalPoses(0),
     m_repCount(0), m_poseSuccessCounter(0), m_lastAnalyzedPoseName(), m_manualFeedbackActive(false),
     m_lastServerFeedback(), m_isRoutineMode(false), m_currentRoutineIndex(0), m_routineExerciseRepCount(0),
-    m_routineTotalScore(0)
+    m_routineTotalScore(0), m_currentExerciseAccumulatedScore(0)  // ⭐ 마지막 추가
 {
     loadConfiguration();
     setupPages();
@@ -51,6 +51,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     setWindowTitle("홈 트레이닝 시스템");
     resize(m_config.windowWidth(), m_config.windowHeight());
+    // 심박수 통계 초기화
+    resetHeartRateStats();
 }
 
 MainWindow::~MainWindow()
@@ -451,6 +453,7 @@ void MainWindow::handleWorkoutStartRequested()
     sendModeSelectCommand(m_currentMode);
     resetPoseSuccessState();
     schedulePoseAnalysis(m_currentPoseIndex);
+    resetHeartRateStats();
 
     QJsonObject json;
     json["command"] = "start";
@@ -688,23 +691,22 @@ void MainWindow::updateSensorData(const QJsonObject &data, bool isJoystick)
             qDebug() << "← Joystick status:" << data["status"].toString();
         }
     }
-    else
+    else  // Watch 데이터 (심박수)
     {
         int heartRate = -1;
-        if (data.contains("heart_rate"))
-        {
-            heartRate = data["heart_rate"].toInt();
-        }
-        else if (data.contains("heartrate"))
+        if (data.contains("heartrate"))
         {
             heartRate = data["heartrate"].toInt();
         }
 
-        if (heartRate >= 0)
+        if (heartRate > 0 && m_workoutPage)
         {
-            if (m_workoutPage)
+            m_workoutPage->setHeartRate(heartRate);
+            
+            // 운동 중일 때만 심박수 통계 수집
+            if (m_isWorkoutRunning)
             {
-                m_workoutPage->setHeartRate(heartRate);
+                updateHeartRateStats(heartRate);
             }
         }
     }
@@ -734,10 +736,12 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
     int currentScore = 0;
     if (data.contains("score"))
     {
-        currentScore = data["score"].toInt();
+        int currentScore = data["score"].toInt();
+        m_currentExerciseAccumulatedScore += currentScore;  // ⭐ 누적
+        
         if (m_workoutPage)
         {
-            m_workoutPage->setScore(currentScore);
+            m_workoutPage->setScore(m_currentExerciseAccumulatedScore);  // ⭐ 누적 점수 표시
         }
     }
 
@@ -773,6 +777,7 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
         m_poseSuccessCounter = 0;
     }
 
+    
     bool poseMatches = analyzedPoseName.isEmpty() || expectedPoseName.isEmpty() || analyzedPoseName == expectedPoseName;
     int poseSuccessThreshold = (m_currentMode == "squat") ? kSquatPoseSuccessThreshold : kDefaultPoseSuccessThreshold;
 
@@ -913,6 +918,7 @@ void MainWindow::startWorkout(const QString &exerciseName)
 {
     m_currentExercise = exerciseName;
     m_currentMode = convertExerciseNameToMode(exerciseName);
+    m_currentExerciseAccumulatedScore = 0;  // ⭐ 이 줄 추가
 
     if (isRoutineMode(m_currentMode))
     {
@@ -1040,6 +1046,33 @@ void MainWindow::schedulePoseAnalysis(int poseIndex, int delayMs)
     m_poseAnalysisPending = true;
     m_poseAnalysisTimer->start(delayMs);
     qDebug() << "Pose analysis scheduled for index" << poseIndex << "after" << delayMs << "ms";
+}
+
+// 4. 심박수 데이터 업데이트 함수
+void MainWindow::updateHeartRateStats(int bpm)
+{
+    if (bpm <= 0)
+    {
+        return;  // 유효하지 않은 데이터 무시
+    }
+    
+    m_heartRateHistory.append(bpm);
+    
+    // 최소값 업데이트
+    if (m_minHeartRate < 0 || bpm < m_minHeartRate)
+    {
+        m_minHeartRate = bpm;
+    }
+    
+    // 최대값 업데이트
+    if (m_maxHeartRate < 0 || bpm > m_maxHeartRate)
+    {
+        m_maxHeartRate = bpm;
+    }
+    
+    qDebug() << "Heart rate updated:" << bpm 
+             << "Min:" << m_minHeartRate 
+             << "Max:" << m_maxHeartRate;
 }
 
 void MainWindow::requestPoseAnalysis(int poseIndex)
@@ -1255,7 +1288,7 @@ void MainWindow::nextPose()
     {
         m_currentPoseIndex++;
         updatePoseDisplay();
-        sendPoseIndex(m_currentPoseIndex);  // ★ FIXED: Send pose index to WatchTower
+        sendPoseIndex(m_currentPoseIndex);  // 이 부분이 제대로 호출되는지 확인
         qDebug() << "Moving to next pose:" << (m_currentPoseIndex + 1) << "/" << m_totalPoses;
     }
     else
@@ -1308,29 +1341,45 @@ void MainWindow::handleSquatPoseSuccess()
     }
 }
 
+void MainWindow::resetHeartRateStats()
+{
+    m_heartRateHistory.clear();
+    m_minHeartRate = -1;
+    m_maxHeartRate = -1;
+    m_avgHeartRate = -1;
+    
+    qDebug() << "Heart rate statistics reset";
+}
+
 void MainWindow::handleLungePoseSuccess()
 {
     if (m_currentPoseIndex == 0)
     {
-        // lunge_center -> lunge_left
+        // lunge_center (준비) -> lunge_left
         setFeedbackBanner(tr("좋은 자세입니다!"), true);
-
         m_currentPoseIndex = 1;
         updatePoseDisplay();
         sendPoseIndex(m_currentPoseIndex);
     }
     else if (m_currentPoseIndex == 1)
     {
-        // lunge_left -> lunge_right
+        // lunge_left -> lunge_center (준비)
         setFeedbackBanner(tr("좋은 자세입니다!"), true);
-
         m_currentPoseIndex = 2;
         updatePoseDisplay();
         sendPoseIndex(m_currentPoseIndex);
     }
     else if (m_currentPoseIndex == 2)
     {
-        // lunge_right -> 완료 (rep 증가)
+        // lunge_center (준비) -> lunge_right
+        setFeedbackBanner(tr("좋은 자세입니다!"), true);
+        m_currentPoseIndex = 3;
+        updatePoseDisplay();
+        sendPoseIndex(m_currentPoseIndex);
+    }
+    else if (m_currentPoseIndex == 3)
+    {
+        // lunge_right -> 완료
         m_repCount++;
         if (m_workoutPage)
         {
@@ -1351,7 +1400,6 @@ void MainWindow::handleLungePoseSuccess()
         }
 
         setFeedbackBanner(tr("좋은 자세입니다!"), true);
-
         m_currentPoseIndex = 0;
         updatePoseDisplay();
         sendPoseIndex(m_currentPoseIndex);
@@ -1429,7 +1477,31 @@ void MainWindow::setFeedbackBanner(const QString &message, bool success)
     updateFeedbackLabel(finalMsg, style, true);
     m_manualFeedbackActive = true;
 }
-
+// 5. 평균 심박수 계산 함수
+void MainWindow::calculateHeartRateStats()
+{
+    if (m_heartRateHistory.isEmpty())
+    {
+        m_minHeartRate = -1;
+        m_maxHeartRate = -1;
+        m_avgHeartRate = -1;
+        return;
+    }
+    
+    // 평균 계산
+    qint64 sum = 0;
+    for (int bpm : m_heartRateHistory)
+    {
+        sum += bpm;
+    }
+    m_avgHeartRate = static_cast<int>(sum / m_heartRateHistory.size());
+    
+    qDebug() << "Heart rate statistics calculated:"
+             << "Min:" << m_minHeartRate
+             << "Max:" << m_maxHeartRate
+             << "Avg:" << m_avgHeartRate
+             << "Samples:" << m_heartRateHistory.size();
+}
 void MainWindow::updateFeedbackLabel(const QString &baseMessage, const QString &styleSheet, bool includeServerFeedback)
 {
     if (!m_workoutPage)
@@ -1519,6 +1591,7 @@ void MainWindow::initializeRoutineMode(const QString &routineMode)
     m_routineScores.clear();
     m_routineTotalScore = 0;
     m_routineExercises.clear();
+    m_currentExerciseAccumulatedScore = 0;  // ⭐ 이 줄 추가
 
     if (routineMode == "bodyweight_routine")
     {
@@ -1550,6 +1623,7 @@ void MainWindow::startNextRoutineExercise()
 {
     m_currentRoutineIndex++;
     m_routineExerciseRepCount = 0;
+    m_currentExerciseAccumulatedScore = 0;  // ⭐ 이 줄 추가
 
     if (m_currentRoutineIndex >= m_routineExercises.size())
     {
@@ -1595,14 +1669,22 @@ void MainWindow::completeRoutineExercise()
 {
     qDebug() << "Completed routine exercise:" << m_currentMode;
     
-    if (m_currentRoutineIndex < m_routineExercises.size() - 1)
+  /*  if (m_currentRoutineIndex < m_routineExercises.size() - 1)
     {
         startNextRoutineExercise();
+    }*/
+
+    if (m_currentRoutineIndex < m_routineScores.size())
+    {
+        m_routineScores[m_currentRoutineIndex] = m_currentExerciseAccumulatedScore;  // ⭐ 수정
     }
+    
+
     else
     {
         finishRoutine();
     }
+    m_routineTotalScore += m_currentExerciseAccumulatedScore;  // ⭐ 추가
 }
 
 void MainWindow::finishRoutine()
@@ -1624,20 +1706,27 @@ void MainWindow::finishRoutine()
     publishMessage(m_config.topicQtCmdStop(), doc.toJson(QJsonDocument::Compact));
 
     sendSensorModeCommand();
+    calculateHeartRateStats();
     
     if (m_resultPage)
     {
         m_resultPage->setResults(m_routineTotalScore, m_workoutSeconds, m_routineExercises.size());
+         m_resultPage->setHeartRateStats(m_minHeartRate, m_maxHeartRate, m_avgHeartRate);
     }
     
     switchToPage(PAGE_RESULT);
-    
+    sendSensorModeCommand();
     m_isRoutineMode = false;
     m_routineExercises.clear();
     m_currentRoutineIndex = 0;
     m_routineExerciseRepCount = 0;
     m_routineScores.clear();
     m_routineTotalScore = 0;
+    qDebug() << "Routine finished. Total score:" << m_routineTotalScore 
+             << "Duration:" << m_workoutSeconds << "seconds"
+             << "Heart rate - Min:" << m_minHeartRate 
+             << "Max:" << m_maxHeartRate 
+             << "Avg:" << m_avgHeartRate;
 }
 
 void MainWindow::updateRoutineInfo()

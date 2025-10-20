@@ -42,6 +42,19 @@ void ResultPageWidget::setResults(int totalScore, int durationSeconds, int exerc
     updateRankDisplay(rank);
 }
 
+void ResultPageWidget::setHeartRateStats(int minBpm, int maxBpm, int avgBpm)
+{
+    if (minBpm < 0 || maxBpm < 0 || avgBpm < 0) {
+        m_ui->minHeartRateLabel->setText(tr("최소 심박수: -- BPM"));
+        m_ui->maxHeartRateLabel->setText(tr("최대 심박수: -- BPM"));
+        m_ui->avgHeartRateLabel->setText(tr("평균 심박수: -- BPM"));
+    } else {
+        m_ui->minHeartRateLabel->setText(tr("최소 심박수: %1 BPM").arg(minBpm));
+        m_ui->maxHeartRateLabel->setText(tr("최대 심박수: %1 BPM").arg(maxBpm));
+        m_ui->avgHeartRateLabel->setText(tr("평균 심박수: %1 BPM").arg(avgBpm));
+    }
+}
+
 void ResultPageWidget::updateRankDisplay(const QString &rank)
 {
     m_ui->rankLabel->setText(rank);
@@ -68,7 +81,6 @@ void ResultPageWidget::setRankImage(const QString &rank)
     QPixmap pixmap;
     QString imagePath;
     
-    // 이미지 파일 경로 설정
     if (rank == "PERFECT") {
         imagePath = "images/perfect.png";
     } else if (rank == "GREAT") {
@@ -79,87 +91,15 @@ void ResultPageWidget::setRankImage(const QString &rank)
         imagePath = "images/bad.png";
     }
     
-    // 이미지 로드 시도
     if (QFile::exists(imagePath)) {
         pixmap.load(imagePath);
-        qDebug() << "✓ Loaded image:" << imagePath;
-    }
-    
-    // 이미지 로드 실패 시 기본 그래픽 생성
-    if (pixmap.isNull()) {
-        qDebug() << "✗ Image not found, creating default graphic for:" << rank;
+    } else {
         pixmap = createDefaultRankImage(rank);
     }
     
-    // 200x200 크기로 스케일링하여 표시
-    m_ui->rankImageLabel->setPixmap(
-        pixmap.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-}
-
-QPixmap ResultPageWidget::createDefaultRankImage(const QString &rank)
-{
-    QPixmap pixmap(200, 200);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    QRect rect(20, 20, 160, 160);
-    
-    if (rank == "PERFECT") {
-        // 황금색 원 배경
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor("#FFD700"));
-        painter.drawEllipse(rect);
-        
-        // 별 그리기
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(Qt::white);
-        QPolygonF star;
-        for (int i = 0; i < 10; ++i) {
-            double angle = M_PI * i / 5.0 - M_PI / 2.0;
-            double r = (i % 2 == 0) ? 50 : 25;
-            star << QPointF(100 + r * std::cos(angle), 100 + r * std::sin(angle));
-        }
-        painter.drawPolygon(star);
-        
-    } else if (rank == "GREAT") {
-        // 초록색 원 배경
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor("#4CAF50"));
-        painter.drawEllipse(rect);
-        
-        // 체크마크
-        painter.setPen(QPen(Qt::white, 12, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        painter.drawLine(60, 100, 90, 130);
-        painter.drawLine(90, 130, 140, 70);
-        
-    } else if (rank == "GOOD") {
-        // 주황색 원 배경
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor("#FF9800"));
-        painter.drawEllipse(rect);
-        
-        // 중립 표정
-        painter.setPen(QPen(Qt::white, 10, Qt::SolidLine, Qt::RoundCap));
-        painter.drawLine(70, 110, 130, 110);  // 입
-        painter.setBrush(Qt::white);
-        painter.drawEllipse(75, 70, 15, 15);  // 왼쪽 눈
-        painter.drawEllipse(110, 70, 15, 15); // 오른쪽 눈
-        
-    } else if (rank == "BAD") {
-        // 빨간색 원 배경
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor("#F44336"));
-        painter.drawEllipse(rect);
-        
-        // X 표시
-        painter.setPen(QPen(Qt::white, 12, Qt::SolidLine, Qt::RoundCap));
-        painter.drawLine(60, 60, 140, 140);
-        painter.drawLine(140, 60, 60, 140);
+    if (!pixmap.isNull()) {
+        m_ui->rankImageLabel->setPixmap(pixmap.scaled(300, 300, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
-
-    return pixmap;
 }
 
 QString ResultPageWidget::getRankFromScore(int totalScore, int exerciseCount) const
@@ -167,16 +107,39 @@ QString ResultPageWidget::getRankFromScore(int totalScore, int exerciseCount) co
     if (exerciseCount == 0) {
         return "BAD";
     }
+    
+    int avgScore = totalScore / exerciseCount;
+    
+    if (avgScore >= 90) return "PERFECT";
+    if (avgScore >= 70) return "GREAT";
+    if (avgScore >= 50) return "GOOD";
+    return "BAD";
+}
 
-    double avgScore = static_cast<double>(totalScore) / exerciseCount;
-
-    if (avgScore >= 90) {
-        return "PERFECT";
-    } else if (avgScore >= 75) {
-        return "GREAT";
-    } else if (avgScore >= 60) {
-        return "GOOD";
-    } else {
-        return "BAD";
-    }
+QPixmap ResultPageWidget::createDefaultRankImage(const QString &rank)
+{
+    QPixmap pixmap(300, 300);
+    pixmap.fill(Qt::transparent);
+    
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    
+    QColor color;
+    if (rank == "PERFECT") color = QColor("#FFD700");
+    else if (rank == "GREAT") color = QColor("#4CAF50");
+    else if (rank == "GOOD") color = QColor("#FF9800");
+    else color = QColor("#F44336");
+    
+    painter.setPen(QPen(color, 5));
+    painter.setBrush(color);
+    painter.drawEllipse(50, 50, 200, 200);
+    
+    painter.setPen(Qt::white);
+    QFont font = painter.font();
+    font.setPointSize(48);
+    font.setBold(true);
+    painter.setFont(font);
+    painter.drawText(pixmap.rect(), Qt::AlignCenter, rank);
+    
+    return pixmap;
 }

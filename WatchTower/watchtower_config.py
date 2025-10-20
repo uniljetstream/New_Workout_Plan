@@ -10,7 +10,7 @@ class WatchTowerConfig:
     # ============================================
     # AI 서버 설정 (수정 필요!)
     # ============================================
-    AI_SERVER_HOST = '192.168.1.100'  # AI 서버 IP 주소
+    AI_SERVER_HOST = '10.10.16.57'  # AI 서버 IP 주소
     AI_SERVER_PORT = 5000              # AI 서버 포트
     REQUEST_TIMEOUT = 5                # HTTP 요청 타임아웃 (초)
 
@@ -24,7 +24,7 @@ class WatchTowerConfig:
     # ============================================
     # MQTT 브로커 설정 (WatchTower가 브로커 역할)
     # ============================================
-    MQTT_BROKER_HOST = '10.10.16.111'  # MQTT 브로커 주소 (Jetson Nano의 IP)
+    MQTT_BROKER_HOST = 'localhost'  # MQTT 브로커 주소 (Jetson Nano의 IP)
     MQTT_BROKER_PORT = 1883            # MQTT 브로커 포트
     MQTT_KEEPALIVE = 60                # Keep-alive 시간 (초)
     MQTT_QOS = 1                       # QoS 레벨 (0, 1, 2)

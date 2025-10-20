@@ -12,7 +12,7 @@ class ResultPage;
 /**
  * @brief 운동 결과 화면 래퍼
  *
- * 루틴 운동 완료 후 총점, 랭크, 소요 시간 등을 표시한다.
+ * 루틴 운동 완료 후 총점, 랭크, 소요 시간, 심박수 통계 등을 표시한다.
  */
 class ResultPageWidget : public QWidget
 {
@@ -23,6 +23,7 @@ public:
     ~ResultPageWidget();
 
     void setResults(int totalScore, int durationSeconds, int exerciseCount);
+    void setHeartRateStats(int minBpm, int maxBpm, int avgBpm);  // 새로 추가
     void updateRankDisplay(const QString &rank);
 
 signals:

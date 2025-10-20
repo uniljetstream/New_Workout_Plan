@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>운동 결과</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_main">
+  <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <spacer name="verticalSpacer_top">
      <property name="orientation">
@@ -28,108 +28,7 @@
     </spacer>
    </item>
    <item>
-    <widget class="QLabel" name="titleLabel">
-     <property name="text">
-      <string>운동 완료!</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>32</pointsize>
-       <weight>75</weight>
-       <bold>true</bold>
-      </font>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <spacer name="verticalSpacer_1">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item>
-    <widget class="QLabel" name="rankImageLabel">
-     <property name="minimumSize">
-      <size>
-       <width>200</width>
-       <height>200</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>200</width>
-       <height>200</height>
-      </size>
-     </property>
-     <property name="text">
-      <string/>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">border: 2px solid #ddd; border-radius: 10px; background-color: #f5f5f5;</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <spacer name="verticalSpacer_2">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item>
-    <widget class="QLabel" name="rankLabel">
-     <property name="text">
-      <string>PERFECT</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>36</pointsize>
-       <weight>75</weight>
-       <bold>true</bold>
-      </font>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">color: #FFD700;</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <spacer name="verticalSpacer_3">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_stats">
+    <layout class="QHBoxLayout" name="horizontalLayout_main">
      <item>
       <spacer name="horizontalSpacer_left">
        <property name="orientation">
@@ -144,7 +43,57 @@
       </spacer>
      </item>
      <item>
-      <layout class="QVBoxLayout" name="verticalLayout_stats">
+      <layout class="QVBoxLayout" name="verticalLayout_content">
+       <item>
+        <widget class="QLabel" name="titleLabel">
+         <property name="text">
+          <string>운동 완료!</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>28</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="rankImageLabel">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>300</width>
+           <height>300</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="rankLabel">
+         <property name="text">
+          <string>RANK</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>36</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+        </widget>
+       </item>
        <item>
         <widget class="QLabel" name="totalScoreLabel">
          <property name="text">
@@ -192,6 +141,87 @@
          </property>
         </widget>
        </item>
+       <!-- 심박수 통계 섹션 추가 -->
+       <item>
+        <spacer name="verticalSpacer_hr">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="heartRateTitleLabel">
+         <property name="text">
+          <string>━━━ 심박수 통계 ━━━</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string>color: #2196F3;</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="maxHeartRateLabel">
+         <property name="text">
+          <string>최대 심박수: -- BPM</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+          </font>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="minHeartRateLabel">
+         <property name="text">
+          <string>최소 심박수: -- BPM</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+          </font>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="avgHeartRateLabel">
+         <property name="text">
+          <string>평균 심박수: -- BPM</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>
@@ -225,7 +255,7 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_buttons">
      <item>
-      <spacer name="horizontalSpacer_3">
+      <spacer name="horizontalSpacer_button_left">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
@@ -239,48 +269,42 @@
      </item>
      <item>
       <widget class="QPushButton" name="retryButton">
-       <property name="minimumSize">
-        <size>
-         <width>200</width>
-         <height>60</height>
-        </size>
-       </property>
        <property name="text">
         <string>다시 하기</string>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>150</width>
+         <height>50</height>
+        </size>
        </property>
        <property name="font">
         <font>
          <pointsize>14</pointsize>
         </font>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">background-color: #4CAF50; color: white; border-radius: 10px;</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="backButton">
+       <property name="text">
+        <string>메인 메뉴</string>
+       </property>
        <property name="minimumSize">
         <size>
-         <width>200</width>
-         <height>60</height>
+         <width>150</width>
+         <height>50</height>
         </size>
-       </property>
-       <property name="text">
-        <string>메인으로</string>
        </property>
        <property name="font">
         <font>
          <pointsize>14</pointsize>
         </font>
        </property>
-       <property name="styleSheet">
-        <string notr="true">background-color: #808080; color: white; border-radius: 10px;</string>
-       </property>
       </widget>
      </item>
      <item>
-      <spacer name="horizontalSpacer_4">
+      <spacer name="horizontalSpacer_button_right">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>

@@ -110,6 +110,11 @@ class AIServerConfig:
                 'duration': 2.0
             },
             {
+                'name': 'lunge_center',  # ⭐ 추가
+                'description': '런지 준비 (중앙)',  # ⭐ 추가
+                'duration': 0.5  # ⭐ 추가
+            },  # ⭐ 추가
+            {
                 'name': 'lunge_right',
                 'description': '오른쪽 런지',
                 'duration': 2.0
