@@ -134,6 +134,11 @@ private:
     int m_routineTotalScore;                // 루틴 총 점수
              // 루틴 총 점수
     int m_currentExerciseAccumulatedScore;  // ⭐ 이 한 줄 추가
+    int m_targetRepsForCurrentExercise;
+    bool m_autoStopScheduled;
+    bool m_readyForRepCount;
+    int m_pendingRoutineScore;
+    int m_lastCompletionScore;
 
     // Helper methods
     void setupPages();
@@ -151,7 +156,7 @@ private:
     void displayVideoFrame(const QString &base64Frame);
     void clearVideoFrame(const QString &message = QString());
     void startWorkout(const QString &exerciseName);
-    void stopWorkout();
+    void stopWorkout(bool autoStopTriggered = false);
     void updateWorkoutTimer();
     void sendAirMouseModeCommand();
     void sendSensorModeCommand();
@@ -168,8 +173,11 @@ private:
     void startNextRoutineExercise();
     void completeRoutineExercise();
     void finishRoutine();
-    void updateRoutineInfo();
-    QString getRoutineExerciseDisplayName(const QString &mode) const;
+    void updateExerciseProgressInfo();
+    QString getExerciseDisplayName(const QString &mode) const;
+    void refreshTargetRepCount();
+    void scheduleAutoStop();
+    void showIndividualResults(const QString &exerciseName, int finalScore, int durationSeconds, int completedReps);
     int getMaxScoreForRoutine(const QString &routineName) const;  // ⭐ 추가
     int calculateScoreGrade(int score, int maxScore) const;       // ⭐ 추가
     int routineRepsPerExercise() const;

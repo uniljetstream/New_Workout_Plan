@@ -18,6 +18,20 @@
         "max_log_lines": 1000,
         "timestamps": true
     },
+    "individual_settings": {
+        "default_reps": 5,
+        "per_exercise": {
+            "squat": 3,
+            "lunge": 3,
+            "kettlebell_swing": 3,
+            "kettlebell_deadlift": 3,
+            "barbell_row": 3,
+            "barbell_upright_row": 3,
+            "barbell_overhead_press": 3,
+            "barbell_biceps_curl": 3,
+            "barbell_reverse_curl": 3 
+        }
+    },
     "routine_settings": {
         "reps_per_exercise": 5
     },

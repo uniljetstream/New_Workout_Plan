@@ -13,6 +13,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStatusBar>
+#include <QtGlobal>
 
 namespace
 {
@@ -27,7 +28,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_workoutTimer(nullptr), m_workoutSeconds(0), m_isWorkoutRunning(false), m_currentPoseIndex(0), m_totalPoses(0),
     m_repCount(0), m_poseSuccessCounter(0), m_lastAnalyzedPoseName(), m_manualFeedbackActive(false),
     m_lastServerFeedback(), m_isRoutineMode(false), m_currentRoutineIndex(0), m_routineExerciseRepCount(0),
-    m_routineTotalScore(0), m_currentExerciseAccumulatedScore(0)  // ⭐ 마지막 추가
+    m_routineTotalScore(0), m_currentExerciseAccumulatedScore(0), m_targetRepsForCurrentExercise(0),
+    m_autoStopScheduled(false), m_readyForRepCount(false), m_pendingRoutineScore(0), m_lastCompletionScore(0)
 {
     loadConfiguration();
     setupPages();
@@ -478,10 +480,7 @@ void MainWindow::handleWorkoutStartRequested()
             m_manualFeedbackActive = false;
         }
 
-        if (m_isRoutineMode)
-        {
-            updateRoutineInfo();
-        }
+        updateExerciseProgressInfo();
     }
     m_lastServerFeedback.clear();
     qDebug() << "→ Workout started:" << m_currentExercise << "(" << m_currentMode << ")";
@@ -489,6 +488,8 @@ void MainWindow::handleWorkoutStartRequested()
 
 void MainWindow::handleWorkoutStopRequested()
 {
+    m_autoStopScheduled = false;
+    m_readyForRepCount = false;
     stopWorkout();
 }
 
@@ -496,6 +497,7 @@ void MainWindow::handleWorkoutBackRequested()
 {
     if (m_isWorkoutRunning)
     {
+        m_autoStopScheduled = false;
         stopWorkout();
     }
 
@@ -800,44 +802,91 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
 
                 if (m_currentMode == "squat")
                 {
+                    if (m_isRoutineMode && isLastPose())
+                    {
+                        m_pendingRoutineScore = currentScore;
+                    }
                     handleSquatPoseSuccess();
                 }
                 else if (m_currentMode == "lunge")
                 {
+                    if (m_isRoutineMode && isLastPose())
+                    {
+                        m_pendingRoutineScore = currentScore;
+                    }
                     handleLungePoseSuccess();
                 }
                 else
                 {
-                    if (isLastPose())
+                    if (m_currentPoseIndex == 0)
                     {
-                        m_repCount++;
-                        if (m_workoutPage)
+                        const bool canCount = m_readyForRepCount || m_totalPoses <= 1;
+                        if (canCount)
                         {
-                            m_workoutPage->setRepCount(m_repCount);
-                        }
-                        qDebug() << "Rep completed! Total reps:" << m_repCount;
+                            m_readyForRepCount = false;
 
-                        if (m_isRoutineMode)
-                        {
-                            const int targetReps = routineRepsPerExercise();
-                            m_routineExerciseRepCount++;
-
-                            if (m_currentRoutineIndex < m_routineScores.size())
+                            m_repCount++;
+                            if (m_workoutPage)
                             {
-                                m_routineScores[m_currentRoutineIndex] = currentScore;
+                                m_workoutPage->setRepCount(m_repCount);
+                            }
+                            qDebug() << "Rep completed! Total reps:" << m_repCount;
+
+                            int completionScore = (m_pendingRoutineScore > 0) ? m_pendingRoutineScore : currentScore;
+                            if (completionScore > 0)
+                            {
+                                m_lastCompletionScore = completionScore;
+                            }
+                            m_pendingRoutineScore = 0;
+
+                            if (m_isRoutineMode)
+                            {
+                                const int targetReps = qMax(1, m_targetRepsForCurrentExercise);
+                                m_routineExerciseRepCount++;
+
+                                int repScore = (m_lastCompletionScore > 0) ? m_lastCompletionScore : completionScore;
+                                if (m_currentRoutineIndex < m_routineScores.size())
+                                {
+                                    m_routineScores[m_currentRoutineIndex] = repScore;
+                                }
+
+                                updateExerciseProgressInfo();
+
+                                if (m_routineExerciseRepCount >= targetReps)
+                                {
+                                    qDebug() << "Routine exercise completed! Moving to next...";
+                                    completeRoutineExercise();
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                updateExerciseProgressInfo();
+                                if (m_targetRepsForCurrentExercise > 0 && m_repCount >= m_targetRepsForCurrentExercise)
+                                {
+                                    setFeedbackBanner(tr("목표 횟수를 모두 완료했습니다!"), true);
+                                    scheduleAutoStop();
+                                    return;
+                                }
                             }
 
-                            updateRoutineInfo();
-
-                            if (m_routineExerciseRepCount >= targetReps)
+                            if (m_totalPoses > 1)
                             {
-                                qDebug() << "Routine exercise completed! Moving to next...";
-                                m_routineTotalScore += currentScore;
-                                completeRoutineExercise();
-                                return;
+                                nextPose();
                             }
                         }
-
+                        else
+                        {
+                            if (m_totalPoses > 1)
+                            {
+                                nextPose();
+                            }
+                        }
+                    }
+                    else if (isLastPose())
+                    {
+                        m_readyForRepCount = true;
+                        m_pendingRoutineScore = m_isRoutineMode ? currentScore : 0;
                         m_currentPoseIndex = 0;
                         updatePoseDisplay();
                         sendPoseIndex(m_currentPoseIndex);  // Send pose index to WatchTower via MQTT
@@ -930,10 +979,17 @@ void MainWindow::startWorkout(const QString &exerciseName)
         m_isRoutineMode = false;
     }
 
+    refreshTargetRepCount();
+    m_repCount = 0;
+    m_autoStopScheduled = false;
+    m_readyForRepCount = false;
+    m_pendingRoutineScore = 0;
+    m_lastCompletionScore = 0;
+
     if (m_workoutPage)
     {
         m_workoutPage->prepareForExercise(exerciseName);
-        m_workoutPage->setSkipButtonVisible(m_isRoutineMode);
+        updateExerciseProgressInfo();
     }
 
     clearVideoFrame(tr("영상 신호 대기 중..."));
@@ -943,13 +999,19 @@ void MainWindow::startWorkout(const QString &exerciseName)
     switchToPage(PAGE_WORKOUT);
 }
 
-void MainWindow::stopWorkout()
+void MainWindow::stopWorkout(bool autoStopTriggered)
 {
     if (!m_isWorkoutRunning || m_currentMode.isEmpty())
     {
         m_poseAnalysisPending = false;
         return;
     }
+
+    const bool wasRoutine = m_isRoutineMode;
+    const QString exerciseName = m_currentExercise;
+    const int durationSeconds = m_workoutSeconds;
+    const int completedReps = m_repCount;
+    int finalScore = m_lastCompletionScore > 0 ? m_lastCompletionScore : m_currentExerciseAccumulatedScore;
 
     m_isWorkoutRunning = false;
     m_workoutTimer->stop();
@@ -970,11 +1032,14 @@ void MainWindow::stopWorkout()
 
     if (m_workoutPage)
     {
-        updateFeedbackLabel(tr("운동이 중지되었습니다"), QString(), false);
+        if (!autoStopTriggered)
+        {
+            updateFeedbackLabel(tr("운동이 중지되었습니다"), QString(), false);
+        }
         m_workoutPage->setSkipButtonVisible(false);
-        m_workoutPage->clearRoutineInfo();
+        m_workoutPage->clearExerciseInfo();
     }
-    
+
     if (m_isRoutineMode)
     {
         m_isRoutineMode = false;
@@ -984,7 +1049,26 @@ void MainWindow::stopWorkout()
         m_routineScores.clear();
         m_routineTotalScore = 0;
     }
-    
+
+    m_autoStopScheduled = false;
+    m_targetRepsForCurrentExercise = 0;
+    m_readyForRepCount = false;
+    m_pendingRoutineScore = 0;
+    m_currentExerciseAccumulatedScore = 0;
+
+    if (finalScore < 0)
+    {
+        finalScore = 0;
+    }
+
+    if (!wasRoutine && autoStopTriggered)
+    {
+        calculateHeartRateStats();
+        showIndividualResults(exerciseName, finalScore, durationSeconds, completedReps);
+    }
+
+    m_lastCompletionScore = 0;
+
     qDebug() << "Workout stopped";
 }
 
@@ -1169,6 +1253,7 @@ void MainWindow::handleQtResponse(const QString &responseType, const QJsonObject
                 m_totalPoses = m_poses.size();
                 m_currentPoseIndex = 0;
                 m_repCount = 0;
+                m_readyForRepCount = (m_totalPoses <= 1);
 
                 qDebug() << "Loaded" << m_totalPoses << "poses for mode:" << mode;
 
@@ -1317,34 +1402,66 @@ void MainWindow::handleSquatPoseSuccess()
 {
     if (m_currentPoseIndex == 0)
     {
+        bool canCount = m_readyForRepCount || m_totalPoses <= 1;
+        if (canCount)
+        {
+            m_readyForRepCount = false;
+
+            m_repCount++;
+            if (m_workoutPage)
+            {
+                m_workoutPage->setRepCount(m_repCount);
+            }
+
+            int completionScore = (m_pendingRoutineScore > 0) ? m_pendingRoutineScore : m_lastCompletionScore;
+            if (completionScore > 0)
+            {
+                m_lastCompletionScore = completionScore;
+            }
+            m_pendingRoutineScore = 0;
+
+            if (m_isRoutineMode)
+            {
+                const int targetReps = qMax(1, m_targetRepsForCurrentExercise);
+                m_routineExerciseRepCount++;
+                updateExerciseProgressInfo();
+
+                if (m_routineExerciseRepCount >= targetReps)
+                {
+                    qDebug() << "Squat routine exercise completed!";
+                    completeRoutineExercise();
+                    return;
+                }
+            }
+            else
+            {
+                updateExerciseProgressInfo();
+                if (m_targetRepsForCurrentExercise > 0 && m_repCount >= m_targetRepsForCurrentExercise)
+                {
+                    setFeedbackBanner(tr("목표 횟수를 모두 완료했습니다!"), true);
+                    scheduleAutoStop();
+                    return;
+                }
+            }
+        }
+        else
+        {
+            updateExerciseProgressInfo();
+        }
+
         setFeedbackBanner(tr("좋은 자세입니다!"), true);
 
-        m_currentPoseIndex = 1;
-        updatePoseDisplay();
-        sendPoseIndex(m_currentPoseIndex);
+        if (m_totalPoses > 1)
+        {
+            m_currentPoseIndex = 1;
+            updatePoseDisplay();
+            sendPoseIndex(m_currentPoseIndex);
+        }
     }
     else if (m_currentPoseIndex == 1)
     {
-        m_repCount++;
-        if (m_workoutPage)
-        {
-            m_workoutPage->setRepCount(m_repCount);
-        }
-
-        if (m_isRoutineMode)
-        {
-            const int targetReps = routineRepsPerExercise();
-            m_routineExerciseRepCount++;
-            updateRoutineInfo();
-
-            if (m_routineExerciseRepCount >= targetReps)
-            {
-                qDebug() << "Squat routine exercise completed!";
-                completeRoutineExercise();
-                return;
-            }
-        }
-
+        m_readyForRepCount = true;
+        m_pendingRoutineScore = 0;
         setFeedbackBanner(tr("좋은 자세입니다!"), true);
 
         m_currentPoseIndex = 0;
@@ -1367,15 +1484,63 @@ void MainWindow::handleLungePoseSuccess()
 {
     if (m_currentPoseIndex == 0)
     {
-        // lunge_center (준비) -> lunge_left
+        bool canCount = m_readyForRepCount || m_totalPoses <= 1;
+        if (canCount)
+        {
+            m_readyForRepCount = false;
+
+            m_repCount++;
+            if (m_workoutPage)
+            {
+                m_workoutPage->setRepCount(m_repCount);
+            }
+
+            int completionScore = (m_pendingRoutineScore > 0) ? m_pendingRoutineScore : m_lastCompletionScore;
+            if (completionScore > 0)
+            {
+                m_lastCompletionScore = completionScore;
+            }
+            m_pendingRoutineScore = 0;
+
+            if (m_isRoutineMode)
+            {
+                const int targetReps = qMax(1, m_targetRepsForCurrentExercise);
+                m_routineExerciseRepCount++;
+                updateExerciseProgressInfo();
+
+                if (m_routineExerciseRepCount >= targetReps)
+                {
+                    qDebug() << "Lunge routine exercise completed!";
+                    completeRoutineExercise();
+                    return;
+                }
+            }
+            else
+            {
+                updateExerciseProgressInfo();
+                if (m_targetRepsForCurrentExercise > 0 && m_repCount >= m_targetRepsForCurrentExercise)
+                {
+                    setFeedbackBanner(tr("목표 횟수를 모두 완료했습니다!"), true);
+                    scheduleAutoStop();
+                    return;
+                }
+            }
+        }
+        else
+        {
+            updateExerciseProgressInfo();
+        }
+
         setFeedbackBanner(tr("좋은 자세입니다!"), true);
-        m_currentPoseIndex = 1;
-        updatePoseDisplay();
-        sendPoseIndex(m_currentPoseIndex);
+        if (m_totalPoses > 1)
+        {
+            m_currentPoseIndex = 1;
+            updatePoseDisplay();
+            sendPoseIndex(m_currentPoseIndex);
+        }
     }
     else if (m_currentPoseIndex == 1)
     {
-        // lunge_left -> lunge_center (준비)
         setFeedbackBanner(tr("좋은 자세입니다!"), true);
         m_currentPoseIndex = 2;
         updatePoseDisplay();
@@ -1383,7 +1548,6 @@ void MainWindow::handleLungePoseSuccess()
     }
     else if (m_currentPoseIndex == 2)
     {
-        // lunge_center (준비) -> lunge_right
         setFeedbackBanner(tr("좋은 자세입니다!"), true);
         m_currentPoseIndex = 3;
         updatePoseDisplay();
@@ -1391,27 +1555,8 @@ void MainWindow::handleLungePoseSuccess()
     }
     else if (m_currentPoseIndex == 3)
     {
-        // lunge_right -> 완료
-        m_repCount++;
-        if (m_workoutPage)
-        {
-            m_workoutPage->setRepCount(m_repCount);
-        }
-
-        if (m_isRoutineMode)
-        {
-            const int targetReps = routineRepsPerExercise();
-            m_routineExerciseRepCount++;
-            updateRoutineInfo();
-
-            if (m_routineExerciseRepCount >= targetReps)
-            {
-                qDebug() << "Lunge routine exercise completed!";
-                completeRoutineExercise();
-                return;
-            }
-        }
-
+        m_readyForRepCount = true;
+        m_pendingRoutineScore = 0;
         setFeedbackBanner(tr("좋은 자세입니다!"), true);
         m_currentPoseIndex = 0;
         updatePoseDisplay();
@@ -1605,6 +1750,9 @@ void MainWindow::initializeRoutineMode(const QString &routineMode)
     m_routineTotalScore = 0;
     m_routineExercises.clear();
     m_currentExerciseAccumulatedScore = 0;  // ⭐ 이 줄 추가
+    m_readyForRepCount = false;
+    m_pendingRoutineScore = 0;
+    m_lastCompletionScore = 0;
 
     if (routineMode == "bodyweight_routine")
     {
@@ -1637,6 +1785,10 @@ void MainWindow::startNextRoutineExercise()
     m_currentRoutineIndex++;
     m_routineExerciseRepCount = 0;
     m_currentExerciseAccumulatedScore = 0;  // ⭐ 이 줄 추가
+    m_autoStopScheduled = false;
+    m_readyForRepCount = false;
+    m_pendingRoutineScore = 0;
+    m_lastCompletionScore = 0;
 
     if (m_currentRoutineIndex >= m_routineExercises.size())
     {
@@ -1645,6 +1797,7 @@ void MainWindow::startNextRoutineExercise()
     }
 
     m_currentMode = m_routineExercises[m_currentRoutineIndex];
+    refreshTargetRepCount();
     
     QJsonObject stopJson;
     stopJson["command"] = "stop";
@@ -1661,7 +1814,7 @@ void MainWindow::startNextRoutineExercise()
         {
             m_workoutPage->resetRepCount();
             m_workoutPage->resetScore();
-            updateRoutineInfo();
+            updateExerciseProgressInfo();
         }
         
         QJsonObject startJson;
@@ -1681,23 +1834,22 @@ void MainWindow::startNextRoutineExercise()
 void MainWindow::completeRoutineExercise()
 {
     qDebug() << "Completed routine exercise:" << m_currentMode;
-    
-  /*  if (m_currentRoutineIndex < m_routineExercises.size() - 1)
-    {
-        startNextRoutineExercise();
-    }*/
 
     if (m_currentRoutineIndex < m_routineScores.size())
     {
         m_routineScores[m_currentRoutineIndex] = m_currentExerciseAccumulatedScore;  // ⭐ 수정
     }
-    
 
+    m_routineTotalScore += m_currentExerciseAccumulatedScore;  // ⭐ 추가
+
+    if (m_currentRoutineIndex < m_routineExercises.size() - 1)
+    {
+        startNextRoutineExercise();
+    }
     else
     {
         finishRoutine();
     }
-    m_routineTotalScore += m_currentExerciseAccumulatedScore;  // ⭐ 추가
 }
 
 void MainWindow::finishRoutine()
@@ -1720,12 +1872,21 @@ void MainWindow::finishRoutine()
 
     sendSensorModeCommand();
     calculateHeartRateStats();
-    
+
+    if (m_workoutPage)
+    {
+        m_workoutPage->clearExerciseInfo();
+        m_workoutPage->setSkipButtonVisible(false);
+    }
+
     if (m_resultPage)
     {
         m_resultPage->setResults(m_routineTotalScore, m_workoutSeconds, m_routineExercises.size());
          m_resultPage->setHeartRateStats(m_minHeartRate, m_maxHeartRate, m_avgHeartRate);
     }
+    
+    const int finalTotalScore = m_routineTotalScore;
+    const int finalExerciseCount = m_routineExercises.size();
     
     switchToPage(PAGE_RESULT);
     sendSensorModeCommand();
@@ -1735,29 +1896,107 @@ void MainWindow::finishRoutine()
     m_routineExerciseRepCount = 0;
     m_routineScores.clear();
     m_routineTotalScore = 0;
-    qDebug() << "Routine finished. Total score:" << m_routineTotalScore 
+    m_targetRepsForCurrentExercise = 0;
+    m_autoStopScheduled = false;
+    m_readyForRepCount = false;
+    m_pendingRoutineScore = 0;
+    m_lastCompletionScore = 0;
+    qDebug() << "Routine finished. Total score:" << finalTotalScore 
+             << "Exercises:" << finalExerciseCount
              << "Duration:" << m_workoutSeconds << "seconds"
              << "Heart rate - Min:" << m_minHeartRate 
              << "Max:" << m_maxHeartRate 
              << "Avg:" << m_avgHeartRate;
 }
 
-void MainWindow::updateRoutineInfo()
+void MainWindow::updateExerciseProgressInfo()
 {
-    if (!m_isRoutineMode || !m_workoutPage)
+    if (!m_workoutPage)
     {
         return;
     }
 
-    QString currentExerciseName = getRoutineExerciseDisplayName(m_currentMode);
-    int remainingReps = routineRepsPerExercise() - m_routineExerciseRepCount;
-    if (remainingReps < 0)
+    if (m_isRoutineMode)
     {
-        remainingReps = 0;
+        QString currentExerciseName = getExerciseDisplayName(m_currentMode);
+        if (currentExerciseName == m_currentMode && !m_currentExercise.isEmpty())
+        {
+            currentExerciseName = m_currentExercise;
+        }
+        int remainingReps = qMax(0, m_targetRepsForCurrentExercise - m_routineExerciseRepCount);
+        m_workoutPage->setRoutineInfo(currentExerciseName, remainingReps);
+        m_workoutPage->setSkipButtonVisible(true);
+    }
+    else
+    {
+        if (m_targetRepsForCurrentExercise > 0)
+        {
+            QString displayName = getExerciseDisplayName(m_currentMode);
+            if (displayName == m_currentMode && !m_currentExercise.isEmpty())
+            {
+                displayName = m_currentExercise;
+            }
+            m_workoutPage->setIndividualInfo(displayName, m_repCount, m_targetRepsForCurrentExercise);
+        }
+        else
+        {
+            m_workoutPage->clearExerciseInfo();
+        }
+        m_workoutPage->setSkipButtonVisible(false);
+    }
+}
+
+void MainWindow::refreshTargetRepCount()
+{
+    if (m_isRoutineMode)
+    {
+        m_targetRepsForCurrentExercise = routineRepsPerExercise();
+    }
+    else
+    {
+        m_targetRepsForCurrentExercise = m_config.individualRepsForMode(m_currentMode);
+        if (m_targetRepsForCurrentExercise < 0)
+        {
+            m_targetRepsForCurrentExercise = 0;
+        }
+    }
+}
+
+void MainWindow::scheduleAutoStop()
+{
+    if (m_autoStopScheduled)
+    {
+        return;
     }
 
-    m_workoutPage->setRoutineInfo(currentExerciseName, remainingReps);
-    m_workoutPage->setSkipButtonVisible(true);
+    m_autoStopScheduled = true;
+    QTimer::singleShot(700, this, [this]() {
+        if (m_isWorkoutRunning)
+        {
+            stopWorkout(true);
+        }
+        m_autoStopScheduled = false;
+    });
+}
+
+void MainWindow::showIndividualResults(const QString &exerciseName, int finalScore, int durationSeconds, int completedReps)
+{
+    Q_UNUSED(completedReps);
+
+    sendSensorModeCommand();
+
+    if (m_resultPage)
+    {
+        int displayScore = finalScore;
+        m_resultPage->setResults(displayScore, durationSeconds, 1);
+        m_resultPage->setHeartRateStats(m_minHeartRate, m_maxHeartRate, m_avgHeartRate);
+    }
+
+    switchToPage(PAGE_RESULT);
+    qDebug() << "Showing individual result for" << exerciseName
+             << "Score:" << finalScore
+             << "Duration:" << durationSeconds
+             << "Heart rate avg:" << m_avgHeartRate;
 }
 
 int MainWindow::routineRepsPerExercise() const
@@ -1770,7 +2009,7 @@ int MainWindow::routineRepsPerExercise() const
     return reps;
 }
 
-QString MainWindow::getRoutineExerciseDisplayName(const QString &mode) const
+QString MainWindow::getExerciseDisplayName(const QString &mode) const
 {
     const auto &catalog = exerciseCatalog();
     for (const ExerciseOption &option : catalog)

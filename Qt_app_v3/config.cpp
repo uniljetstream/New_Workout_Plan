@@ -60,6 +60,10 @@ void Config::setDefaults()
 
     // Routine Settings defaults
     m_routineRepsPerExercise = 5;
+
+    // Individual Exercise defaults
+    m_individualDefaultReps = 5;
+    m_individualReps.clear();
 }
 
 bool Config::loadFromFile(const QString &filePath)
@@ -137,7 +141,7 @@ bool Config::loadFromFile(const QString &filePath)
 
     // Load Routine Settings
     if (json.contains("routine_settings")) {
-        QJsonObject routine = json["routine_settings"].toObject();
+        const QJsonObject routine = json["routine_settings"].toObject();
         if (routine.contains("reps_per_exercise")) {
             int reps = routine["reps_per_exercise"].toInt();
             if (reps > 0) {
@@ -145,6 +149,28 @@ bool Config::loadFromFile(const QString &filePath)
             } else {
                 qWarning() << "Invalid reps_per_exercise value in config. Keeping current setting:"
                            << m_routineRepsPerExercise;
+            }
+        }
+    }
+
+    // Load Individual Exercise Settings
+    if (json.contains("individual_settings")) {
+        const QJsonObject individual = json["individual_settings"].toObject();
+        m_individualReps.clear();
+        if (individual.contains("default_reps")) {
+            int defaultReps = individual["default_reps"].toInt();
+            m_individualDefaultReps = defaultReps > 0 ? defaultReps : 0;
+        }
+
+        if (individual.contains("per_exercise") && individual["per_exercise"].isObject()) {
+            const QJsonObject perExercise = individual["per_exercise"].toObject();
+            for (auto it = perExercise.constBegin(); it != perExercise.constEnd(); ++it) {
+                int reps = it.value().toInt();
+                if (reps > 0) {
+                    m_individualReps.insert(it.key(), reps);
+                } else {
+                    qWarning() << "Ignoring non-positive reps for exercise" << it.key();
+                }
             }
         }
     }
@@ -209,6 +235,18 @@ bool Config::saveToFile(const QString &filePath)
     routine["reps_per_exercise"] = m_routineRepsPerExercise;
     json["routine_settings"] = routine;
 
+    // Save Individual Exercise Settings
+    QJsonObject individual;
+    individual["default_reps"] = m_individualDefaultReps > 0 ? m_individualDefaultReps : 0;
+    QJsonObject perExercise;
+    for (auto it = m_individualReps.cbegin(); it != m_individualReps.cend(); ++it) {
+        if (it.value() > 0) {
+            perExercise[it.key()] = it.value();
+        }
+    }
+    individual["per_exercise"] = perExercise;
+    json["individual_settings"] = individual;
+
     QJsonDocument doc(json);
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly)) {
@@ -221,4 +259,17 @@ bool Config::saveToFile(const QString &filePath)
 
     qDebug() << "Configuration saved to:" << filePath;
     return true;
+}
+
+int Config::individualRepsForMode(const QString &mode) const
+{
+    if (mode.isEmpty()) {
+        return 0;
+    }
+
+    if (m_individualReps.contains(mode)) {
+        return m_individualReps.value(mode);
+    }
+
+    return m_individualDefaultReps > 0 ? m_individualDefaultReps : 0;
 }

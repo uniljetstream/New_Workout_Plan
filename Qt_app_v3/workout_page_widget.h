@@ -44,9 +44,10 @@ public:
 
     void setTimerText(const QString &text);
 
-    // 루틴 모드 관련 메서드
+    // 운동 정보 표시 메서드
     void setRoutineInfo(const QString &currentExercise, int remainingReps);
-    void clearRoutineInfo();
+    void setIndividualInfo(const QString &exerciseName, int completedReps, int targetReps);
+    void clearExerciseInfo();
     void setSkipButtonVisible(bool visible);
 
 signals:

@@ -86,6 +86,16 @@ public:
         m_routineRepsPerExercise = reps > 0 ? reps : 1;
     }
 
+    // Individual Exercise Settings
+    int individualDefaultReps() const { return m_individualDefaultReps; }
+    void setIndividualDefaultReps(int reps)
+    {
+        m_individualDefaultReps = reps > 0 ? reps : 0;
+    }
+    void setIndividualReps(const QMap<QString, int> &repsMap) { m_individualReps = repsMap; }
+    int individualRepsForMode(const QString &mode) const;
+    const QMap<QString, int> &individualRepsMap() const { return m_individualReps; }
+
 private:
     Config();
     ~Config() = default;
@@ -131,6 +141,10 @@ private:
 
     // Routine Settings
     int m_routineRepsPerExercise;
+
+    // Individual Exercise Settings
+    int m_individualDefaultReps;
+    QMap<QString, int> m_individualReps;
 };
 
 #endif // CONFIG_H

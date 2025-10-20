@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QSizePolicy>
+#include <QtGlobal>
 
 WorkoutPageWidget::WorkoutPageWidget(QWidget *parent)
     : QWidget(parent)
@@ -47,11 +48,11 @@ void WorkoutPageWidget::prepareForExercise(const QString &exerciseName)
 {
     m_ui->exerciseTitleLabel->setText(tr("운동: %1").arg(exerciseName));
     resetScore();
-    setFeedbackMessage(tr("시작 버튼을 눌러주세요"));
+   setFeedbackMessage(tr("시작 버튼을 눌러주세요"));
     resetHeartRate();
     resetRepCount();
     setTimerText(QStringLiteral("00:00"));
-    clearRoutineInfo();
+    clearExerciseInfo();
     setSkipButtonVisible(false);
 }
 
@@ -127,7 +128,23 @@ void WorkoutPageWidget::setRoutineInfo(const QString &currentExercise, int remai
             .arg(remainingReps));
 }
 
-void WorkoutPageWidget::clearRoutineInfo()
+void WorkoutPageWidget::setIndividualInfo(const QString &exerciseName, int completedReps, int targetReps)
+{
+    if (targetReps <= 0)
+    {
+        clearExerciseInfo();
+        return;
+    }
+
+    const int remainingReps = qMax(0, targetReps - completedReps);
+    m_ui->routineInfoLabel->setText(
+        tr("[개별] %1 - 목표 %2회 (남은 횟수: %3회)")
+            .arg(exerciseName)
+            .arg(targetReps)
+            .arg(remainingReps));
+}
+
+void WorkoutPageWidget::clearExerciseInfo()
 {
     m_ui->routineInfoLabel->setText(QString());
 }
