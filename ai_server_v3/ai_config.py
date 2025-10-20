@@ -52,10 +52,27 @@ class AIServerConfig:
             # Squat
             {'name': 'squat_stand', 'description': '[1/2] 스쿼트 - 준비 자세'},
             {'name': 'squat_down',  'description': '[1/2] 스쿼트 - 앉은 자세'},
-            # Lunge
-            {'name': 'lunge_center','description': '[2/2] 런지 - 준비'},
-            {'name': 'lunge_left',  'description': '[2/2] 런지 - 왼쪽'},
-            {'name': 'lunge_right', 'description': '[2/2] 런지 - 오른쪽'},
+            # Lunge (개별 런지와 동일한 단계)
+            {
+                'name': 'lunge_center',
+                'description': '런지 준비 (중앙)',
+                'duration': 0.5
+            },
+            {
+                'name': 'lunge_left',
+                'description': '왼쪽 런지',
+                'duration': 2.0
+            },
+            {
+                'name': 'lunge_center',
+                'description': '런지 준비 (중앙)',
+                'duration': 0.5
+            },
+            {
+                'name': 'lunge_right',
+                'description': '오른쪽 런지',
+                'duration': 2.0
+            },
         ],
         'kettlebell_routine': [
             # Kettlebell Swing

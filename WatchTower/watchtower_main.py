@@ -165,6 +165,9 @@ class WatchTowerMain:
         if self.http.set_pose_index(pose_index):
             print(f"✓ 포즈 인덱스 업데이트: {pose_index}")
             self.analysis_request_pose_index = pose_index
+
+            # 포즈 변경 시 진동 피드백 전송 (0.5초, 강도 50%)
+            self.mqtt.send_joystick_vibration(intensity=50, duration_ms=500)
         else:
             print(f"✗ 포즈 인덱스 설정 실패: {pose_index}")
 

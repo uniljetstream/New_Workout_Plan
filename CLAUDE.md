@@ -48,7 +48,7 @@ This is a **home workout training system** integrating multiple embedded devices
 - `joystick/sensor/data` - Joystick → Qt (air mouse or sensor data)
 - `watch/sensor/heartrate` - Watch → Qt (heart rate data)
 
-**HTTP API** (AI Server at 192.168.1.100:5000):
+**HTTP API** (AI Server at 10.10.16.21:5000, configurable in `WatchTower/watchtower_config.py`):
 - `POST /api/mode/select` - Select exercise mode
 - `POST /api/stream/frame` - Analyze single frame
 - `POST /api/stream/stop` - Stop streaming analysis
@@ -57,14 +57,14 @@ This is a **home workout training system** integrating multiple embedded devices
 
 ### Exercise Modes & Pose Sequences
 
-The AI server supports 17 exercises organized into 3 routines + 14 individual exercises:
+The AI server supports 12 exercises organized into 3 routines + 9 individual exercises:
 
--**Routines**:
-- `bodyweight_routine`: squat, lunge (2 poses)
-- `kettlebell_routine`: kettlebell_swing, kettlebell_deadlift, side_lunge, bridge, knee_drive (5 poses)
-- `barbell_routine`: barbell_row, barbell_upright_row, barbell_overhead_press, barbell_biceps_curl, barbell_reverse_curl (5 poses)
+**Routines**:
+- `bodyweight_routine`: squat, lunge
+- `kettlebell_routine`: kettlebell_swing, kettlebell_deadlift
+- `barbell_routine`: barbell_row, barbell_upright_row, barbell_overhead_press, barbell_biceps_curl, barbell_reverse_curl
 
-**Individual Exercises**: squat, lunge, kettlebell_swing, kettlebell_deadlift, side_lunge, bridge, knee_drive, barbell_row, barbell_upright_row, barbell_overhead_press, barbell_biceps_curl, barbell_reverse_curl
+**Individual Exercises**: squat, lunge, kettlebell_swing, kettlebell_deadlift, barbell_row, barbell_upright_row, barbell_overhead_press, barbell_biceps_curl, barbell_reverse_curl
 
 Each exercise has multiple pose checkpoints (e.g., squat has "stand" and "down"). Qt cycles through poses using `pose_index`.
 
@@ -72,12 +72,12 @@ Each exercise has multiple pose checkpoints (e.g., squat has "stand" and "down")
 
 ### Qt Application (Desktop UI)
 
-**Location**: `Qt_app_ver2/`
+**Location**: `Qt_app_v3/`
 
 **Requirements**: Qt 5.12+, Qt MQTT module, C++17 compiler
 
 ```bash
-cd Qt_app_ver2
+cd Qt_app_v3
 
 # Build with qmake
 qmake workout_app.pro
@@ -95,12 +95,12 @@ make
 
 ### AI Server (Flask)
 
-**Location**: `ai_server_v1/`
+**Location**: `ai_server_v3/`
 
 **Requirements**: Python 3.x, Flask, OpenCV, NumPy, YOLOv11 Pose model
 
 ```bash
-cd ai_server_v1
+cd ai_server_v3
 
 # Install dependencies (first time)
 pip install flask opencv-python numpy ultralytics
@@ -209,7 +209,7 @@ idf.py menuconfig
 
 2. **Start AI Server**:
    ```bash
-   cd ai_server_v1
+   cd ai_server_v3
    python ai_server.py
    ```
 
@@ -221,7 +221,7 @@ idf.py menuconfig
 
 4. **Run Qt App**:
    ```bash
-   cd Qt_app_ver2
+   cd Qt_app_v3
    ./workout_app
    ```
 
@@ -268,23 +268,23 @@ mosquitto_pub -h localhost -t 'watchtower/command/joystick' -m '{"command":"airm
 
 **AI Server Testing**:
 ```bash
-# Check health
-curl http://192.168.1.100:5000/api/health
+# Check health (replace IP with your AI server IP from watchtower_config.py)
+curl http://10.10.16.21:5000/api/health
 
 # Select mode
-curl -X POST http://192.168.1.100:5000/api/mode/select \
+curl -X POST http://10.10.16.21:5000/api/mode/select \
   -H "Content-Type: application/json" \
   -d '{"mode":"squat"}'
 
 # Check status
-curl http://192.168.1.100:5000/api/status
+curl http://10.10.16.21:5000/api/status
 ```
 
 ## Key Implementation Details
 
 ### Qt Application Structure
 
-**Page Widgets** (`Qt_app_ver2/`):
+**Page Widgets** (`Qt_app_v3/`):
 - `main_menu_page_widget` - Main menu (start workout, settings)
 - `exercise_selection_page_widget` - Exercise catalog with categories (Bodyweight, Kettlebell, Barbell)
 - `workout_page_widget` - Real-time workout display (video feed, score, feedback, pose sequence)
@@ -327,7 +327,7 @@ QMap<QString, QString> exerciseMap = {
 
 **Keypoint Detection**: YOLOv11 Pose extracts 17 COCO keypoints (nose, eyes, ears, shoulders, elbows, wrists, hips, knees, ankles).
 
-**Pose Validation** (`ai_server_v1/pose_analyzer.py`):
+**Pose Validation** (`ai_server_v3/pose_analyzer.py`):
 1. Check keypoint confidence (threshold: 0.5)
 2. Calculate joint angles using `_calculate_angle(p1, p2, p3)`
 3. Compare against thresholds in `ai_config.py` (e.g., squat knee angle 70-110°)
@@ -335,8 +335,7 @@ QMap<QString, QString> exerciseMap = {
 5. Generate feedback message for incorrect posture
 
 **Camera Orientation**:
-- **Side view**: All exercises except knee_drive, side_lunge
-- **Front view**: knee_drive, side_lunge
+- **Side view**: Default for most exercises (squat, lunge, kettlebell exercises, barbell exercises)
 
 ### ESP32 Joystick Air Mouse
 
@@ -367,12 +366,12 @@ QMap<QString, QString> exerciseMap = {
 - UART_PORT, UART_BAUDRATE (pan-tilt control)
 - SUPPORTED_MODES (must match AI server)
 
-**AI Server** (`ai_server_v1/ai_config.py`):
+**AI Server** (`ai_server_v3/ai_config.py`):
 - SUPPORTED_MODES (list of all exercises)
 - MODE_POSES (dict mapping mode → list of pose checkpoints)
 - Pose-specific thresholds (e.g., SQUAT_KNEE_ANGLE_DOWN_MIN)
 
-**Qt App** (`Qt_app_ver2/config.json`):
+**Qt App** (`Qt_app_v3/config.json`):
 - mqtt_broker (host, port, client_id)
 - mqtt_topics (all topic names)
 - ui_settings (window size, auto_connect)
@@ -459,23 +458,23 @@ sudo usermod -a -G dialout $USER
 
 ### Adding a New Exercise
 
-1. **AI Server** (`ai_server_v1/ai_config.py`):
+1. **AI Server** (`ai_server_v3/ai_config.py`):
    - Add to `SUPPORTED_MODES` list
    - Define pose sequence in `MODE_POSES` dict
    - Add threshold constants (e.g., `NEW_EXERCISE_ANGLE_MIN`)
 
-2. **AI Server** (`ai_server_v1/pose_analyzer.py`):
+2. **AI Server** (`ai_server_v3/pose_analyzer.py`):
    - Implement `_analyze_<exercise>_<pose>()` methods
    - Add to `_analyze_pose()` dispatcher
 
 3. **WatchTower** (`watchtower_config.py`):
    - Add to `SUPPORTED_MODES`
 
-4. **Qt App** (`Qt_app_ver2/exercise_catalog.cpp`):
+4. **Qt App** (`Qt_app_v3/exercise_catalog.cpp`):
    - Add to `exercisesData` with Korean name, English mode, category
    - Update `exerciseMap` for name mapping
 
-5. **Qt App** (`Qt_app_ver2/config.json`):
+5. **Qt App** (`Qt_app_v3/config.json`):
    - Add to `exercise_modes` (optional, for quick access)
 
 ### Changing MQTT Broker IP
