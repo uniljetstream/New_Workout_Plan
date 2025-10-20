@@ -28,15 +28,7 @@ config WORKOUT_MQTT_PASSWORD
 
 config WORKOUT_MQTT_TOPIC_HEART_RATE
     string "심박수 발행 토픽"
-    default "watch/sensor/heartrate"
-
-config WORKOUT_MQTT_TOPIC_STATUS
-    string "워치 상태 발행 토픽"
-    default "watch/status"
-
-config WORKOUT_MQTT_TOPIC_COMMAND
-    string "워치 명령 구독 토픽"
-    default "watchtower/command/watch"
+    default "esp32/sensor/data"
 
 config WORKOUT_MQTT_QOS
     int "심박수 메시지 QoS"

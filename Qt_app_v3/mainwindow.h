@@ -135,8 +135,6 @@ private:
              // 루틴 총 점수
     int m_currentExerciseAccumulatedScore;  // ⭐ 이 한 줄 추가
 
-    static const int REPS_PER_ROUTINE_EXERCISE = 5;  // 루틴 운동당 반복 횟수
-
     // Helper methods
     void setupPages();
     void setupMqttClient();
@@ -174,6 +172,7 @@ private:
     QString getRoutineExerciseDisplayName(const QString &mode) const;
     int getMaxScoreForRoutine(const QString &routineName) const;  // ⭐ 추가
     int calculateScoreGrade(int score, int maxScore) const;       // ⭐ 추가
+    int routineRepsPerExercise() const;
 
     // MQTT protocol helpers
     QString convertExerciseNameToMode(const QString &exerciseName);

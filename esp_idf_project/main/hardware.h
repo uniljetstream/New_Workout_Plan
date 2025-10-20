@@ -12,24 +12,24 @@
 #include "cst816s.h"
 
 // 하드웨어 핀 정의
-#define LCD_DIN     23  // SPI MOSI
-#define LCD_CLK     19  // SPI Clock
-#define LCD_CS      21   // Chip Select
-#define LCD_DC      2  // Data/Command
-#define LCD_RST     1   // Reset
-#define LCD_BL      0  // Backlight
+#define LCD_DIN     18  // SPI MOSI (D10)
+#define LCD_CLK     19  // SPI Clock (D8 -> LCD CLK)
+#define LCD_CS      21  // Chip Select (D3/SS)
+#define LCD_DC      20  // Data/Command (D9, MISO핀을 일반 GPIO로 사용)
+#define LCD_RST     2   // Reset (D2)
+#define LCD_BL      16  // Backlight (D6, PWM 가능)
 #define LCD_WIDTH   240
 #define LCD_HEIGHT  280
 
 #define TP_SDA      22  // I2C Data
 #define TP_SCL      23  // I2C Clock
-#define TP_RST      16  // Touch Reset
-#define TP_IRQ      17  // Touch Interrupt
+#define TP_RST      1   // Touch Reset (D1)
+#define TP_IRQ      17  // Touch Interrupt (D7)
 
 // 심박 센서 (MAX30102) 핀 구성
 #define HR_SDA      TP_SDA   // 터치 센서와 동일 I2C SDA
 #define HR_SCL      TP_SCL   // 터치 센서와 동일 I2C SCL
-#define HR_INT      19       // (옵션) 센서 인터럽트 입력
+#define HR_INT      0        // (옵션) 센서 인터럽트 입력 (D0)
 
 // 전역 하드웨어 객체
 extern st7789_t lcd;

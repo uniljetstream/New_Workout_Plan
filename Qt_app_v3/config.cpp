@@ -57,6 +57,9 @@ void Config::setDefaults()
     m_enableLogging = true;
     m_maxLogLines = 1000;
     m_logTimestamps = true;
+
+    // Routine Settings defaults
+    m_routineRepsPerExercise = 5;
 }
 
 bool Config::loadFromFile(const QString &filePath)
@@ -132,6 +135,20 @@ bool Config::loadFromFile(const QString &filePath)
         if (logging.contains("timestamps")) m_logTimestamps = logging["timestamps"].toBool();
     }
 
+    // Load Routine Settings
+    if (json.contains("routine_settings")) {
+        QJsonObject routine = json["routine_settings"].toObject();
+        if (routine.contains("reps_per_exercise")) {
+            int reps = routine["reps_per_exercise"].toInt();
+            if (reps > 0) {
+                m_routineRepsPerExercise = reps;
+            } else {
+                qWarning() << "Invalid reps_per_exercise value in config. Keeping current setting:"
+                           << m_routineRepsPerExercise;
+            }
+        }
+    }
+
     qDebug() << "Configuration loaded from:" << filePath;
     return true;
 }
@@ -186,6 +203,11 @@ bool Config::saveToFile(const QString &filePath)
     logging["max_log_lines"] = m_maxLogLines;
     logging["timestamps"] = m_logTimestamps;
     json["logging"] = logging;
+
+    // Save Routine Settings
+    QJsonObject routine;
+    routine["reps_per_exercise"] = m_routineRepsPerExercise;
+    json["routine_settings"] = routine;
 
     QJsonDocument doc(json);
     QFile file(filePath);

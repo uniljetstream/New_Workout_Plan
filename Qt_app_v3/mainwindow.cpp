@@ -819,6 +819,7 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
 
                         if (m_isRoutineMode)
                         {
+                            const int targetReps = routineRepsPerExercise();
                             m_routineExerciseRepCount++;
 
                             if (m_currentRoutineIndex < m_routineScores.size())
@@ -828,7 +829,7 @@ void MainWindow::updateWorkoutFeedback(const QJsonObject &data)
 
                             updateRoutineInfo();
 
-                            if (m_routineExerciseRepCount >= REPS_PER_ROUTINE_EXERCISE)
+                            if (m_routineExerciseRepCount >= targetReps)
                             {
                                 qDebug() << "Routine exercise completed! Moving to next...";
                                 m_routineTotalScore += currentScore;
@@ -1332,10 +1333,11 @@ void MainWindow::handleSquatPoseSuccess()
 
         if (m_isRoutineMode)
         {
+            const int targetReps = routineRepsPerExercise();
             m_routineExerciseRepCount++;
             updateRoutineInfo();
 
-            if (m_routineExerciseRepCount >= REPS_PER_ROUTINE_EXERCISE)
+            if (m_routineExerciseRepCount >= targetReps)
             {
                 qDebug() << "Squat routine exercise completed!";
                 completeRoutineExercise();
@@ -1398,10 +1400,11 @@ void MainWindow::handleLungePoseSuccess()
 
         if (m_isRoutineMode)
         {
+            const int targetReps = routineRepsPerExercise();
             m_routineExerciseRepCount++;
             updateRoutineInfo();
 
-            if (m_routineExerciseRepCount >= REPS_PER_ROUTINE_EXERCISE)
+            if (m_routineExerciseRepCount >= targetReps)
             {
                 qDebug() << "Lunge routine exercise completed!";
                 completeRoutineExercise();
@@ -1747,10 +1750,24 @@ void MainWindow::updateRoutineInfo()
     }
 
     QString currentExerciseName = getRoutineExerciseDisplayName(m_currentMode);
-    int remainingReps = REPS_PER_ROUTINE_EXERCISE - m_routineExerciseRepCount;
-    
+    int remainingReps = routineRepsPerExercise() - m_routineExerciseRepCount;
+    if (remainingReps < 0)
+    {
+        remainingReps = 0;
+    }
+
     m_workoutPage->setRoutineInfo(currentExerciseName, remainingReps);
     m_workoutPage->setSkipButtonVisible(true);
+}
+
+int MainWindow::routineRepsPerExercise() const
+{
+    int reps = m_config.routineRepsPerExercise();
+    if (reps <= 0)
+    {
+        reps = 1;
+    }
+    return reps;
 }
 
 QString MainWindow::getRoutineExerciseDisplayName(const QString &mode) const

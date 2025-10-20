@@ -79,6 +79,13 @@ public:
     void setMaxLogLines(int maxLines) { m_maxLogLines = maxLines; }
     void setLogTimestamps(bool enable) { m_logTimestamps = enable; }
 
+    // Routine Settings
+    int routineRepsPerExercise() const { return m_routineRepsPerExercise; }
+    void setRoutineRepsPerExercise(int reps)
+    {
+        m_routineRepsPerExercise = reps > 0 ? reps : 1;
+    }
+
 private:
     Config();
     ~Config() = default;
@@ -121,6 +128,9 @@ private:
     bool m_enableLogging;
     int m_maxLogLines;
     bool m_logTimestamps;
+
+    // Routine Settings
+    int m_routineRepsPerExercise;
 };
 
 #endif // CONFIG_H
