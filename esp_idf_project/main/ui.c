@@ -57,6 +57,14 @@ static lv_obj_t *label_heart_rate_sensor = NULL;
 static volatile bool heart_rate_updated = false;
 static volatile uint16_t heart_rate_latest_bpm = 0;
 
+typedef struct {
+    lv_color_t normal_color;
+    lv_opa_t normal_opa;
+} button_style_snapshot_t;
+
+static button_style_snapshot_t wifi_button_style;
+static button_style_snapshot_t sensor_button_style;
+
 // ============================================================================
 // 내부 함수 (Private Functions)
 // ============================================================================
@@ -452,10 +460,29 @@ static void show_wifi_screen(void)
 static void left_button_event_handler(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_CLICKED)
+    lv_obj_t *btn = lv_event_get_target(e);
+    button_style_snapshot_t *style = lv_event_get_user_data(e);
+
+    switch (code)
     {
-        ESP_LOGI(TAG, "WiFi Connect 버튼 클릭!");
-        show_wifi_screen();
+        case LV_EVENT_PRESSED:
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0xB0BEC5), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_80, LV_PART_MAIN | LV_STATE_DEFAULT);
+            break;
+        case LV_EVENT_RELEASED:
+        case LV_EVENT_PRESS_LOST:
+            if (style)
+            {
+                lv_obj_set_style_bg_color(btn, style->normal_color, LV_PART_MAIN | LV_STATE_DEFAULT);
+                lv_obj_set_style_bg_opa(btn, style->normal_opa, LV_PART_MAIN | LV_STATE_DEFAULT);
+            }
+            break;
+        case LV_EVENT_CLICKED:
+            ESP_LOGI(TAG, "WiFi Connect 버튼 클릭!");
+            show_wifi_screen();
+            break;
+        default:
+            break;
     }
 }
 
@@ -534,10 +561,29 @@ static void show_sensor_screen(void)
 static void sensor_button_event_handler(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_CLICKED)
+    lv_obj_t *btn = lv_event_get_target(e);
+    button_style_snapshot_t *style = lv_event_get_user_data(e);
+
+    switch (code)
     {
-        ESP_LOGI(TAG, "Sensor 버튼 클릭!");
-        show_sensor_screen();
+        case LV_EVENT_PRESSED:
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0xB0BEC5), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_80, LV_PART_MAIN | LV_STATE_DEFAULT);
+            break;
+        case LV_EVENT_RELEASED:
+        case LV_EVENT_PRESS_LOST:
+            if (style)
+            {
+                lv_obj_set_style_bg_color(btn, style->normal_color, LV_PART_MAIN | LV_STATE_DEFAULT);
+                lv_obj_set_style_bg_opa(btn, style->normal_opa, LV_PART_MAIN | LV_STATE_DEFAULT);
+            }
+            break;
+        case LV_EVENT_CLICKED:
+            ESP_LOGI(TAG, "Sensor 버튼 클릭!");
+            show_sensor_screen();
+            break;
+        default:
+            break;
     }
 }
 
@@ -586,7 +632,9 @@ static void create_default_ui(void)
     lv_obj_t *btn_left = lv_btn_create(screen_main);
     lv_obj_set_size(btn_left, 100, 50);
     lv_obj_align(btn_left, LV_ALIGN_BOTTOM_LEFT, 10, -10);
-    lv_obj_add_event_cb(btn_left, left_button_event_handler, LV_EVENT_CLICKED, NULL);
+    wifi_button_style.normal_color = lv_obj_get_style_bg_color(btn_left, LV_PART_MAIN | LV_STATE_DEFAULT);
+    wifi_button_style.normal_opa = lv_obj_get_style_bg_opa(btn_left, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_add_event_cb(btn_left, left_button_event_handler, LV_EVENT_ALL, &wifi_button_style);
 
     // 왼쪽 버튼 라벨
     lv_obj_t *label_left = lv_label_create(btn_left);
@@ -597,7 +645,9 @@ static void create_default_ui(void)
     lv_obj_t *btn_sensor = lv_btn_create(screen_main);
     lv_obj_set_size(btn_sensor, 100, 50);
     lv_obj_align(btn_sensor, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
-    lv_obj_add_event_cb(btn_sensor, sensor_button_event_handler, LV_EVENT_CLICKED, NULL);
+    sensor_button_style.normal_color = lv_obj_get_style_bg_color(btn_sensor, LV_PART_MAIN | LV_STATE_DEFAULT);
+    sensor_button_style.normal_opa = lv_obj_get_style_bg_opa(btn_sensor, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_add_event_cb(btn_sensor, sensor_button_event_handler, LV_EVENT_ALL, &sensor_button_style);
 
     // Sensor 버튼 라벨
     lv_obj_t *label_sensor = lv_label_create(btn_sensor);

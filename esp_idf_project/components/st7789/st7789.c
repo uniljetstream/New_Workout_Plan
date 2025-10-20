@@ -69,12 +69,28 @@ void st7789_write_data(st7789_t *lcd, const uint8_t *data, size_t len)
     if (len == 0) return;  // 길이가 0이면 아무것도 하지 않음
 
     gpio_set_level(lcd->dc_io, 1);  // 데이터 모드 (Data mode)
-    spi_transaction_t t = {
-        .length = len * 8,          // 비트 단위로 변환 (바이트 * 8)
-        .tx_buffer = data,          // 데이터 배열 주소
-        .flags = 0
-    };
-    spi_device_polling_transmit(lcd->spi, &t);
+
+    const size_t chunk_size = 32 * 1024;  // ESP32-C6 DMA 전송 한계(32KB) 회피
+    size_t remaining = len;
+    const uint8_t *cursor = data;
+
+    while (remaining > 0) {
+        size_t current = remaining > chunk_size ? chunk_size : remaining;
+        spi_transaction_t t = {
+            .length = current * 8,  // 비트 단위로 변환 (바이트 * 8)
+            .tx_buffer = cursor,
+            .flags = 0
+        };
+
+        esp_err_t ret = spi_device_polling_transmit(lcd->spi, &t);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "SPI 전송 실패: %s", esp_err_to_name(ret));
+            return;
+        }
+
+        cursor += current;
+        remaining -= current;
+    }
 }
 
 // ============================================================================

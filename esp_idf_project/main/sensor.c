@@ -40,6 +40,8 @@
 #define INT_FIFO_FULL            0x80
 
 #define MAX_FIFO_SAMPLES         32
+#define SENSOR_TASK_DELAY_MS     50
+#define BPM_SMOOTH_WINDOW        4
 
 static const char *TAG = "HEART_SENSOR";
 
@@ -54,7 +56,7 @@ static uint32_t s_dc_estimate = 0;
 static uint32_t s_last_ir_value = 0;
 static bool s_prev_above_threshold = false;
 static uint64_t s_last_peak_time_us = 0;
-static uint16_t s_bpm_buffer[6] = {0};
+static uint16_t s_bpm_buffer[BPM_SMOOTH_WINDOW] = {0};
 static size_t s_bpm_index = 0;
 static size_t s_bpm_count = 0;
 
@@ -206,9 +208,9 @@ static void update_latest_bpm(uint16_t bpm)
 static uint16_t smooth_bpm(uint16_t bpm)
 {
     s_bpm_buffer[s_bpm_index] = bpm;
-    s_bpm_index = (s_bpm_index + 1) % (sizeof(s_bpm_buffer) / sizeof(s_bpm_buffer[0]));
+    s_bpm_index = (s_bpm_index + 1) % BPM_SMOOTH_WINDOW;
 
-    if (s_bpm_count < sizeof(s_bpm_buffer) / sizeof(s_bpm_buffer[0]))
+    if (s_bpm_count < BPM_SMOOTH_WINDOW)
     {
         s_bpm_count++;
     }
@@ -314,7 +316,7 @@ static void sensor_task(void *arg)
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(500)); // 약 2Hz 주기로 변경 (FIFO 오버플로우 완전 방지)
+        vTaskDelay(pdMS_TO_TICKS(SENSOR_TASK_DELAY_MS)); // 더 빠른 업데이트로 반응성 향상
     }
 }
 
