@@ -556,6 +556,44 @@ class MQTTController:
             print(f"✗ 조이스틱 모드 전환 오류: {e}")
             return False
 
+    def send_joystick_vibration(self, vibration_time=1.0):
+        """
+        조이스틱에 진동 명령 전송
+
+        Args:
+            vibration_time: 진동 지속 시간 (초, 기본값 1.0초)
+
+        Returns:
+            bool: 전송 성공 여부
+        """
+        if not self.connected:
+            print("✗ MQTT 브로커에 연결되지 않음")
+            return False
+
+        try:
+            command = {
+                'vibration': 'ON',
+                'time': vibration_time,
+                'timestamp': int(time.time() * 1000)
+            }
+
+            result = self.client.publish(
+                self.config.TOPIC_CMD_JOYSTICK,
+                json.dumps(command),
+                qos=self.config.MQTT_QOS
+            )
+
+            if result.rc == 0:
+                print(f"✓ 조이스틱 진동 명령 전송: {vibration_time}초")
+                return True
+
+            print(f"✗ 조이스틱 진동 명령 전송 실패")
+            return False
+
+        except Exception as e:
+            print(f"✗ 조이스틱 진동 명령 전송 오류: {e}")
+            return False
+
     def get_joystick_data(self):
         """
         최신 조이스틱 센서 데이터 가져오기

@@ -119,7 +119,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
         // 진동모터 ON/OFF 명령 처리
         else if (strstr(event->data, "\"vibration\":\"ON\"") != NULL) {
             ESP_LOGI(TAG_MQTT, "Received VIBRATION ON command from WatchTower");
-            
+
             // JSON에서 time 값 추출
             float vibration_time = 1.0f; // 기본값 1초
             char *time_start = strstr(event->data, "\"time\":");
@@ -140,7 +140,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
                     }
                 }
             }
-            
+
             if (vibration_motor_trigger_duration(vibration_time * 1000.0f)) {
                 ESP_LOGI(TAG_MQTT, "Vibration motor triggered for %.2f seconds", vibration_time);
             } else {

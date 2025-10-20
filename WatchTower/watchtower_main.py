@@ -38,6 +38,9 @@ class WatchTowerMain:
         self.analysis_request_timestamp = 0.0
         self.analysis_request_pose_index = None
 
+        # 이전 포즈 인덱스 추적 (진동 제어용)
+        self.previous_pose_index = -1
+
     def start(self):
         """시스템 시작"""
         print("="*60)
@@ -117,6 +120,7 @@ class WatchTowerMain:
         self.analysis_request_pending = False
         self.analysis_request_timestamp = 0.0
         self.analysis_request_pose_index = None
+        self.previous_pose_index = -1  # 인덱스 추적 초기화
 
         # Step 2: 조이스틱을 센서 모드로 전환 (MQTT)
         print(f"\n[Step 2] 조이스틱을 센서 모드로 전환 (MQTT)")
@@ -165,6 +169,12 @@ class WatchTowerMain:
         if self.http.set_pose_index(pose_index):
             print(f"✓ 포즈 인덱스 업데이트: {pose_index}")
             self.analysis_request_pose_index = pose_index
+
+            # 인덱스가 변경되었을 때만 진동 명령 전송
+            if pose_index != self.previous_pose_index:
+                print(f"→ 포즈 인덱스 변경 감지 ({self.previous_pose_index} -> {pose_index}), 진동 명령 전송")
+                self.mqtt.send_joystick_vibration(vibration_time=1.0)
+                self.previous_pose_index = pose_index
         else:
             print(f"✗ 포즈 인덱스 설정 실패: {pose_index}")
 
@@ -231,6 +241,7 @@ class WatchTowerMain:
 
         # 현재 모드 초기화
         self.current_mode = None
+        self.previous_pose_index = -1  # 인덱스 추적 초기화
 
         print(f"\n✓ 운동 종료 처리 완료")
         print(f"{'='*60}\n")
