@@ -101,7 +101,7 @@ static void update_clock_cb(lv_timer_t *timer)
  */
 static void lvgl_tick_timer_cb(void *arg)
 {
-    lv_tick_inc(2);
+    lv_tick_inc(5);
 }
 
 /**
