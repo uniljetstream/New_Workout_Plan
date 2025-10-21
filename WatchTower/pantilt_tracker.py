@@ -41,11 +41,13 @@ class PanTiltTracker:
         # Dead zone (중앙 근처는 움직이지 않음)
         self.dead_zone_x = WatchTowerConfig.TRACKING_DEAD_ZONE_X
         self.dead_zone_y = WatchTowerConfig.TRACKING_DEAD_ZONE_Y
+        self.keypoint_min_conf = WatchTowerConfig.TRACKING_KEYPOINT_MIN_CONF
 
         # 추적 활성화 상태
         self.is_tracking = False
         self.frames_without_detection = 0
-        self.max_frames_without_detection = 10
+        self.max_frames_without_detection = WatchTowerConfig.TRACKING_RETRY_LIMIT
+        self.retries_exhausted = False
 
     def calculate_target_position(self, keypoints_data):
         """
@@ -62,21 +64,26 @@ class PanTiltTracker:
         # 1. tracking 데이터가 있는 경우 (AI 서버에서 제공)
         if 'tracking' in keypoints_data:
             tracking = keypoints_data['tracking']
-            if 'center_x' in tracking and 'center_y' in tracking:
-                return (tracking['center_x'], tracking['center_y'])
+            if isinstance(tracking, dict):
+                if 'center_x' in tracking and 'center_y' in tracking:
+                    return (tracking['center_x'], tracking['center_y'])
+                if 'bbox' in tracking:
+                    target_from_bbox = self.calculate_target_from_bbox(tracking['bbox'])
+                    if target_from_bbox:
+                        return target_from_bbox
 
         # 2. keypoints로부터 직접 계산 (AI 서버 응답에 keypoints가 있는 경우)
         if 'keypoints' in keypoints_data:
             kp = keypoints_data['keypoints']
-
-            # 주요 포인트: nose(0), left_shoulder(5), right_shoulder(6)
-            # 얼굴과 어깨의 평균 위치를 추적
-            x_points = []
-            y_points = []
-
-            # 이 부분은 AI 서버가 키포인트 좌표를 직접 제공하는 경우를 위한 것
-            # 현재 구현에서는 각도만 제공되므로, tracking 데이터 추가가 필요
-            pass
+            if isinstance(kp, dict):
+                xy = kp.get('xy')
+                conf = kp.get('conf')
+                if xy is not None and conf is not None:
+                    xy = np.array(xy)
+                    conf = np.array(conf)
+                    torso_center = self._calculate_torso_center_from_keypoints(xy, conf)
+                    if torso_center is not None:
+                        return torso_center
 
         return None
 
@@ -116,20 +123,10 @@ class PanTiltTracker:
             bool: 추적 대상이 감지되었는지 여부
         """
         if not analysis_result or analysis_result.get('status') != 'success':
-            self.frames_without_detection += 1
-            if self.frames_without_detection > self.max_frames_without_detection:
-                self.is_tracking = False
+            self._handle_detection_miss()
             return False
 
-        # tracking 데이터 확인
-        target_pos = None
-
-        if 'tracking' in analysis_result:
-            tracking = analysis_result['tracking']
-            if 'center_x' in tracking and 'center_y' in tracking:
-                target_pos = (tracking['center_x'], tracking['center_y'])
-            elif 'bbox' in tracking:
-                target_pos = self.calculate_target_from_bbox(tracking['bbox'])
+        target_pos = self.calculate_target_position(analysis_result)
 
         if target_pos:
             self.target_x, self.target_y = target_pos
@@ -141,11 +138,10 @@ class PanTiltTracker:
             # 추적 활성화
             self.is_tracking = True
             self.frames_without_detection = 0
+            self.retries_exhausted = False
             return True
         else:
-            self.frames_without_detection += 1
-            if self.frames_without_detection > self.max_frames_without_detection:
-                self.is_tracking = False
+            self._handle_detection_miss()
             return False
 
     def get_smoothed_target(self):
@@ -230,6 +226,65 @@ class PanTiltTracker:
         self.position_buffer_y.clear()
         self.is_tracking = False
         self.frames_without_detection = 0
+        self.retries_exhausted = False
+
+    def has_retries_remaining(self):
+        """재탐지 시도 가능 여부"""
+        return self.frames_without_detection < self.max_frames_without_detection
+
+    def has_exhausted_retries(self):
+        """재탐지 시도 소진 여부"""
+        return self.retries_exhausted
+
+    def get_retry_count(self):
+        """현재까지 재탐지 시도 횟수 반환"""
+        return self.frames_without_detection
+
+    def _handle_detection_miss(self):
+        """감지 실패 시 상태 업데이트"""
+        self.frames_without_detection += 1
+        self.is_tracking = False
+        if self.frames_without_detection >= self.max_frames_without_detection:
+            self.retries_exhausted = True
+
+    def _calculate_torso_center_from_keypoints(self, xy, conf):
+        """
+        키포인트에서 어깨/엉덩이 중심을 사용하여 상체 중심 계산
+
+        Args:
+            xy: (17, 2) 키포인트 좌표 배열
+            conf: (17,) 키포인트 confidence 배열
+
+        Returns:
+            tuple: (center_x, center_y) 또는 None
+        """
+        if xy.shape[0] < 17 or conf.shape[0] < 17:
+            return None
+
+        valid_shoulders = []
+        for idx in (5, 6):
+            if conf[idx] >= self.keypoint_min_conf:
+                valid_shoulders.append(xy[idx])
+
+        valid_hips = []
+        for idx in (11, 12):
+            if conf[idx] >= self.keypoint_min_conf:
+                valid_hips.append(xy[idx])
+
+        if not valid_shoulders and not valid_hips:
+            return None
+
+        torso_points = []
+        if valid_shoulders:
+            torso_points.append(np.mean(valid_shoulders, axis=0))
+        if valid_hips:
+            torso_points.append(np.mean(valid_hips, axis=0))
+
+        if not torso_points:
+            return None
+
+        torso_center = np.mean(torso_points, axis=0)
+        return (float(torso_center[0]), float(torso_center[1]))
 
     def get_tracking_info(self):
         """
@@ -250,7 +305,9 @@ class PanTiltTracker:
             'current_tilt': int(self.current_tilt),
             'error_x': int(self.target_x - self.frame_center_x),
             'error_y': int(self.target_y - self.frame_center_y),
-            'frames_without_detection': self.frames_without_detection
+            'frames_without_detection': self.frames_without_detection,
+            'retry_limit': self.max_frames_without_detection,
+            'retries_exhausted': self.retries_exhausted
         }
 
 

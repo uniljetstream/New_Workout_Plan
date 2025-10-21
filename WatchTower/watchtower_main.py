@@ -40,6 +40,8 @@ class WatchTowerMain:
 
         # 이전 포즈 인덱스 추적 (진동 제어용)
         self.previous_pose_index = -1
+        self.tracking_stop_requested = False
+        self._stop_in_progress = False
 
     def start(self):
         """시스템 시작"""
@@ -207,44 +209,11 @@ class WatchTowerMain:
         print(f"  Qt 정지 명령 수신")
         print(f"{'='*60}")
 
-        # Step 1: 카메라 스트리밍 중지
-        print(f"\n[Step 1] 카메라 스트리밍 중지")
-        self.stop_camera_streaming()
-
-        # Step 2: AI 서버에 분석 종료 요청 (HTTP)
-        print(f"\n[Step 2] AI 서버에 분석 종료 요청 (HTTP)")
-        if self.current_mode:
-            if self.http.stop_stream():
-                print(f"✓ AI 서버 분석 종료 완료")
-            else:
-                print(f"✗ AI 서버 분석 종료 실패 (계속 진행)")
-        else:
-            print(f"ℹ 진행 중인 운동 없음")
-
-        # Step 3: 조이스틱과 Watch에 정지 명령 전송 (MQTT)
-        print(f"\n[Step 3] 조이스틱과 Watch에 정지 명령 전송 (MQTT)")
-        if self.mqtt.send_stop_command():
-            print(f"✓ 디바이스 정지 명령 전송 완료")
-        else:
-            print(f"✗ 디바이스 정지 명령 전송 실패")
-
-        # Step 4: 조이스틱을 에어마우스 모드로 전환 (MQTT)
-        print(f"\n[Step 4] 조이스틱을 에어마우스 모드로 전환 (MQTT)")
-        if self.mqtt.send_joystick_mode_command('airmouse'):
-            print(f"✓ 조이스틱 에어마우스 모드 전환 완료")
-        else:
-            print(f"⚠ 조이스틱 에어마우스 모드 전환 실패")
-
-        # Step 5: Qt에 종료 완료 응답 전송
-        print(f"\n[Step 5] Qt에 종료 완료 응답 전송")
-        self.mqtt.send_qt_status("stopped", "운동 종료")
-
-        # 현재 모드 초기화
-        self.current_mode = None
-        self.previous_pose_index = -1  # 인덱스 추적 초기화
-
-        print(f"\n✓ 운동 종료 처리 완료")
-        print(f"{'='*60}\n")
+        self._stop_workout_flow(
+            qt_status="stopped",
+            qt_message="운동 종료",
+            reason_label="Qt 정지 요청"
+        )
 
     def handle_joystick_data(self, data):
         """
@@ -267,6 +236,76 @@ class WatchTowerMain:
         # Watch 데이터 처리 로직 (필요시 구현)
         # 예: 심박수 모니터링, 경고 알림 등
         pass
+
+    def _stop_workout_flow(self, qt_status, qt_message, reason_label, mode_failure_message=None):
+        """공통 운동 종료 처리"""
+        if self._stop_in_progress:
+            print(f"⚠ 운동 종료 처리가 이미 진행 중입니다. (요청: {reason_label})")
+            return
+
+        self._stop_in_progress = True
+        try:
+            print(f"\n→ 운동 종료 처리 시작 ({reason_label})")
+
+            # Step 1: 카메라 스트리밍 중지
+            print(f"\n[Step 1] 카메라 스트리밍 중지")
+            self.stop_camera_streaming()
+
+            # Step 2: AI 서버 분석 종료
+            print(f"\n[Step 2] AI 서버에 분석 종료 요청 (HTTP)")
+            current_mode = self.current_mode
+            if current_mode:
+                if self.http.stop_stream():
+                    print("✓ AI 서버 분석 종료 완료")
+                else:
+                    print("✗ AI 서버 분석 종료 실패 (계속 진행)")
+            else:
+                print("ℹ 진행 중인 운동 없음")
+
+            # Step 3: 디바이스 정지 명령
+            print(f"\n[Step 3] 조이스틱과 Watch에 정지 명령 전송 (MQTT)")
+            if self.mqtt.send_stop_command():
+                print("✓ 디바이스 정지 명령 전송 완료")
+            else:
+                print("✗ 디바이스 정지 명령 전송 실패")
+
+            # Step 4: 조이스틱 모드 복귀
+            print(f"\n[Step 4] 조이스틱을 에어마우스 모드로 전환 (MQTT)")
+            if self.mqtt.send_joystick_mode_command('airmouse'):
+                print("✓ 조이스틱 에어마우스 모드 전환 완료")
+            else:
+                print("⚠ 조이스틱 에어마우스 모드 전환 실패")
+
+            # Step 5: Qt 알림
+            print(f"\n[Step 5] Qt에 종료 상태 전송")
+            self.mqtt.send_qt_status(qt_status, qt_message)
+            if mode_failure_message and current_mode:
+                self.mqtt.send_qt_mode_selected(current_mode, success=False, message=mode_failure_message)
+
+            # 상태 초기화
+            self.current_mode = None
+            self.previous_pose_index = -1
+            self.mqtt.last_pose_sequence = {}
+
+            print(f"\n✓ 운동 종료 처리 완료 ({reason_label})")
+            print(f"{'='*60}\n")
+        finally:
+            self.tracking_stop_requested = False
+            self._stop_in_progress = False
+
+    def _handle_tracking_loss(self):
+        """팬틸트 추적 실패 처리"""
+        if self.tracking_stop_requested:
+            return
+
+        self.tracking_stop_requested = True
+        print("\n✗ 팬틸트 추적 실패: 재탐지 횟수 초과, 운동을 종료합니다.")
+        self._stop_workout_flow(
+            qt_status="tracking_lost",
+            qt_message="대상을 찾지 못해 운동이 종료되었습니다. 운동을 다시 선택해주세요.",
+            reason_label="팬틸트 추적 실패",
+            mode_failure_message="대상을 찾지 못해 운동이 중단되었습니다."
+        )
 
     def initialize_camera(self):
         """
@@ -356,6 +395,7 @@ class WatchTowerMain:
         self.analysis_request_pose_index = None
         self.analysis_request_pose_index = None
         self.analysis_request_pending = False
+        self.tracking_stop_requested = False
 
         # 백그라운드 스레드로 스트리밍 루프 시작
         self.streaming_thread = threading.Thread(
@@ -439,7 +479,12 @@ class WatchTowerMain:
                     print(f"[{frame_count:04d}] {status} | 점수: {score}% | {feedback}", end='')
 
                     # 팬틸트 추적 (활성화된 경우에만)
+                    tracking_stop_requested = False
                     if self.pantilt_tracking_enabled and self.uart and self.tracker:
+                        retry_limit = self.tracker.max_frames_without_detection
+                        if retry_limit == 0:
+                            retry_limit = 1  # 0으로 나눔 방지 (방어)
+
                         if self.tracker.update(result):
                             # 새로운 팬틸트 각도 계산
                             pan, tilt = self.tracker.calculate_pan_tilt_angles()
@@ -455,9 +500,17 @@ class WatchTowerMain:
                             uart_status = "✓" if uart_success else "✗"
                             print(f" | 🎯 ({track_info['target_x']}, {track_info['target_y']}) | Pan={pan:.0f}° Tilt={tilt:.0f}° {uart_status}", end='')
                         else:
-                            print(f" | 🎯 대상 없음", end='')
+                            retry_count = self.tracker.get_retry_count()
+                            remaining = max(retry_limit - retry_count, 0)
+                            print(f" | 🎯 대상 없음 (재탐지 {retry_count}/{retry_limit})", end='')
+                            if self.tracker.has_exhausted_retries():
+                                print(" | ✗ 추적 실패", end='')
+                                tracking_stop_requested = True
 
                     print()  # 개행
+                    if tracking_stop_requested:
+                        self._handle_tracking_loss()
+                        break
 
                     # Qt에 분석 결과 전송
                     self.mqtt.send_qt_analysis_result(result)
@@ -488,7 +541,11 @@ class WatchTowerMain:
         self.analysis_request_timestamp = 0.0
 
         # 스레드 종료 대기
-        if self.streaming_thread and self.streaming_thread.is_alive():
+        current_thread = threading.current_thread()
+        stream_thread = self.streaming_thread
+        same_thread = stream_thread and current_thread is stream_thread
+
+        if stream_thread and stream_thread.is_alive() and not same_thread:
             self.streaming_thread.join(timeout=5.0)
 
         # 팬틸트 중앙 복귀
@@ -507,6 +564,12 @@ class WatchTowerMain:
         # 추적기 리셋
         if self.tracker:
             self.tracker.reset()
+
+        if same_thread:
+            # 스트리밍 스레드에서 호출된 경우 이후 반복을 종료하도록 플래그만 초기화
+            self.streaming_thread = None
+        elif self.streaming_thread and not self.streaming_thread.is_alive():
+            self.streaming_thread = None
 
         print("✓ 카메라 스트리밍 중지 완료")
 

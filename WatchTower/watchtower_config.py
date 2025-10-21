@@ -111,6 +111,8 @@ class WatchTowerConfig:
     TRACKING_SMOOTH_FRAMES = 3         # 스무딩을 위한 프레임 수
     TRACKING_DEAD_ZONE_X = 30          # X축 Dead Zone (픽셀, 중앙 근처는 움직이지 않음)
     TRACKING_DEAD_ZONE_Y = 30          # Y축 Dead Zone (픽셀)
+    TRACKING_RETRY_LIMIT = 10          # 추적 상실 시 재탐지 시도 횟수
+    TRACKING_KEYPOINT_MIN_CONF = 0.35  # 키포인트 기반 추적에 사용할 최소 confidence
 
     # ============================================
     # 센서 데이터 로깅 설정

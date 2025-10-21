@@ -243,9 +243,9 @@ class AIServerConfig:
     # ============================================
     SWING_START_ELBOW_ANGLE_MIN = 150     # 시작 자세: 팔꿈치 각도
     SWING_START_HIP_ANGLE_MIN = 60        # 시작 자세: 엉덩이 굽힘 최소
-    SWING_START_HIP_ANGLE_MAX = 140       # 시작 자세: 엉덩이 굽힘 최대
+    SWING_START_HIP_ANGLE_MAX = 130       # 시작 자세: 엉덩이 굽힘 최대
     SWING_UP_ELBOW_ANGLE_MIN = 150        # 스윙업: 팔꿈치 각도
-    SWING_UP_HIP_ANGLE_MIN = 150          # 스윙업: 엉덩이 각도 (거의 펴짐)
+    SWING_UP_HIP_ANGLE_MIN = 140          # 스윙업: 엉덩이 각도 (거의 펴짐)
 
     # ============================================
     # Kettlebell Deadlift 판정 기준

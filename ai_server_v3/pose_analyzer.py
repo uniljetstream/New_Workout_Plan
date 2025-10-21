@@ -102,7 +102,9 @@ class PoseAnalyzer:
         # YOLO Pose 추론
         results = self.model(frame, verbose=AIServerConfig.VERBOSE)
 
-        if results[0].keypoints is None or len(results[0].keypoints) == 0:
+        first_result = results[0]
+
+        if first_result.keypoints is None or len(first_result.keypoints) == 0:
             return {
                 'status': 'success',
                 'is_correct': False,
@@ -112,16 +114,29 @@ class PoseAnalyzer:
                 'pose_description': pose_info['description']
             }
 
+        # 탐지 중 최고 신뢰도 인덱스 선택
+        keypoints_all = first_result.keypoints
+        boxes = first_result.boxes
+        selected_idx = 0
+
+        if boxes is not None and len(boxes) > 0 and boxes.conf is not None:
+            confs = boxes.conf.cpu().numpy()
+            if len(confs) > 0:
+                selected_idx = int(np.argmax(confs))
+
+        selected_idx = max(0, min(selected_idx, len(keypoints_all) - 1))
+
         # 키포인트 추출
-        keypoints = results[0].keypoints[0]
+        keypoints = keypoints_all[selected_idx]
         xy = keypoints.xy.cpu().numpy()[0]  # (17, 2)
         conf = keypoints.conf.cpu().numpy()[0]  # (17,)
 
+        torso_center = self._calculate_torso_center(xy, conf)
+
         # 바운딩 박스 추출 (추적용)
-        boxes = results[0].boxes
         bbox = None
-        if boxes is not None and len(boxes) > 0:
-            box = boxes[0].xyxy.cpu().numpy()[0]  # [x1, y1, x2, y2]
+        if boxes is not None and len(boxes) > selected_idx:
+            box = boxes.xyxy[selected_idx].cpu().numpy()  # [x1, y1, x2, y2]
             bbox = [float(x) for x in box]
 
         # 포즈 이름에 따라 분석
@@ -184,6 +199,19 @@ class PoseAnalyzer:
             result['is_correct'] = bool(result['is_correct'])
         if 'score' in result:
             result['score'] = int(result['score']) if isinstance(result['score'], (np.integer, np.floating)) else result['score']
+        tracking_info = result.get('tracking', {})
+        if torso_center is not None:
+            tracking_info['center_x'] = float(torso_center[0])
+            tracking_info['center_y'] = float(torso_center[1])
+        elif bbox:
+            x1, y1, x2, y2 = bbox
+            tracking_info['center_x'] = float((x1 + x2) / 2)
+            tracking_info['center_y'] = float((y1 + y2) / 2)
+        if bbox:
+            tracking_info['bbox'] = bbox
+        if tracking_info:
+            result['tracking'] = tracking_info
+
         if 'tracking' in result:
             if 'center_x' in result['tracking']:
                 result['tracking']['center_x'] = float(result['tracking']['center_x'])
@@ -193,6 +221,28 @@ class PoseAnalyzer:
                 result['tracking']['bbox'] = [float(x) for x in result['tracking']['bbox']]
 
         return result
+
+    def _calculate_torso_center(self, xy, conf):
+        """어깨/엉덩이 키포인트를 사용해 상체 중심 좌표 계산"""
+        threshold = AIServerConfig.CONFIDENCE_THRESHOLD
+
+        shoulders = [xy[idx] for idx in (5, 6) if conf[idx] > threshold]
+        hips = [xy[idx] for idx in (11, 12) if conf[idx] > threshold]
+
+        if not shoulders and not hips:
+            return None
+
+        torso_points = []
+        if shoulders:
+            torso_points.append(np.mean(shoulders, axis=0))
+        if hips:
+            torso_points.append(np.mean(hips, axis=0))
+
+        if not torso_points:
+            return None
+
+        torso_center = np.mean(torso_points, axis=0)
+        return (float(torso_center[0]), float(torso_center[1]))
 
     def _analyze_squat_stand(self, xy, conf, bbox=None):
         """스쿼트 준비 자세 (선 자세) 분석"""

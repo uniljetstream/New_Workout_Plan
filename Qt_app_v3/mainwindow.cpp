@@ -491,6 +491,20 @@ void MainWindow::handleWorkoutStopRequested()
     m_autoStopScheduled = false;
     m_readyForRepCount = false;
     stopWorkout();
+
+    // 센서 모드로 전환
+    sendSensorModeCommand();
+
+    // 루틴 모드 상태 초기화
+    if (m_isRoutineMode)
+    {
+        m_isRoutineMode = false;
+        m_routineExercises.clear();
+        m_currentRoutineIndex = 0;
+        m_routineExerciseRepCount = 0;
+        m_routineScores.clear();
+        m_routineTotalScore = 0;
+    }
 }
 
 void MainWindow::handleWorkoutBackRequested()
