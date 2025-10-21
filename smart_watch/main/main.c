@@ -23,6 +23,47 @@
 #include "watch_mqtt_client.h"
 
 static const char *TAG = "MAIN";
+static bool s_sensor_running = false;
+
+static void watch_command_handler(watch_mqtt_command_t command, const char *mode, void *ctx)
+{
+    (void)mode;
+    (void)ctx;
+
+    switch (command) {
+    case WATCH_MQTT_COMMAND_START: {
+        ESP_LOGI(TAG, "WatchTower start 명령 수신");
+        if (!s_sensor_running) {
+            if (heart_rate_sensor_start() == ESP_OK) {
+                s_sensor_running = true;
+            } else {
+                ESP_LOGE(TAG, "심박 센서 시작 실패");
+                if (watch_mqtt_client_publish_status("error") != ESP_OK) {
+                    ESP_LOGW(TAG, "워치 상태 전송 실패 (error)");
+                }
+                return;
+            }
+        }
+        if (watch_mqtt_client_publish_status("running") != ESP_OK) {
+            ESP_LOGW(TAG, "워치 상태 전송 실패 (running)");
+        }
+        break;
+    }
+    case WATCH_MQTT_COMMAND_STOP:
+        ESP_LOGI(TAG, "WatchTower stop 명령 수신");
+        if (s_sensor_running) {
+            heart_rate_sensor_stop();
+            s_sensor_running = false;
+        }
+        if (watch_mqtt_client_publish_status("stopped") != ESP_OK) {
+            ESP_LOGW(TAG, "워치 상태 전송 실패 (stopped)");
+        }
+        break;
+    default:
+        ESP_LOGW(TAG, "알 수 없는 워치 명령");
+        break;
+    }
+}
 
 void app_main(void)
 {
@@ -73,6 +114,8 @@ void app_main(void)
     // ========================================================================
     if (watch_mqtt_client_init() != ESP_OK) {
         ESP_LOGE(TAG, "MQTT 모듈 초기화 실패!");
+    } else {
+        watch_mqtt_client_register_command_callback(watch_command_handler, NULL);
     }
 
     // ========================================================================
@@ -109,6 +152,7 @@ void app_main(void)
         ESP_LOGE(TAG, "심박 센서 태스크 시작 실패!");
     } else {
         ESP_LOGI(TAG, "심박 센서 동작 중");
+        s_sensor_running = true;
     }
 
     // ========================================================================

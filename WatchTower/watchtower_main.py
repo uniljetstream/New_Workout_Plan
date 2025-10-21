@@ -440,6 +440,7 @@ class WatchTowerMain:
                 frame_base64 = base64.b64encode(encoded_frame).decode('utf-8')
 
                 result = None
+                tracking_stop_requested = False
                 if self.analysis_request_pending:
                     print("→ 단일 분석 실행")
                     pose_index = self.analysis_request_pose_index
@@ -479,7 +480,6 @@ class WatchTowerMain:
                     print(f"[{frame_count:04d}] {status} | 점수: {score}% | {feedback}", end='')
 
                     # 팬틸트 추적 (활성화된 경우에만)
-                    tracking_stop_requested = False
                     if self.pantilt_tracking_enabled and self.uart and self.tracker:
                         retry_limit = self.tracker.max_frames_without_detection
                         if retry_limit == 0:

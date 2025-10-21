@@ -11,6 +11,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+typedef enum {
+    WATCH_MQTT_COMMAND_UNKNOWN = 0,
+    WATCH_MQTT_COMMAND_START,
+    WATCH_MQTT_COMMAND_STOP
+} watch_mqtt_command_t;
+
+typedef void (*watch_mqtt_command_callback_t)(watch_mqtt_command_t command, const char *mode, void *ctx);
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -44,6 +52,16 @@ esp_err_t watch_mqtt_client_publish_heart_rate(uint16_t bpm);
  * @return true이면 브로커에 연결된 상태
  */
 bool watch_mqtt_client_is_connected(void);
+
+/**
+ * 워치 상태 발행
+ */
+esp_err_t watch_mqtt_client_publish_status(const char *status);
+
+/**
+ * 명령 콜백 등록
+ */
+void watch_mqtt_client_register_command_callback(watch_mqtt_command_callback_t callback, void *ctx);
 
 #ifdef __cplusplus
 }

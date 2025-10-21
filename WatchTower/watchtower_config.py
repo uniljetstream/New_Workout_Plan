@@ -3,15 +3,17 @@ WatchTower 통합 시스템 설정 파일
 사용자가 환경에 맞게 수정해야 하는 모든 설정값
 """
 
+import os
+
 
 class WatchTowerConfig:
     """WatchTower 메인 설정"""
 
     # ============================================
-    # AI 서버 설정 (수정 필요!)
+    # AI 서버 설정 (환경 변수로 오버라이드 가능)
     # ============================================
-    AI_SERVER_HOST = '192.168.1.100'  # AI 서버 IP 주소
-    AI_SERVER_PORT = 5000              # AI 서버 포트
+    AI_SERVER_HOST = os.getenv('AI_SERVER_HOST', '192.168.1.100')  # AI 서버 IP 주소
+    AI_SERVER_PORT = int(os.getenv('AI_SERVER_PORT', '5000'))      # AI 서버 포트
     REQUEST_TIMEOUT = 5                # HTTP 요청 타임아웃 (초)
 
     # API 엔드포인트
@@ -22,16 +24,16 @@ class WatchTowerConfig:
     API_STATUS = '/api/status'
 
     # ============================================
-    # MQTT 브로커 설정 (WatchTower가 브로커 역할)
+    # MQTT 브로커 설정 (환경 변수로 오버라이드 가능)
     # ============================================
-    MQTT_BROKER_HOST = '10.10.16.111'  # MQTT 브로커 주소 (Jetson Nano의 IP)
-    MQTT_BROKER_PORT = 1883            # MQTT 브로커 포트
+    MQTT_BROKER_HOST = os.getenv('MQTT_BROKER_HOST', '10.10.16.111')  # MQTT 브로커 주소 (Jetson Nano의 IP)
+    MQTT_BROKER_PORT = int(os.getenv('MQTT_BROKER_PORT', '1883'))     # MQTT 브로커 포트
     MQTT_KEEPALIVE = 60                # Keep-alive 시간 (초)
     MQTT_QOS = 1                       # QoS 레벨 (0, 1, 2)
 
-    # MQTT 인증 (필요시 설정)
-    MQTT_USERNAME = ""                 # 브로커 인증 사용자명 (옵션)
-    MQTT_PASSWORD = ""                 # 브로커 인증 비밀번호 (옵션)
+    # MQTT 인증 (필요시 설정, 환경 변수로 오버라이드 가능)
+    MQTT_USERNAME = os.getenv('MQTT_USERNAME', '')     # 브로커 인증 사용자명 (옵션)
+    MQTT_PASSWORD = os.getenv('MQTT_PASSWORD', '')     # 브로커 인증 비밀번호 (옵션)
 
     # ============================================
     # MQTT 토픽 정의
@@ -122,9 +124,26 @@ class WatchTowerConfig:
     LOG_MAX_SIZE_MB = 100              # 최대 로그 파일 크기 (MB)
 
     # ============================================
-    # 운동 모드 설정
+    # 운동 모드 설정 (AI 서버와 동일하게 유지)
     # ============================================
-    SUPPORTED_MODES = ['squat', 'pushup']  # 지원하는 운동 모드
+    SUPPORTED_MODES = [
+        # 카테고리 루틴 (3개)
+        'bodyweight_routine',   # 맨몸 운동 루틴
+        'kettlebell_routine',   # 케틀벨 운동 루틴
+        'barbell_routine',      # 바벨 운동 루틴
+        # 맨몸 운동 (2개)
+        'squat',                # 스쿼트
+        'lunge',                # 런지
+        # 케틀벨 운동 (2개)
+        'kettlebell_swing',     # 케틀벨 스윙
+        'kettlebell_deadlift',  # 케틀벨 데드리프트
+        # 바벨 운동 (5개)
+        'barbell_row',          # 바벨 로우
+        'barbell_upright_row',  # 바벨 업라이트 로우
+        'barbell_overhead_press', # 바벨 오버헤드 프레스
+        'barbell_biceps_curl',  # 바벨 바이셉스 컬
+        'barbell_reverse_curl', # 바벨 리버스 컬
+    ]
     DEFAULT_MODE = 'squat'            # 기본 운동 모드
 
     # ============================================

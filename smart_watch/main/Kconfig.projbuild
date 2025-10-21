@@ -11,6 +11,7 @@ config WORKOUT_MQTT_BROKER_URI
     default "mqtt://10.10.16.111:1883"
     help
         MQTT 브로커 주소를 입력하세요. 예: mqtt://example.com:1883 또는 mqtts://example.com:8883
+        환경 변수 MQTT_BROKER_URI로 오버라이드 가능
 
 config WORKOUT_MQTT_CLIENT_ID
     string "MQTT 클라이언트 ID"
@@ -28,7 +29,15 @@ config WORKOUT_MQTT_PASSWORD
 
 config WORKOUT_MQTT_TOPIC_HEART_RATE
     string "심박수 발행 토픽"
-    default "esp32/sensor/data"
+    default "watch/sensor/heartrate"
+
+config WORKOUT_MQTT_TOPIC_STATUS
+    string "워치 상태 발행 토픽"
+    default "watch/status"
+
+config WORKOUT_MQTT_TOPIC_COMMAND
+    string "워치 명령 구독 토픽"
+    default "watchtower/command/watch"
 
 config WORKOUT_MQTT_QOS
     int "심박수 메시지 QoS"
