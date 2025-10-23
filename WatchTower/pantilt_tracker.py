@@ -43,6 +43,12 @@ class PanTiltTracker:
         self.dead_zone_y = WatchTowerConfig.TRACKING_DEAD_ZONE_Y
         self.keypoint_min_conf = WatchTowerConfig.TRACKING_KEYPOINT_MIN_CONF
 
+        # Y축 추적 오프셋 (전신 운동 시 상체를 더 위로 추적)
+        self.y_offset = WatchTowerConfig.TRACKING_Y_OFFSET
+
+        # Tilt 추적 활성화 여부 (False면 센터 고정)
+        self.tilt_enabled = WatchTowerConfig.TRACKING_TILT_ENABLED
+
         # 추적 활성화 상태
         self.is_tracking = False
         self.frames_without_detection = 0
@@ -173,29 +179,42 @@ class PanTiltTracker:
         # 스무딩된 대상 위치
         target_x, target_y = self.get_smoothed_target()
 
-        # 프레임 중앙과의 차이 계산
+        # 프레임 중앙과의 차이 계산 (Pan만)
         error_x = target_x - self.frame_center_x
-        error_y = target_y - self.frame_center_y
 
-        # Dead zone 체크 (중앙 근처는 움직이지 않음)
+        # Dead zone 체크 (Pan만)
         if abs(error_x) < self.dead_zone_x:
             error_x = 0
-        if abs(error_y) < self.dead_zone_y:
-            error_y = 0
 
-        # 비례 제어로 각도 변화량 계산
-        # 프레임 절반 거리 = TRACKING_SPEED 도 변화
+        # 비례 제어로 각도 변화량 계산 (Pan만)
         pan_delta = -(error_x / (self.frame_width / 2)) * WatchTowerConfig.TRACKING_SPEED
-        tilt_delta = (error_y / (self.frame_height / 2)) * WatchTowerConfig.TRACKING_SPEED
 
-        # 각도 변화량 제한 (급격한 움직임 방지)
+        # 각도 변화량 제한 (Pan만)
         max_delta = WatchTowerConfig.TRACKING_MAX_DELTA
         pan_delta = np.clip(pan_delta, -max_delta, max_delta)
-        tilt_delta = np.clip(tilt_delta, -max_delta, max_delta)
 
         # 새로운 각도 계산
         new_pan = self.current_pan + pan_delta
-        new_tilt = self.current_tilt + tilt_delta
+
+        # Tilt 처리: 활성화 여부에 따라 분기
+        if self.tilt_enabled:
+            # Tilt 추적 활성화: 기존 로직 사용
+            # Y축 오프셋 적용
+            adjusted_target_y = target_y + self.y_offset
+            error_y = adjusted_target_y - self.frame_center_y
+
+            # Dead zone 체크
+            if abs(error_y) < self.dead_zone_y:
+                error_y = 0
+
+            # 비례 제어로 각도 변화량 계산
+            tilt_delta = (error_y / (self.frame_height / 2)) * WatchTowerConfig.TRACKING_SPEED
+            tilt_delta = np.clip(tilt_delta, -max_delta, max_delta)
+
+            new_tilt = self.current_tilt + tilt_delta
+        else:
+            # Tilt 추적 비활성화: 센터 고정
+            new_tilt = WatchTowerConfig.TILT_CENTER
 
         # 각도 범위 제한
         new_pan = np.clip(new_pan, WatchTowerConfig.PAN_MIN, WatchTowerConfig.PAN_MAX)
@@ -244,12 +263,19 @@ class PanTiltTracker:
         """감지 실패 시 상태 업데이트"""
         self.frames_without_detection += 1
         self.is_tracking = False
+
+        # 사람이 감지되지 않으면 버퍼 클리어 (각도 유지)
+        # 버퍼에 이전 데이터가 남아있으면 Y축 오프셋이 계속 적용되어 위로 움직임
+        self.position_buffer_x.clear()
+        self.position_buffer_y.clear()
+
         if self.frames_without_detection >= self.max_frames_without_detection:
             self.retries_exhausted = True
 
     def _calculate_torso_center_from_keypoints(self, xy, conf):
         """
-        키포인트에서 어깨/엉덩이 중심을 사용하여 상체 중심 계산
+        키포인트에서 상체 상단(코/목/어깨) 중심을 사용하여 추적 대상 계산
+        전신 운동 시 상체 상단을 추적하여 틸트가 아래로 쏠리는 문제 방지
 
         Args:
             xy: (17, 2) 키포인트 좌표 배열
@@ -261,30 +287,30 @@ class PanTiltTracker:
         if xy.shape[0] < 17 or conf.shape[0] < 17:
             return None
 
+        # 상체 상단 키포인트 수집 (우선순위: 코 > 목 > 어깨)
+        upper_body_points = []
+
+        # 1순위: 코 (0번 키포인트) - 가장 위쪽
+        if conf[0] >= self.keypoint_min_conf:
+            upper_body_points.append(xy[0])
+
+        # 2순위: 목 (목은 어깨 중간점으로 근사)
         valid_shoulders = []
-        for idx in (5, 6):
+        for idx in (5, 6):  # 왼쪽 어깨(5), 오른쪽 어깨(6)
             if conf[idx] >= self.keypoint_min_conf:
                 valid_shoulders.append(xy[idx])
 
-        valid_hips = []
-        for idx in (11, 12):
-            if conf[idx] >= self.keypoint_min_conf:
-                valid_hips.append(xy[idx])
-
-        if not valid_shoulders and not valid_hips:
-            return None
-
-        torso_points = []
         if valid_shoulders:
-            torso_points.append(np.mean(valid_shoulders, axis=0))
-        if valid_hips:
-            torso_points.append(np.mean(valid_hips, axis=0))
+            shoulder_center = np.mean(valid_shoulders, axis=0)
+            upper_body_points.append(shoulder_center)
 
-        if not torso_points:
+        # 상체 상단 키포인트가 없으면 None 반환
+        if not upper_body_points:
             return None
 
-        torso_center = np.mean(torso_points, axis=0)
-        return (float(torso_center[0]), float(torso_center[1]))
+        # 상체 상단 중심 계산 (코 + 어깨 중심의 평균)
+        upper_body_center = np.mean(upper_body_points, axis=0)
+        return (float(upper_body_center[0]), float(upper_body_center[1]))
 
     def get_tracking_info(self):
         """

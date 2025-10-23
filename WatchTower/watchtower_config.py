@@ -115,6 +115,9 @@ class WatchTowerConfig:
     TRACKING_DEAD_ZONE_Y = 30          # Y축 Dead Zone (픽셀)
     TRACKING_RETRY_LIMIT = 10          # 추적 상실 시 재탐지 시도 횟수
     TRACKING_KEYPOINT_MIN_CONF = 0.35  # 키포인트 기반 추적에 사용할 최소 confidence
+    TRACKING_Y_OFFSET = -50            # Y축 추적 오프셋 (픽셀, 음수=위쪽으로 이동)
+                                       # 전신 운동 시 상체를 더 위로 추적하려면 음수 값 사용
+    TRACKING_TILT_ENABLED = False      # Tilt 추적 활성화 여부 (False=센터 고정, True=추적)
 
     # ============================================
     # 센서 데이터 로깅 설정

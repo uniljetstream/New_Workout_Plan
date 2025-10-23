@@ -465,6 +465,13 @@ void MainWindow::handleWorkoutStartRequested()
     QJsonDocument doc(json);
     publishMessage(m_config.topicQtCmdStart(), doc.toJson(QJsonDocument::Compact));
 
+    // 워치에 심박수 측정 시작 명령 전송
+    QJsonObject watchJson;
+    watchJson["command"] = "start";
+    watchJson["mode"] = m_currentMode;
+    QJsonDocument watchDoc(watchJson);
+    publishMessage(m_config.topicWatchtowerCmdWatch(), watchDoc.toJson(QJsonDocument::Compact));
+
     sendAirMouseModeCommand();
 
     if (m_workoutPage)
@@ -495,6 +502,12 @@ void MainWindow::handleWorkoutStopRequested()
     // 센서 모드로 전환
     sendSensorModeCommand();
 
+    // 워치에 심박수 측정 중지 명령 전송
+    QJsonObject watchJson;
+    watchJson["command"] = "stop";
+    QJsonDocument watchDoc(watchJson);
+    publishMessage(m_config.topicWatchtowerCmdWatch(), watchDoc.toJson(QJsonDocument::Compact));
+
     // 루틴 모드 상태 초기화
     if (m_isRoutineMode)
     {
@@ -516,7 +529,13 @@ void MainWindow::handleWorkoutBackRequested()
     }
 
     sendSensorModeCommand();
-    
+
+    // 워치에 심박수 측정 중지 명령 전송
+    QJsonObject watchJson;
+    watchJson["command"] = "stop";
+    QJsonDocument watchDoc(watchJson);
+    publishMessage(m_config.topicWatchtowerCmdWatch(), watchDoc.toJson(QJsonDocument::Compact));
+
     if (m_isRoutineMode)
     {
         m_isRoutineMode = false;
@@ -526,7 +545,7 @@ void MainWindow::handleWorkoutBackRequested()
         m_routineScores.clear();
         m_routineTotalScore = 0;
     }
-    
+
     switchToPage(PAGE_EXERCISE_SELECTION);
 }
 
@@ -710,7 +729,13 @@ void MainWindow::updateSensorData(const QJsonObject &data, bool isJoystick)
     else  // Watch 데이터 (심박수)
     {
         int heartRate = -1;
-        if (data.contains("heartrate"))
+        // 스마트워치는 "heart_rate" 키를 사용
+        if (data.contains("heart_rate"))
+        {
+            heartRate = data["heart_rate"].toInt();
+        }
+        // 하위 호환성을 위해 "heartrate"도 지원
+        else if (data.contains("heartrate"))
         {
             heartRate = data["heartrate"].toInt();
         }
@@ -718,7 +743,7 @@ void MainWindow::updateSensorData(const QJsonObject &data, bool isJoystick)
         if (heartRate > 0 && m_workoutPage)
         {
             m_workoutPage->setHeartRate(heartRate);
-            
+
             // 운동 중일 때만 심박수 통계 수집
             if (m_isWorkoutRunning)
             {
