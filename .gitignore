@@ -316,9 +316,13 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,linux,c++,c,python,opencv,visualstudiocode
 
-### ESP-IDF ###
+#############################################
+# Project-Specific Ignores
+#############################################
+
+### ESP-IDF (joystick, smart_watch) ###
 # Build output
-build/
+**/build/
 sdkconfig
 sdkconfig.old
 sdkconfig.defaults.old
@@ -328,17 +332,111 @@ managed_components/
 # Flash download tool
 flash_project_args
 
-# Bootloader files
-bootloader/
-
 # Partition files
 partitions.csv
 
 # IDE
 .devcontainer/
 .idea/
-.vscode/settings.json
 
 # IDF Monitor
 idf_monitor.log
 
+# Binary files
+*.bin
+*.elf
+*.map
+
+### STM32 CubeIDE (pan-Tilt-cam) ###
+# Eclipse/STM32CubeIDE metadata
+.metadata/
+.settings/
+.cproject
+.project
+.mxproject
+
+# Build directories
+Debug/
+Release/
+
+# Launch configurations (optional - uncomment if you don't want to share)
+# *.launch
+
+### Qt Application (Qt_app_v3) ###
+# Qt MOC files
+moc_*.cpp
+moc_*.h
+
+# Qt UI generated files
+ui_*.h
+
+# Qt resource compiled files
+qrc_*.cpp
+
+# Qt object files (already covered above but being explicit)
+*.o
+
+# Qt build artifacts
+*.pro.user
+*.pro.user.*
+*.qmake.stash
+
+# Qt Creator project files (optional)
+# *.pro
+# *.pri
+
+### AI Server (ai_server_v3) ###
+# YOLO model weights (large files - download separately)
+*.pt
+*.pth
+*.weights
+*.onnx
+
+# Training data and outputs
+runs/
+experiments/
+checkpoints/
+
+### Python Virtual Environment ###
+# Already covered but emphasizing for this project
+venv/
+.venv/
+env/
+ENV/
+
+### Logs and temporary files ###
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+### IDE and Editor files ###
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+### OS files ###
+.DS_Store
+Thumbs.db
+
+### Custom project files ###
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Test outputs
+test_results/
+test_outputs/
+
+# Configuration files with sensitive data (if any)
+config.local.py
+secrets.py
+.env.local
+credentials.json
+
+### Claude Code ###
+.claude/
